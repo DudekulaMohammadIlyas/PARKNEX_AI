@@ -44,10 +44,17 @@ cd PARKNEX_AI
 Copy the example env files into each subproject and update values:
 
 ```bash
+# Windows
 copy .env.example backend\.env
 copy .env.example ai-service\.env
 copy web-app\.env.example web-app\.env
 copy mobile-app\.env.example mobile-app\.env
+
+# macOS / Linux
+cp .env.example backend/.env
+cp .env.example ai-service/.env
+cp web-app/.env.example web-app/.env
+cp mobile-app/.env.example mobile-app/.env
 ```
 
 Then update the values for your local environment.
@@ -59,7 +66,6 @@ Then update the values for your local environment.
 ```bash
 cd backend
 npm install
-npm install prisma --save-dev
 npx prisma generate
 npx prisma db push
 npm run dev
