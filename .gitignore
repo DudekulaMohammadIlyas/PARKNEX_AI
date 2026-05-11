@@ -46,6 +46,7 @@ lerna-debug.log*
 *.log
 *.tmp
 *.temp
+**/eas_build_log.*
 
 # OS generated
 .DS_Store
