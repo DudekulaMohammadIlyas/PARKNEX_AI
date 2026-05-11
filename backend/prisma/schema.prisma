@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Zone {
+  id       String  @id @default(uuid())
+  name     String
+  total    Int
+  occupied Int     @default(0)
+  events   Event[]
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  type        String   // 'ENTRY' or 'EXIT'
+  plateNumber String
+  timestamp   DateTime @default(now())
+  status      String   // 'AUTHORIZED' or 'UNAUTHORIZED'
+  snapshotUrl String?  // URL to the image in Supabase Storage
+
+  zoneId      String
+  zone        Zone     @relation(fields: [zoneId], references: [id])
+}
+
+enum Role {
+  STUDENT
+  SECURITY
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      Role     @default(STUDENT)
+  name      String?
+  pushToken String?
+  createdAt DateTime @default(now())
+}
+

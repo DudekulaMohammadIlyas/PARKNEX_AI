@@ -1,0 +1,61 @@
+# Root ignore file for ParkNex-AI
+
+# Node.js dependencies
+node_modules/
+**/node_modules/
+
+# JavaScript build output
+dist/
+build/
+**/dist/
+**/build/
+
+# Expo / React Native generated files
+.expo/
+.expo-shared/
+**/.expo/
+**/.eas-build-inspect/
+**/.eas-build-prebuild-inspect/
+**/.eas/
+android/.gradle/
+android/app/build/
+ios/build/
+
+# Python cache and virtual environments
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.envvenv/
+
+# Local environment files
+.env
+.env.*
+local.properties
+*.local.properties
+
+# Logs and runtime files
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+*.tmp
+*.temp
+
+# OS generated
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE directories
+.vscode/
+.idea/
+
+# Misc
+*.swp
+*~
