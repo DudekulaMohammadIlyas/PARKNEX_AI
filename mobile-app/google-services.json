@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471790561528",
+    "project_id": "parknexai",
+    "storage_bucket": "parknexai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471790561528:android:f5bc2356417e0fff06f30d",
+        "android_client_info": {
+          "package_name": "com.butler1.parknexaimobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBT_nt1Rk8qV5HntWa6EP-HjUT3FQS6F4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

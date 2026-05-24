@@ -19,6 +19,7 @@ build/
 **/.eas/
 android/.gradle/
 android/app/build/
+android/app/google-services.json
 ios/build/
 
 # Python cache and virtual environments

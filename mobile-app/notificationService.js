@@ -3,12 +3,14 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Check if running in Expo Go
-const isExpoGo = Constants.appOwnership === 'expo' || !Constants.expoConfig?.plugins?.some(p => Array.isArray(p) ? p[0] === 'expo-notifications' : p === 'expo-notifications');
+// Safely check if running in Expo Go without relying on Constants.expoConfig which is null in dev builds
+const isExpoGo = Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
 
 // Log the current environment
 if (isExpoGo) {
   console.log('[NotificationService] Running in Expo Go - Remote notifications will be skipped');
+} else {
+  console.log('[NotificationService] Running in Native/Dev Build - Remote notifications enabled');
 }
 
 /**
@@ -73,7 +75,11 @@ export async function registerForPushNotificationsAsync() {
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       console.log('[NotificationService] Push token generated:', token);
     } catch (e) {
-      console.error('[NotificationService] Error getting push token:', e);
+      if (e.message && e.message.includes('FirebaseApp is not initialized')) {
+        console.log('[NotificationService] Push notifications running in local simulation mode (Firebase google-services.json is not configured).');
+      } else {
+        console.log('[NotificationService] Skipping push token:', e.message || e);
+      }
     }
   } else {
     console.log('[NotificationService] Must use physical device for Push Notifications');

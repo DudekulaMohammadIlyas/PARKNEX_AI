@@ -12,14 +12,48 @@ import {
   ShieldCheck,
   BarChart,
   User,
-  Shield
+  Shield,
+  Bell,
+  LayoutGrid,
+  TrendingUp,
+  MapPin
 } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
 import StudentDashboard from './StudentDashboard';
 import AdminDashboard from './AdminDashboard';
+import SecurityDashboard from './SecurityDashboard';
+import ManageSlots from './ManageSlots';
+import UserManagement from './UserManagement';
+import Analytics from './Analytics';
+import SettingsPage from './SettingsPage';
 
 const BACKEND_URL = 'http://localhost:5000/api';
+
+// Simple Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error) { return { hasError: true }; }
+  componentDidCatch(error, errorInfo) { console.error("Uncaught error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-color)', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '24px', marginBottom: '2rem' }}>
+            <AlertTriangle size={64} color="var(--danger)" />
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem' }}>Something went wrong.</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>The dashboard encountered a rendering error. Please try refreshing or switching tabs.</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Refresh Page</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function AuthScreen({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -137,309 +171,261 @@ function AuthScreen({ onLogin }) {
   );
 }
 
-function SecurityDashboard({ occupancy, events, simulateEvent }) {
-  return (
-    <div className="main-content">
-      <header className="top-bar">
-        <div>
-          <h1 className="page-title">Security Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Real-time monitoring and analytics</p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn btn-primary" onClick={() => simulateEvent('ENTRY')}>
-            Simulate Entry
-          </button>
-          <button className="btn" style={{ background: 'var(--warning)', color: 'white' }} onClick={() => simulateEvent('EXIT')}>
-            Simulate Exit
-          </button>
-        </div>
-      </header>
-      
-      {occupancy?.isScanning && (
-        <div style={{ padding: '1rem', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', animation: 'pulse 2s infinite' }}>
-          <Activity size={20} />
-          <span style={{ fontWeight: '600' }}>AI Vision Service is currently scanning live feed...</span>
-        </div>
-      )}
-
-      <div className="dashboard-grid">
-        <div className="card stat-card">
-          <div className="stat-header">
-            <span>Total Occupancy</span>
-            <Activity className="stat-icon primary" size={40} />
-          </div>
-          <div className="stat-value">{occupancy ? occupancy.occupiedSlots : '--'}<span style={{fontSize: '1.2rem', color: 'var(--text-muted)'}}> / {occupancy?.totalSlots}</span></div>
-          <div className="stat-subtitle">Across all campus zones</div>
-        </div>
-        
-        <div className="card stat-card">
-          <div className="stat-header">
-            <span>Today's Entries</span>
-            <ArrowRightLeft className="stat-icon success" size={40} />
-          </div>
-          <div className="stat-value">{events.filter(e => e.type === 'ENTRY').length}</div>
-          <div className="stat-subtitle">+12% from yesterday</div>
-        </div>
-        
-        <div className="card stat-card">
-          <div className="stat-header">
-            <span>Active Alerts</span>
-            <AlertTriangle className="stat-icon danger" size={40} />
-          </div>
-          <div className="stat-value">{events.filter(e => e.status === 'UNAUTHORIZED').length}</div>
-          <div className="stat-subtitle">Requires attention</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '1.5rem' }}>
-        <div className="card camera-feed">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Live AI Vision (Gate 1)</h2>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Model: YOLOv8-Nano</span>
-              <button 
-                onClick={async () => {
-                  try {
-                    await axios.post(`${BACKEND_URL}/trigger-ai`);
-                    alert('AI scan process started in the background!');
-                  } catch (e) {
-                    console.error('Trigger AI Error:', e);
-                    alert('Failed to start AI scan: ' + e.message);
-                  }
-                }}
-                style={{ padding: '0.5rem 1rem', background: 'var(--primary)', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                Run Scan
-              </button>
-            </div>
-          </div>
-          
-          <div className="video-container">
-            <div className="video-overlay">
-              <div className={`live-dot ${occupancy?.isScanning ? 'scanning' : ''}`}></div>
-              {occupancy?.isScanning ? 'AI SCANNING' : 'LIVE - GATE 1'}
-            </div>
-            <div className="mock-camera-feed">
-              {occupancy?.isScanning ? (
-                <div style={{ textAlign: 'center' }}>
-                  <Activity size={48} className="spin" color="var(--primary)" />
-                  <p style={{ marginTop: '1rem', fontWeight: '600' }}>AI Model Processing...</p>
-                </div>
-              ) : (
-                <>
-                  <Camera size={48} opacity={0.5} />
-                  <p>Waiting for AI Service Stream...</p>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="card events-list">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem' }}>Recent Events</h2>
-          
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {(!events || events.length === 0) ? (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem 0' }}>No recent events</p>
-            ) : (
-              events.slice(0, 8).map(event => (
-                <div key={event.id} className="event-item">
-                  <div className="event-details">
-                    <div className={`event-badge ${event.type?.toLowerCase()}`}>
-                      {event.type}
-                    </div>
-                    <div className="event-meta">
-                      <span className="event-plate">{event.plateNumber}</span>
-                      <span className="event-time">
-                        {event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : 'Recently'} 
-                        - Zone {event.zone ? event.zone.name : (event.zoneId || 'Main')}
-                      </span>
-                      {event.snapshotUrl && (
-                        <a href={event.snapshotUrl} target="_blank" rel="noreferrer" style={{fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem'}}>
-                          View Snapshot
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  {event.status === 'UNAUTHORIZED' && (
-                    <AlertTriangle color="var(--danger)" size={20} />
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function App() {
-  const [role, setRole] = useState(null); // 'STUDENT', 'SECURITY', 'ADMIN'
+  const [role, setRole] = useState(null); 
   const [occupancy, setOccupancy] = useState(null);
   const [events, setEvents] = useState([]);
+  const [activePage, setActivePage] = useState('dashboard'); // For Admin & other role sub-pages
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profile, setProfile] = useState({
+    name: 'User',
+    email: '',
+    phone: '+91 98765 43210',
+    avatar: 'U'
+  });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '' });
 
   useEffect(() => {
-    // Check active session on mount
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log("Initial session check:", session?.user?.email);
         if (session?.user?.user_metadata?.role) {
-          const detectedRole = session.user.user_metadata.role.toUpperCase();
-          console.log("Detected role:", detectedRole);
-          setRole(detectedRole);
+          setRole(session.user.user_metadata.role.toUpperCase());
         }
-      } catch (err) {
-        console.error("Session check error:", err);
-      }
+      } catch (err) { console.error(err); }
     };
     checkSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state change:", _event, session?.user?.email);
       if (session?.user?.user_metadata?.role) {
         setRole(session.user.user_metadata.role.toUpperCase());
       } else if (_event === 'SIGNED_OUT') {
         setRole(null);
       }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!role) return;
+    
+    // Set default profile details based on role
+    let defaultName = 'User';
+    let defaultAvatar = 'U';
+    if (role === 'ADMIN') { defaultName = 'Admin User'; defaultAvatar = 'A'; }
+    else if (role === 'SECURITY') { defaultName = 'Security Officer'; defaultAvatar = 'S'; }
+    else if (role === 'STUDENT') { defaultName = 'Student Pro'; defaultAvatar = 'S'; }
 
-    // Fetch initial data
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setProfile({
+        name: session?.user?.user_metadata?.name || defaultName,
+        email: session?.user?.email || `${role.toLowerCase()}@parknex.edu`,
+        phone: session?.user?.user_metadata?.phone || '+91 98765 43210',
+        avatar: (session?.user?.user_metadata?.name || defaultName).charAt(0).toUpperCase()
+      });
+    });
+
     const fetchData = async () => {
-      if (!role) return;
-      console.log("Fetching dashboard data for role:", role);
       try {
         const [occRes, evRes] = await Promise.all([
           axios.get(`${BACKEND_URL}/occupancy`),
           axios.get(`${BACKEND_URL}/events`)
         ]);
-        console.log("Data fetch success");
         setOccupancy(occRes.data);
         setEvents(Array.isArray(evRes.data) ? evRes.data : []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
+      } catch (error) { console.error(error); }
     };
-
     fetchData();
-
-    // Supabase Realtime Subscription for New Events
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Event',
-        },
-        (payload) => {
-          console.log('Realtime update:', payload);
-          if (payload.new) {
-            setEvents((prev) => [payload.new, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
-          }
-          axios.get(`${BACKEND_URL}/occupancy`)
-            .then(res => setOccupancy(res.data))
-            .catch(err => console.error("Realtime occupancy fetch failed", err));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
+    const interval = setInterval(fetchData, 15000);
+    const channel = supabase.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Event' }, (p) => {
+      if (p.new) setEvents((prev) => [p.new, ...prev].slice(0, 50));
+      refreshData();
+    }).subscribe();
+    return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, [role]);
 
   const refreshData = async () => {
     try {
-      const [occRes, evRes] = await Promise.all([
-        axios.get(`${BACKEND_URL}/occupancy`),
-        axios.get(`${BACKEND_URL}/events`)
-      ]);
-      setOccupancy(occRes.data);
-      setEvents(evRes.data);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    }
+      const res = await axios.get(`${BACKEND_URL}/occupancy`);
+      setOccupancy(res.data);
+    } catch (e) {}
   };
 
-  const simulateEvent = async (type) => {
-    try {
-      const zones = occupancy?.zones || [];
-      const randomZone = zones.length > 0 ? zones[Math.floor(Math.random() * zones.length)].id : 'mock-zone-id';
-      
-      await axios.post(`${BACKEND_URL}/simulate-event`, {
-        type,
-        plateNumber: `UP${Math.floor(10 + Math.random() * 90)}AB${Math.floor(1000 + Math.random() * 9000)}`,
-        zoneId: randomZone
-      });
-    } catch (error) {
-      console.error('Error simulating event:', error);
-    }
+  const openProfileModal = () => {
+    setProfileForm({
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone
+    });
+    setIsProfileModalOpen(true);
   };
 
-  if (!role) {
-    return <AuthScreen onLogin={setRole} />;
-  }
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    setProfile({
+      ...profile,
+      name: profileForm.name,
+      email: profileForm.email,
+      phone: profileForm.phone,
+      avatar: profileForm.name.charAt(0).toUpperCase()
+    });
+    setIsProfileModalOpen(false);
+  };
+
+  if (!role) return <AuthScreen onLogin={setRole} />;
 
   return (
     <div className="app-container">
-      {/* Universal Sidebar */}
+      {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="logo-container">
-          <div style={{ padding: '0.5rem', background: 'var(--primary)', borderRadius: '12px' }}>
-            <CarFront size={24} color="white" />
-          </div>
-          <span className="logo-text">ParkNex-AI</span>
+          <div className="logo-icon"><CarFront size={20} /></div>
+          <span className="logo-text">ParkNex AI</span>
         </div>
         
+        <div className="menu-label">Menu</div>
         <nav className="nav-links">
-          <a className={`nav-item ${role === 'STUDENT' ? 'active' : ''}`} onClick={() => setRole('STUDENT')}>
-            <User size={20} />
-            Student Portal
-          </a>
-          <a className={`nav-item ${role === 'SECURITY' ? 'active' : ''}`} onClick={() => setRole('SECURITY')}>
-            <ShieldCheck size={20} />
-            Security Dashboard
-          </a>
-          <a className={`nav-item ${role === 'ADMIN' ? 'active' : ''}`} onClick={() => setRole('ADMIN')}>
-            <BarChart size={20} />
-            Admin Console
-          </a>
+          {role === 'ADMIN' ? (
+            <>
+              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
+                <LayoutGrid size={20} /> Dashboard
+              </a>
+              <a className={`nav-item ${activePage === 'slots' ? 'active' : ''}`} onClick={() => setActivePage('slots')}>
+                <MapPin size={20} /> Manage Slots
+              </a>
+              <a className={`nav-item ${activePage === 'users' ? 'active' : ''}`} onClick={() => setActivePage('users')}>
+                <Users size={20} /> Users
+              </a>
+              <a className={`nav-item ${activePage === 'analytics' ? 'active' : ''}`} onClick={() => setActivePage('analytics')}>
+                <TrendingUp size={20} /> Analytics
+              </a>
+              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
+                <Settings size={20} /> Settings
+              </a>
+            </>
+          ) : (
+            <>
+              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
+                <LayoutGrid size={20} /> Dashboard
+              </a>
+              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
+                <Settings size={20} /> Settings
+              </a>
+            </>
+          )}
         </nav>
 
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--bg-color)', borderRadius: '12px', fontSize: '0.875rem' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Logged in as:</span><br/>
-            <strong style={{ color: 'var(--primary)' }}>{role}</strong>
-          </div>
-          <a className="nav-item" onClick={async () => {
-            await supabase.auth.signOut();
-            setRole(null);
-          }}>
-            <LogOut size={20} />
-            Logout
+        <div className="logout-container">
+          <a className="nav-item" onClick={async () => { await supabase.auth.signOut(); setRole(null); }}>
+            <LogOut size={20} /> Logout
           </a>
         </div>
       </aside>
 
-      {/* Conditionally Render Dashboard based on Role */}
-      {role === 'STUDENT' && <StudentDashboard occupancy={occupancy} BACKEND_URL={BACKEND_URL} onLogout={async () => {
-        await supabase.auth.signOut();
-        setRole(null);
-      }} />}
-      {role === 'SECURITY' && <SecurityDashboard occupancy={occupancy} events={events} simulateEvent={simulateEvent} />}
-      {role === 'ADMIN' && <AdminDashboard occupancy={occupancy} events={events} refreshData={refreshData} BACKEND_URL={BACKEND_URL} />}
-      
+      {/* MAIN CONTENT AREA */}
+      <div className="main-wrapper">
+        <header className="top-nav" style={{ position: 'relative' }}>
+          <h2 className="page-title">{activePage.charAt(0).toUpperCase() + activePage.slice(1)}</h2>
+          <div className="top-nav-right">
+            <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
+              <Bell size={20} />
+              <div className="notification-dot"></div>
+            </button>
+            
+            {isNotificationOpen && (
+              <div className="card animate-fade-in" style={{ position: 'absolute', top: '60px', right: '14rem', width: '320px', zIndex: 100, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '1rem' }}>
+                <h4 style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Notifications</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--text-main)' }}>
+                    <strong style={{ display: 'block', color: 'var(--primary)' }}>System Alert</strong>
+                    Zone B is currently operating at 95% capacity.
+                  </div>
+                  <div style={{ fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px', background: 'var(--success-bg)', color: 'var(--text-main)' }}>
+                    <strong style={{ display: 'block', color: 'var(--success)' }}>Access Granted</strong>
+                    Your vehicle UP14AB1234 cleared Main Gate successfully.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="user-profile" onClick={openProfileModal} style={{ cursor: 'pointer', transition: 'opacity 0.2s' }} title="Edit Profile">
+              <div className="user-info">
+                <span className="user-name">{profile.name}</span>
+                <span className="user-role">{role}</span>
+              </div>
+              <div className="user-avatar">{profile.avatar}</div>
+            </div>
+          </div>
+        </header>
+
+        <main className="content-body">
+          <ErrorBoundary key={`${role}-${activePage}`}>
+            {role === 'ADMIN' && (
+              <>
+                {activePage === 'dashboard' && <AdminDashboard occupancy={occupancy} events={events} onEditProfile={openProfileModal} />}
+                {activePage === 'slots' && <ManageSlots occupancy={occupancy} refreshData={refreshData} />}
+                {activePage === 'users' && <UserManagement />}
+                {activePage === 'analytics' && <Analytics />}
+                {activePage === 'settings' && <SettingsPage />}
+              </>
+            )}
+            {role === 'STUDENT' && (
+              activePage === 'settings' ? <SettingsPage /> : <StudentDashboard occupancy={occupancy} BACKEND_URL={BACKEND_URL} onEditProfile={openProfileModal} />
+            )}
+            {role === 'SECURITY' && (
+              activePage === 'settings' ? <SettingsPage /> : <SecurityDashboard occupancy={occupancy} events={events} BACKEND_URL={BACKEND_URL} onEditProfile={openProfileModal} />
+            )}
+          </ErrorBoundary>
+        </main>
+      </div>
+
+      {/* Shared Edit Profile Modal */}
+      {isProfileModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsProfileModalOpen(false)}>
+          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '2rem', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <User size={22} color="var(--primary)" /> Edit Profile Details
+            </h3>
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Full Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={profileForm.name} 
+                  onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} 
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  required
+                  value={profileForm.email} 
+                  onChange={e => setProfileForm({ ...profileForm, email: e.target.value })} 
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Mobile Number</label>
+                <input 
+                  type="text" 
+                  required
+                  value={profileForm.phone} 
+                  onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} 
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsProfileModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

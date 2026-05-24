@@ -13,6 +13,18 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 let isScanning = false;
 
+// Validate database connection on startup
+async function checkDatabaseConnection() {
+  try {
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+    console.log('Make sure DATABASE_URL is set in .env and the database is running.');
+  }
+}
+checkDatabaseConnection();
+
 app.use(cors());
 app.use(express.json());
 
