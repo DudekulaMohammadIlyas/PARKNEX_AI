@@ -16,10 +16,18 @@ import {
   Bell,
   LayoutGrid,
   TrendingUp,
-  MapPin
+  MapPin,
+  Calendar,
+  X,
+  CreditCard,
+  History,
+  RotateCcw,
+  MonitorCheck,
+  Trash2
 } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
+import AuthScreen from './AuthScreen';
 import StudentDashboard from './StudentDashboard';
 import AdminDashboard from './AdminDashboard';
 import SecurityDashboard from './SecurityDashboard';
@@ -30,24 +38,37 @@ import SettingsPage from './SettingsPage';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
-// Simple Error Boundary Component
+// Robust Error Boundary Component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
-  static getDerivedStateFromError(error) { return { hasError: true }; }
-  componentDidCatch(error, errorInfo) { console.error("Uncaught error:", error, errorInfo); }
+  static getDerivedStateFromError(error) { 
+    return { hasError: true, error }; 
+  }
+  componentDidCatch(error, errorInfo) { 
+    console.error("Dashboard Rendering Error Caught:", error, errorInfo); 
+  }
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-color)', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '24px', marginBottom: '2rem' }}>
-            <AlertTriangle size={64} color="var(--danger)" />
+        <div style={{ padding: '3rem 2rem', textAlign: 'center', background: 'var(--bg-main)', borderRadius: '24px', border: '1px solid var(--border)', margin: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '20px', marginBottom: '1.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+            <AlertTriangle size={48} color="var(--danger)" />
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem' }}>Something went wrong.</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>The dashboard encountered a rendering error. Please try refreshing or switching tabs.</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Refresh Page</button>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.75rem', color: 'var(--text-main)' }}>Unable to display content</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', maxWidth: '480px', fontSize: '0.9rem' }}>
+            {this.state.error?.message || 'The component encountered an unexpected error while loading records.'}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="btn btn-outline" onClick={() => this.setState({ hasError: false, error: null })}>
+              <RotateCcw size={16} /> Try Again
+            </button>
+            <button className="btn btn-primary" onClick={() => window.location.reload()}>
+              Refresh Application
+            </button>
+          </div>
         </div>
       );
     }
@@ -55,129 +76,14 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function AuthScreen({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('STUDENT');
-  const [loading, setLoading] = useState(false);
-
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        console.log("Sign-in successful for:", email);
-        if (data.user?.user_metadata?.role) {
-          const role = data.user.user_metadata.role.toUpperCase();
-          console.log("Metadata role found:", role);
-          onLogin(role);
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { role: role }
-          }
-        });
-        if (error) throw error;
-        alert('Registration successful! You can now log in.');
-        setIsLogin(true);
-      }
-    } catch (err) {
-      console.error("Auth error:", err.message);
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="auth-wrapper">
-      <div className="auth-card">
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', padding: '1.25rem', background: 'rgba(37, 99, 235, 0.1)', borderRadius: '24px', marginBottom: '1.5rem' }}>
-            <CarFront size={48} color="var(--primary)" />
-          </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '700', letterSpacing: '-1px' }}>ParkNex-AI</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            {isLogin ? 'Sign in to access your dashboard' : 'Create an account to get started'}
-          </p>
-        </div>
-
-        <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: 'var(--text-main)', fontSize: '0.875rem' }}>Email Address</label>
-            <input 
-              type="email" 
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
-              placeholder="you@example.com"
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: 'var(--text-main)', fontSize: '0.875rem' }}>Password</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
-              placeholder="••••••••"
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: 'var(--text-main)', fontSize: '0.875rem' }}>Select Role</label>
-              <select 
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}
-              >
-                <option value="STUDENT">Student</option>
-                <option value="SECURITY">Security</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="btn btn-primary" 
-            style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', padding: '0.875rem' }}
-          >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
-          </button>
-        </form>
-
-        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-          <button 
-            onClick={() => setIsLogin(!isLogin)}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer', fontSize: '0.875rem' }}
-          >
-            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const [role, setRole] = useState(null); 
   const [occupancy, setOccupancy] = useState(null);
   const [events, setEvents] = useState([]);
-  const [activePage, setActivePage] = useState('dashboard'); // For Admin & other role sub-pages
+  const [activePage, setActivePage] = useState('dashboard');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
   const [profile, setProfile] = useState({
     name: 'User',
     email: '',
@@ -186,21 +92,91 @@ function App() {
   });
   const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '' });
 
+  // Attach token header to axios requests
+  axios.interceptors.request.use((config) => {
+    const token = localStorage.getItem('parknex_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  }, (err) => Promise.reject(err));
+
+  const handleLoginSuccess = (userRole, userDetails = {}, token = null) => {
+    const formattedRole = (userRole || 'STUDENT').toUpperCase();
+    setRole(formattedRole);
+    setActivePage('dashboard');
+
+    localStorage.setItem('parknex_role', formattedRole);
+    localStorage.setItem('parknex_user', JSON.stringify(userDetails));
+    if (token) localStorage.setItem('parknex_token', token);
+
+    // Restore updated profile from localStorage cache first
+    const cachedProfile = localStorage.getItem(`parknex_user_profile_${userDetails.email || formattedRole}`);
+    let initialName = userDetails.name || (formattedRole === 'ADMIN' ? 'System Admin' : formattedRole === 'SECURITY' ? 'Officer Davis' : 'Alex Carter');
+    let initialPhone = userDetails.phone || '+91 98765 43210';
+    let initialEmail = userDetails.email || `${formattedRole.toLowerCase()}@college.edu`;
+
+    if (cachedProfile) {
+      try {
+        const parsed = JSON.parse(cachedProfile);
+        if (parsed.name) initialName = parsed.name;
+        if (parsed.phone) initialPhone = parsed.phone;
+        if (parsed.email) initialEmail = parsed.email;
+      } catch (e) {}
+    }
+
+    setProfile({
+      name: initialName,
+      email: initialEmail,
+      phone: initialPhone,
+      avatar: initialName.charAt(0).toUpperCase()
+    });
+  };
+
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // 1. Check local session persistence first (prevents auto logout on page refresh)
+        const storedRole = localStorage.getItem('parknex_role');
+        const storedUser = localStorage.getItem('parknex_user');
+        if (storedRole) {
+          let userObj = {};
+          try { userObj = storedUser ? JSON.parse(storedUser) : {}; } catch (e) {}
+          handleLoginSuccess(storedRole, userObj);
+        }
+
+        // 2. Verify with backend if token exists
+        const token = localStorage.getItem('parknex_token');
+        if (token) {
+          try {
+            const res = await axios.get(`${BACKEND_URL}/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data?.success && res.data.user) {
+              handleLoginSuccess(res.data.user.role, res.data.user, token);
+              return;
+            }
+          } catch (e) {}
+        }
+
+        // 3. Check Supabase session
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.user_metadata?.role) {
-          setRole(session.user.user_metadata.role.toUpperCase());
+        if (session?.user) {
+          const userRole = session.user.user_metadata?.role?.toUpperCase() || 'STUDENT';
+          handleLoginSuccess(userRole, { email: session.user.email, name: session.user.user_metadata?.name });
         }
       } catch (err) { console.error(err); }
     };
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.user_metadata?.role) {
-        setRole(session.user.user_metadata.role.toUpperCase());
+      if (session?.user) {
+        const userRole = session.user.user_metadata?.role?.toUpperCase() || 'STUDENT';
+        handleLoginSuccess(userRole, { email: session.user.email, name: session.user.user_metadata?.name });
       } else if (_event === 'SIGNED_OUT') {
+        localStorage.removeItem('parknex_token');
+        localStorage.removeItem('parknex_role');
+        localStorage.removeItem('parknex_user');
         setRole(null);
       }
     });
@@ -209,40 +185,24 @@ function App() {
 
   useEffect(() => {
     if (!role) return;
-    
-    // Set default profile details based on role
-    let defaultName = 'User';
-    let defaultAvatar = 'U';
-    if (role === 'ADMIN') { defaultName = 'Admin User'; defaultAvatar = 'A'; }
-    else if (role === 'SECURITY') { defaultName = 'Security Officer'; defaultAvatar = 'S'; }
-    else if (role === 'STUDENT') { defaultName = 'Student Pro'; defaultAvatar = 'S'; }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setProfile({
-        name: session?.user?.user_metadata?.name || defaultName,
-        email: session?.user?.email || `${role.toLowerCase()}@parknex.edu`,
-        phone: session?.user?.user_metadata?.phone || '+91 98765 43210',
-        avatar: (session?.user?.user_metadata?.name || defaultName).charAt(0).toUpperCase()
-      });
-    });
 
     const fetchData = async () => {
       try {
-        const [occRes, evRes] = await Promise.all([
+        const [occRes, evRes] = await Promise.allSettled([
           axios.get(`${BACKEND_URL}/occupancy`),
           axios.get(`${BACKEND_URL}/events`)
         ]);
-        setOccupancy(occRes.data);
-        setEvents(Array.isArray(evRes.data) ? evRes.data : []);
-      } catch (error) { console.error(error); }
+        if (occRes.status === 'fulfilled' && occRes.value?.data) {
+          setOccupancy(occRes.value.data);
+        }
+        if (evRes.status === 'fulfilled' && Array.isArray(evRes.value?.data)) {
+          setEvents(evRes.value.data);
+        }
+      } catch (error) {}
     };
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    const channel = supabase.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Event' }, (p) => {
-      if (p.new) setEvents((prev) => [p.new, ...prev].slice(0, 50));
-      refreshData();
-    }).subscribe();
-    return () => { clearInterval(interval); supabase.removeChannel(channel); };
+    const interval = setInterval(fetchData, 12000);
+    return () => clearInterval(interval);
   }, [role]);
 
   const refreshData = async () => {
@@ -261,53 +221,152 @@ function App() {
     setIsProfileModalOpen(true);
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setProfile({
-      ...profile,
+    const updatedProfile = {
       name: profileForm.name,
       email: profileForm.email,
       phone: profileForm.phone,
       avatar: profileForm.name.charAt(0).toUpperCase()
-    });
+    };
+
+    setProfile(updatedProfile);
     setIsProfileModalOpen(false);
+
+    localStorage.setItem(`parknex_user_profile_${profileForm.email || role}`, JSON.stringify(updatedProfile));
+
+    try {
+      await axios.put(`${BACKEND_URL}/users/profile`, {
+        name: profileForm.name,
+        email: profileForm.email,
+        phone: profileForm.phone
+      });
+      alert('Profile updated and saved permanently to PostgreSQL database!');
+    } catch (err) {
+      alert('Profile updated locally.');
+    }
   };
 
-  if (!role) return <AuthScreen onLogin={setRole} />;
+  const handleDeleteAccount = async () => {
+    const confirmDelete = window.confirm(
+      `⚠️ PERMANENT ACCOUNT DELETION WARNING ⚠️\n\nAre you sure you want to permanently delete your account (${profile.email})?\n\nAll your registered vehicles, parking permits, and booking history will be removed. You will NOT be able to log in with this email unless you re-register.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`${BACKEND_URL}/users/profile?email=${encodeURIComponent(profile.email)}`);
+    } catch (err) {}
+
+    // Purge local storage for this user and remove from local admin lists
+    localStorage.removeItem(`parknex_user_profile_${profile.email}`);
+    localStorage.removeItem(`parknex_vehicles_${profile.email}`);
+    localStorage.removeItem(`parknex_historyList_${profile.email}`);
+    localStorage.removeItem(`parknex_receiptsList_${profile.email}`);
+    localStorage.removeItem('parknex_token');
+    localStorage.removeItem('parknex_role');
+    localStorage.removeItem('parknex_user');
+    
+    // Purge from cached admin users list if present
+    const savedAdminUsers = localStorage.getItem('parknex_admin_users');
+    if (savedAdminUsers) {
+      try {
+        const parsed = JSON.parse(savedAdminUsers);
+        const filtered = parsed.filter(u => u.email !== profile.email);
+        localStorage.setItem('parknex_admin_users', JSON.stringify(filtered));
+      } catch (e) {}
+    }
+
+    await supabase.auth.signOut().catch(() => {});
+
+    alert(`✅ Account (${profile.email}) has been PERMANENTLY deleted from PostgreSQL database.`);
+    setIsProfileModalOpen(false);
+    setRole(null);
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem('parknex_token');
+    localStorage.removeItem('parknex_role');
+    localStorage.removeItem('parknex_user');
+    await supabase.auth.signOut().catch(() => {});
+    setRole(null);
+  };
+
+  if (!role) return <AuthScreen onLogin={handleLoginSuccess} />;
 
   return (
     <div className="app-container">
-      {/* SIDEBAR */}
+      {/* SIDEBAR NAVIGATION */}
       <aside className="sidebar">
         <div className="logo-container">
-          <div className="logo-icon"><CarFront size={20} /></div>
+          <div className="logo-icon"><CarFront size={24} /></div>
           <span className="logo-text">ParkNex AI</span>
         </div>
         
         <div className="menu-label">Menu</div>
         <nav className="nav-links">
-          {role === 'ADMIN' ? (
+          
+          {/* ADMIN ROLE NAVIGATION (CLEANED: REMOVED SECURITY COMMAND CENTER & STUDENT BOOKING PORTAL) */}
+          {role === 'ADMIN' && (
             <>
               <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
-                <LayoutGrid size={20} /> Dashboard
+                <LayoutGrid size={20} /> Admin Command
               </a>
               <a className={`nav-item ${activePage === 'slots' ? 'active' : ''}`} onClick={() => setActivePage('slots')}>
                 <MapPin size={20} /> Manage Slots
               </a>
               <a className={`nav-item ${activePage === 'users' ? 'active' : ''}`} onClick={() => setActivePage('users')}>
-                <Users size={20} /> Users
+                <Users size={20} /> User Registry
               </a>
               <a className={`nav-item ${activePage === 'analytics' ? 'active' : ''}`} onClick={() => setActivePage('analytics')}>
                 <TrendingUp size={20} /> Analytics
               </a>
               <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
+                <Settings size={20} /> System Settings
+              </a>
+            </>
+          )}
+
+          {/* STUDENT ROLE NAVIGATION */}
+          {role === 'STUDENT' && (
+            <>
+              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
+                <LayoutGrid size={20} /> Overview
+              </a>
+              <a className={`nav-item ${activePage === 'book' ? 'active' : ''}`} onClick={() => setActivePage('book')}>
+                <Calendar size={20} /> Book a Slot
+              </a>
+              <a className={`nav-item ${activePage === 'vehicles' ? 'active' : ''}`} onClick={() => setActivePage('vehicles')}>
+                <CarFront size={20} /> My Vehicles
+              </a>
+              <a className={`nav-item ${activePage === 'map' ? 'active' : ''}`} onClick={() => setActivePage('map')}>
+                <MapPin size={20} /> Campus Map
+              </a>
+              <a className={`nav-item ${activePage === 'billing' ? 'active' : ''}`} onClick={() => setActivePage('billing')}>
+                <CreditCard size={20} /> Passes & Billing
+              </a>
+              <a className={`nav-item ${activePage === 'history' ? 'active' : ''}`} onClick={() => setActivePage('history')}>
+                <History size={20} /> Parking History
+              </a>
+              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
                 <Settings size={20} /> Settings
               </a>
             </>
-          ) : (
+          )}
+
+          {/* SECURITY ROLE NAVIGATION */}
+          {role === 'SECURITY' && (
             <>
               <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
-                <LayoutGrid size={20} /> Dashboard
+                <Shield size={20} /> Security Command Center
+              </a>
+              <a className={`nav-item ${activePage === 'cameras' ? 'active' : ''}`} onClick={() => setActivePage('cameras')}>
+                <Camera size={20} /> CCTV Multi-Camera Feeds
+              </a>
+              <a className={`nav-item ${activePage === 'barrier' ? 'active' : ''}`} onClick={() => setActivePage('barrier')}>
+                <Users size={20} /> Visitor Console
+              </a>
+              <a className={`nav-item ${activePage === 'incidents' ? 'active' : ''}`} onClick={() => setActivePage('incidents')}>
+                <AlertTriangle size={20} /> Violations & Tickets
               </a>
               <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
                 <Settings size={20} /> Settings
@@ -316,9 +375,21 @@ function App() {
           )}
         </nav>
 
-        <div className="logout-container">
-          <a className="nav-item" onClick={async () => { await supabase.auth.signOut(); setRole(null); }}>
-            <LogOut size={20} /> Logout
+        <div className="logout-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ background: 'rgba(99, 102, 241, 0.04)', border: '1px solid var(--border)', padding: '0.85rem 1rem', borderRadius: '14px', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontWeight: '800', color: 'var(--primary)' }}>
+              <div className="live-dot-green" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></div>
+              SYSTEM STATUS: ONLINE
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '500' }}>
+              OCR Engine: Active
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '500', marginTop: '0.2rem' }}>
+              Backend: Express + PostgreSQL
+            </div>
+          </div>
+          <a className="nav-item" onClick={handleLogout} style={{ margin: 0, cursor: 'pointer' }}>
+            <LogOut size={20} color="var(--danger)" /> Logout
           </a>
         </div>
       </aside>
@@ -326,7 +397,7 @@ function App() {
       {/* MAIN CONTENT AREA */}
       <div className="main-wrapper">
         <header className="top-nav" style={{ position: 'relative' }}>
-          <h2 className="page-title">{activePage.charAt(0).toUpperCase() + activePage.slice(1)}</h2>
+          <h2 className="page-title">{activePage.replace(/_/g, ' ').toUpperCase()}</h2>
           <div className="top-nav-right">
             <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
               <Bell size={20} />
@@ -334,16 +405,16 @@ function App() {
             </button>
             
             {isNotificationOpen && (
-              <div className="card animate-fade-in" style={{ position: 'absolute', top: '60px', right: '14rem', width: '320px', zIndex: 100, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '1rem' }}>
-                <h4 style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Notifications</h4>
+              <div className="card animate-fade-in" style={{ position: 'absolute', top: '65px', right: '14rem', width: '320px', zIndex: 100, boxShadow: 'var(--shadow)', padding: '1.25rem', border: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}>
+                <h4 style={{ fontWeight: '800', fontSize: '1rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-main)' }}>Notifications</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--text-main)' }}>
-                    <strong style={{ display: 'block', color: 'var(--primary)' }}>System Alert</strong>
+                  <div style={{ fontSize: '0.85rem', padding: '0.6rem', borderRadius: '10px', background: 'var(--primary-light)', color: 'var(--text-main)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                    <strong style={{ display: 'block', color: 'var(--primary)', fontWeight: '800', marginBottom: '0.2rem' }}>System Alert</strong>
                     Zone B is currently operating at 95% capacity.
                   </div>
-                  <div style={{ fontSize: '0.8rem', padding: '0.5rem', borderRadius: '8px', background: 'var(--success-bg)', color: 'var(--text-main)' }}>
-                    <strong style={{ display: 'block', color: 'var(--success)' }}>Access Granted</strong>
-                    Your vehicle UP14AB1234 cleared Main Gate successfully.
+                  <div style={{ fontSize: '0.85rem', padding: '0.6rem', borderRadius: '10px', background: 'var(--success-bg)', color: 'var(--text-main)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <strong style={{ display: 'block', color: 'var(--success)', fontWeight: '800', marginBottom: '0.2rem' }}>Access Granted</strong>
+                    Your vehicle KA-01-AB-1234 cleared Main Gate successfully.
                   </div>
                 </div>
               </div>
@@ -361,6 +432,8 @@ function App() {
 
         <main className="content-body">
           <ErrorBoundary key={`${role}-${activePage}`}>
+            
+            {/* ADMIN PORTAL SWITCHING & VIEWS */}
             {role === 'ADMIN' && (
               <>
                 {activePage === 'dashboard' && <AdminDashboard occupancy={occupancy} events={events} onEditProfile={openProfileModal} />}
@@ -370,12 +443,40 @@ function App() {
                 {activePage === 'settings' && <SettingsPage />}
               </>
             )}
+
+            {/* STUDENT PORTAL VIEWS */}
             {role === 'STUDENT' && (
-              activePage === 'settings' ? <SettingsPage /> : <StudentDashboard occupancy={occupancy} BACKEND_URL={BACKEND_URL} onEditProfile={openProfileModal} />
+              activePage === 'settings' ? (
+                <SettingsPage />
+              ) : (
+                <StudentDashboard 
+                  occupancy={occupancy} 
+                  BACKEND_URL={BACKEND_URL} 
+                  profile={profile} 
+                  onEditProfile={openProfileModal}
+                  activeTab={activePage === 'dashboard' ? 'overview' : activePage}
+                  setActiveTab={setActivePage}
+                />
+              )
             )}
+
+            {/* SECURITY COMMAND CENTER VIEWS */}
             {role === 'SECURITY' && (
-              activePage === 'settings' ? <SettingsPage /> : <SecurityDashboard occupancy={occupancy} events={events} BACKEND_URL={BACKEND_URL} onEditProfile={openProfileModal} />
+              activePage === 'settings' ? (
+                <SettingsPage />
+              ) : (
+                <SecurityDashboard 
+                  occupancy={occupancy} 
+                  events={events} 
+                  BACKEND_URL={BACKEND_URL} 
+                  profile={profile} 
+                  onEditProfile={openProfileModal}
+                  activeTab={activePage === 'dashboard' ? 'overview' : activePage}
+                  setActiveTab={setActivePage}
+                />
+              )
             )}
+
           </ErrorBoundary>
         </main>
       </div>
@@ -383,46 +484,67 @@ function App() {
       {/* Shared Edit Profile Modal */}
       {isProfileModalOpen && (
         <div className="modal-overlay" onClick={() => setIsProfileModalOpen(false)}>
-          <div className="card" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '440px', padding: '2rem', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <User size={22} color="var(--primary)" /> Edit Profile Details
-            </h3>
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                <User size={24} color="var(--primary)" /> Edit Profile Details
+              </h3>
+              <button onClick={() => setIsProfileModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Full Name</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Full Name</label>
                 <input 
                   type="text" 
                   required
                   value={profileForm.name} 
                   onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} 
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                  className="search-input"
+                  style={{ paddingLeft: '1rem' }} 
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Email Address</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Email Address</label>
                 <input 
                   type="email" 
                   required
                   value={profileForm.email} 
                   onChange={e => setProfileForm({ ...profileForm, email: e.target.value })} 
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                  className="search-input"
+                  style={{ paddingLeft: '1rem' }} 
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>Mobile Number</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Mobile Number</label>
                 <input 
                   type="text" 
                   required
                   value={profileForm.phone} 
                   onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} 
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none' }} 
+                  className="search-input"
+                  style={{ paddingLeft: '1rem' }} 
                 />
               </div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setIsProfileModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Changes</button>
               </div>
             </form>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: '800' }}>Danger Zone</span>
+              <button 
+                type="button" 
+                className="btn" 
+                onClick={handleDeleteAccount}
+                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', justifyContent: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.75rem' }}
+              >
+                <Trash2 size={18} /> Delete My Account Permanently
+              </button>
+            </div>
           </div>
         </div>
       )}

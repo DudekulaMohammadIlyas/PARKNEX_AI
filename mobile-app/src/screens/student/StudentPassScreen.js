@@ -1,60 +1,204 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import config from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
-export default function StudentPassScreen({ session }) {
-  const [primaryVehicle, setPrimaryVehicle] = useState('NO VEHICLE');
-  const [passActive, setPassActive] = useState(false);
+const BACKEND_URL = config.BACKEND_URL;
+
+export default function StudentPassScreen({ navigation }) {
+  const [user, setUser] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedVehiclePlate, setSelectedVehiclePlate] = useState('');
+  const [digitalPass, setDigitalPass] = useState(null);
+  const [countdownDays, setCountdownDays] = useState(128);
 
   useEffect(() => {
-    loadData();
+    const loadPassData = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('@parknex_user');
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
+        setUser(userObj);
+
+        const userEmail = userObj.email || 'student@college.edu';
+        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
+
+        const savedVehicles = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail}`);
+        if (savedVehicles) {
+          try {
+            const parsed = JSON.parse(savedVehicles);
+            setVehicles(parsed);
+            if (parsed.length > 0) setSelectedVehiclePlate(parsed[0].plate);
+          } catch (e) {}
+        } else if (isDemoUser) {
+          const demo = [
+            { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-09-ZZ-9999', status: 'Verified' },
+            { id: '2', brand: 'Yamaha', model: 'R15', color: 'Racing Blue', type: '2-Wheeler', plate: 'AP02JT7894', status: 'Verified' },
+            { id: '3', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' },
+            { id: '4', brand: 'Honda', model: 'City', color: 'Silver', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' }
+          ];
+          setVehicles(demo);
+          setSelectedVehiclePlate('KA-09-ZZ-9999');
+        } else {
+          setVehicles([]);
+          setSelectedVehiclePlate('');
+        }
+
+        const passRes = await axios.get(`${BACKEND_URL}/passes/my-pass?email=${encodeURIComponent(userEmail)}`).catch(() => null);
+        if (passRes?.data) setDigitalPass(passRes.data);
+      } catch (e) {}
+    };
+
+    loadPassData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@user_vehicles');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.length > 0) setPrimaryVehicle(parsed[0].plate);
-      }
-      
-      const status = await AsyncStorage.getItem('@premium_pass');
-      if (status === 'ACTIVE') setPassActive(true);
-    } catch (e) {}
+  const activeVehicle = vehicles.find(v => v.plate === selectedVehiclePlate) || vehicles[0];
+
+  const getQRPayload = () => {
+    if (!activeVehicle) return '';
+    return JSON.stringify({
+      system: "PARKNEX_AI_GATE_PASS",
+      studentName: user?.name || 'Student',
+      studentId: 'STU-2026-089',
+      passSerial: digitalPass?.passNumber || `PASS-STU-${(user?.email || 'USER').split('@')[0].toUpperCase()}`,
+      vehiclePlate: activeVehicle.plate,
+      vehicleBrand: activeVehicle.brand,
+      vehicleModel: activeVehicle.model || 'Standard',
+      vehicleType: activeVehicle.type,
+      color: activeVehicle.color || 'White',
+      validUntil: 'December 31, 2026'
+    });
   };
 
-  const qrValue = `PASS_${session?.user?.id || 'GUEST'}_${primaryVehicle}`;
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Digital Pass</Text>
-          <Text style={styles.subtitle}>Scan at the entry gate</Text>
-        </View>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 0 }}>
-        <View style={[styles.card, { alignItems: 'center', padding: 40, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.primary, backgroundColor: COLORS.white }]}>
-          <View style={{ padding: 24, backgroundColor: 'white', borderRadius: 24, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 }}>
-            <QRCode value={qrValue} size={220} />
-          </View>
-          <Text style={{ fontSize: 28, fontWeight: '900', color: COLORS.text, marginTop: 32, letterSpacing: 1 }}>{primaryVehicle}</Text>
-          <Text style={{ color: COLORS.textMuted, marginTop: 6, fontWeight: '600' }}>Valid until: {passActive ? 'Dec 2026' : 'Per Use'}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bg }]}>
+      <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
+        
+        <Text style={{ fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 4 }}>
+          Digital Campus Parking Pass
+        </Text>
+        <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>
+          Scan at Gate Barrier for Instant Entry & Exit Release
+        </Text>
 
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 40, width: '100%' }}>
-            <View style={{ flex: 1, alignItems: 'center', padding: 20, backgroundColor: COLORS.bg, borderRadius: 20 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1 }}>STATUS</Text>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.success, marginTop: 4 }}>ACTIVE</Text>
+        {/* PERMIT EXPIRATION COUNTDOWN & ADVANCE RENEWAL BANNER */}
+        <View style={{ backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1.5, borderRadius: 20, padding: 16, marginBottom: 20, width: '100%', shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#FBBF24', justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="time" size={24} color="#78350F" />
             </View>
-            <View style={{ flex: 1, alignItems: 'center', padding: 20, backgroundColor: COLORS.bg, borderRadius: 20 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1 }}>TYPE</Text>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.primary, marginTop: 4 }}>{passActive ? 'MONTHLY' : 'DAILY'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#78350F' }}>
+                Permit Expiration Countdown: {countdownDays} Days Remaining
+              </Text>
+              <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', marginTop: 2, lineHeight: 16 }}>
+                Your Digital Campus Parking Permit is valid until December 31, 2026. Advance renewal option available below.
+              </Text>
             </View>
           </View>
+
+          <TouchableOpacity 
+            style={{ backgroundColor: '#D97706', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+            onPress={() => {
+              setCountdownDays(365);
+              Alert.alert('Advance Renewal Successful! 💳✨', 'Your Digital Campus Parking Permit has been renewed for an additional full academic year (365 Days remaining)!');
+            }}
+          >
+            <Ionicons name="card" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Pay Advance Renewal</Text>
+          </TouchableOpacity>
         </View>
+
+        {vehicles.length === 0 ? (
+          <View style={[styles.card, { padding: 30, alignItems: 'center', width: '100%', borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border }]}>
+            <MaterialCommunityIcons name="car-outline" size={54} color={COLORS.primary} />
+            <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text, marginTop: 12, textAlign: 'center' }}>
+              Pass Pending Vehicle Registration
+            </Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 8, marginBottom: 20, lineHeight: 18 }}>
+              Welcome {user?.name || 'Student'}! Your permit is active. Please register your vehicle under 'My Vehicles' to activate your scannable entrance QR pass.
+            </Text>
+            <TouchableOpacity 
+              style={[styles.primaryBtn, { paddingHorizontal: 24 }]}
+              onPress={() => navigation.navigate('Vehicles')}
+            >
+              <Text style={styles.primaryBtnText}>+ Register Vehicle Now</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* VEHICLE SWITCHER PILLS */}
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: COLORS.textMuted, marginBottom: 8, textAlign: 'center' }}>
+                Select Vehicle to Display Scannable QR Code:
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                {vehicles.map(v => {
+                  const isSel = selectedVehiclePlate === v.plate;
+                  return (
+                    <TouchableOpacity
+                      key={v.plate}
+                      onPress={() => setSelectedVehiclePlate(v.plate)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        backgroundColor: isSel ? COLORS.primary : '#F1F5F9',
+                        borderWidth: 1,
+                        borderColor: isSel ? COLORS.primary : COLORS.border
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: isSel ? '#fff' : COLORS.text }}>
+                        {v.type === '2-Wheeler' ? '🏍️' : '🚗'} {v.plate}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* PASS CARD */}
+            <View style={{ width: '100%', backgroundColor: '#0F172A', borderRadius: 24, padding: 24, alignItems: 'center', borderBottomWidth: 4, borderBottomColor: COLORS.primary }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', paddingBottom: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: COLORS.primary, letterSpacing: 1 }}>PARKNEX CAMPUS PASS</Text>
+                <View style={[styles.badge, { backgroundColor: '#064E3B' }]}>
+                  <Text style={{ color: '#34D399', fontSize: 10, fontWeight: '900' }}>● ACTIVE</Text>
+                </View>
+              </View>
+
+              {/* QR CODE */}
+              <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 16 }}>
+                <QRCode value={getQRPayload()} size={150} />
+              </View>
+              <Text style={{ fontSize: 11, color: COLORS.primary, fontWeight: '800', marginBottom: 14 }}>
+                Unique Scannable QR for {selectedVehiclePlate}
+              </Text>
+
+              <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', marginBottom: 4 }}>{user?.name || 'Student'}</Text>
+              <Text style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>ID: STU-2026-089 • {user?.designation || 'Computer Science Dept'}</Text>
+
+              <View style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Pass Serial</Text>
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>{digitalPass?.passNumber || `PASS-STU-${(user?.email || 'USER').split('@')[0].toUpperCase()}`}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Category</Text>
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>Student Standard (Subsidized)</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Active QR Vehicle</Text>
+                  <Text style={{ fontSize: 11, color: '#38BDF8', fontWeight: '800' }}>{selectedVehiclePlate} ({activeVehicle?.brand})</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );

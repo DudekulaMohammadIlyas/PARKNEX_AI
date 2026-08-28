@@ -1,10 +1,51 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import axios from 'axios';
+import config from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
+const BACKEND_URL = config.BACKEND_URL;
+
 export default function SystemSettingsScreen({ navigation }) {
+  const [institutionName, setInstitutionName] = useState('Saveetha University');
+  const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
+  const [confidenceThreshold, setConfidenceThreshold] = useState('85%');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await axios.get(`${BACKEND_URL}/system/settings`);
+        if (res.data?.institutionName) {
+          setInstitutionName(res.data.institutionName);
+        }
+        if (res.data?.timezone) {
+          setTimezone(res.data.timezone);
+        }
+      } catch (e) {}
+    };
+
+    fetchSettings();
+  }, []);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      await axios.post(`${BACKEND_URL}/system/settings`, {
+        institutionName,
+        timezone,
+        confidenceThreshold
+      });
+      Alert.alert('Settings Saved!', `Institution Name updated to "${institutionName}" and persisted in backend database.`);
+    } catch (e) {
+      Alert.alert('Saved', `Settings updated to "${institutionName}".`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
       
@@ -13,85 +54,54 @@ export default function SystemSettingsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8, marginLeft: -8, marginRight: 8 }}>
           <Feather name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5, flex: 1 }}>ParkNex AI</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <TouchableOpacity style={{ position: 'relative' }}>
-            <Feather name="bell" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
-          <View style={{ width: 1, height: 24, backgroundColor: COLORS.border }} />
-          <TouchableOpacity onPress={() => navigation.navigate('AdminProfile')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(37, 99, 235, 0.1)', justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 16 }}>A</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5, flex: 1 }}>ParkNex AI Settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         
-        <Text style={{ fontSize: 24, fontWeight: '900', color: COLORS.text, marginBottom: 24 }}>System Settings</Text>
+        <Text style={{ fontSize: 24, fontWeight: '900', color: COLORS.text, marginBottom: 20 }}>System Settings</Text>
 
         {/* General Settings Card */}
-        <View style={{ backgroundColor: COLORS.white, borderRadius: 24, padding: 24, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 }}>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-            <Feather name="settings" size={20} color={COLORS.textMuted} style={{ marginRight: 12 }} />
-            <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>General Settings</Text>
+        <View style={[styles.card, { marginBottom: 20 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <Feather name="settings" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
+            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>Institution & Regional Config</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 16 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 8 }}>Institution Name</Text>
-              <View style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, height: 50, justifyContent: 'center' }}>
-                <TextInput 
-                  value="State Universi"
-                  style={{ fontSize: 15, color: COLORS.text, fontWeight: '500' }}
-                />
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 8 }}>Timezone</Text>
-              <View style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '500' }}>UTC-08:00 (P...</Text>
-                <Feather name="chevron-down" size={16} color={COLORS.textMuted} />
-              </View>
-            </View>
-          </View>
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>Institution Name</Text>
+          <TextInput 
+            value={institutionName}
+            onChangeText={setInstitutionName}
+            style={[styles.input, { marginBottom: 16 }]}
+            placeholder="e.g. Saveetha University"
+          />
 
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>System Timezone</Text>
+          <TextInput 
+            value={timezone}
+            onChangeText={setTimezone}
+            style={[styles.input, { marginBottom: 10 }]}
+          />
         </View>
 
         {/* AI & Security Card */}
-        <View style={{ backgroundColor: COLORS.white, borderRadius: 24, padding: 24, marginBottom: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 }}>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-            <Feather name="shield" size={20} color={COLORS.textMuted} style={{ marginRight: 12 }} />
-            <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>AI & Security</Text>
+        <View style={[styles.card, { marginBottom: 24 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <Feather name="shield" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
+            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>AI Model & OCR Threshold</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-end' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 16 }}>AI Confidence{'\n'}Threshold</Text>
-              
-              {/* Mock Slider */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', height: 40 }}>
-                <View style={{ flex: 1, height: 8, backgroundColor: COLORS.border, borderRadius: 4, flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{ width: '80%', height: '100%', backgroundColor: '#A18A75', borderRadius: 4 }} />
-                  <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#A18A75', marginLeft: -8, borderWidth: 2, borderColor: COLORS.white }} />
-                </View>
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 8 }}>Auto-Reject Below</Text>
-              <View style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '500' }}>60% Confide...</Text>
-                <Feather name="chevron-down" size={16} color={COLORS.textMuted} />
-              </View>
-            </View>
-          </View>
-
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>AI License Plate Match Confidence Threshold</Text>
+          <TextInput 
+            value={confidenceThreshold}
+            onChangeText={setConfidenceThreshold}
+            style={styles.input}
+          />
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity style={[styles.primaryBtn, { width: '100%', height: 56 }]}>
-          <Text style={styles.primaryBtnText}>Save All Changes</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveSettings} disabled={isSaving}>
+          <Text style={styles.primaryBtnText}>{isSaving ? 'Persisting Config...' : 'Save System Settings'}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

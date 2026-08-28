@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { SafeAreaView, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Services & Config
@@ -17,9 +18,18 @@ import { COLORS } from './src/theme/colors';
 
 // Screens
 import AuthScreen from './src/screens/auth/AuthScreen';
+import StudentHomeScreen from './src/screens/student/StudentHomeScreen';
 import StudentMapScreen from './src/screens/student/StudentMapScreen';
 import StudentVehiclesScreen from './src/screens/student/StudentVehiclesScreen';
 import StudentPassScreen from './src/screens/student/StudentPassScreen';
+import StudentBookScreen from './src/screens/student/StudentBookScreen';
+import LiveStatusScreen from './src/screens/student/LiveStatusScreen';
+import NotificationsScreen from './src/screens/student/NotificationsScreen';
+import SlotOccupiedAlertScreen from './src/screens/student/SlotOccupiedAlertScreen';
+import ExitSuccessScreen from './src/screens/student/ExitSuccessScreen';
+import StudentHistoryScreen from './src/screens/student/StudentHistoryScreen';
+import StudentProfileScreen from './src/screens/student/StudentProfileScreen';
+
 import SecurityDashboard from './src/screens/security/SecurityDashboard';
 import ScanScreen from './src/screens/security/ScanScreen';
 import ProcessingScreen from './src/screens/security/ProcessingScreen';
@@ -29,6 +39,8 @@ import ExitClearedScreen from './src/screens/security/ExitClearedScreen';
 import OfficerProfileScreen from './src/screens/security/OfficerProfileScreen';
 import VehicleSearchScreen from './src/screens/security/VehicleSearchScreen';
 import SecurityLogsScreen from './src/screens/security/SecurityLogsScreen';
+
+import AdminDashboard from './src/screens/admin/AdminDashboard';
 import UserManagementScreen from './src/screens/admin/UserManagementScreen';
 import AuthorizedVehiclesScreen from './src/screens/admin/AuthorizedVehiclesScreen';
 import ReportsScreen from './src/screens/admin/ReportsScreen';
@@ -38,7 +50,20 @@ import SystemSettingsScreen from './src/screens/admin/SystemSettingsScreen';
 import RoleManagementScreen from './src/screens/admin/RoleManagementScreen';
 import SystemActivityScreen from './src/screens/admin/SystemActivityScreen';
 import AdminProfileScreen from './src/screens/admin/AdminProfileScreen';
-import StudentHomeScreen from './src/screens/student/StudentHomeScreen';
+import AnalyticsScreen from './src/screens/admin/AnalyticsScreen';
+
+const BACKEND_URL = config.BACKEND_URL;
+
+// Axios Token Interceptor setup
+axios.interceptors.request.use(async (reqConfig) => {
+  try {
+    const token = await AsyncStorage.getItem('@parknex_token');
+    if (token) {
+      reqConfig.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {}
+  return reqConfig;
+}, error => Promise.reject(error));
 
 // --- Navigators ---
 
@@ -80,6 +105,7 @@ function AdminStack({ onLogout, occupancy, events }) {
       <AdminStackNav.Screen name="SystemSettings" component={SystemSettingsScreen} />
       <AdminStackNav.Screen name="RoleManagement" component={RoleManagementScreen} />
       <AdminStackNav.Screen name="SystemActivity" component={SystemActivityScreen} />
+      <AdminStackNav.Screen name="Analytics" component={AnalyticsScreen} />
       <AdminStackNav.Screen name="AdminProfile">
         {props => <AdminProfileScreen {...props} onLogout={onLogout} />}
       </AdminStackNav.Screen>
@@ -87,50 +113,33 @@ function AdminStack({ onLogout, occupancy, events }) {
   );
 }
 
-try {
-  NotificationService.configureNotificationHandler();
-} catch (e) {
-  console.warn('Failed to configure global notification handler', e);
-}
-
-const BACKEND_URL = config.BACKEND_URL;
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
-
 // Splash Screen
 function SplashScreen({ navigation }) {
   useEffect(() => {
     setTimeout(() => {
       navigation.replace('Auth');
-    }, 2000);
+    }, 1500);
   }, []);
 
   return (
     <View style={[styles.center, { backgroundColor: COLORS.primary }]}>
       <MaterialCommunityIcons name="car-connected" size={100} color="white" />
       <Text style={{ color: 'white', fontSize: 32, fontWeight: 'bold', marginTop: 20 }}>ParkNex-AI</Text>
-      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, marginTop: 8 }}>Smart Campus Parking</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, marginTop: 8 }}>Smart Campus Parking Ecosystem</Text>
     </View>
   );
 }
 
-import StudentBookScreen from './src/screens/student/StudentBookScreen';
-import LiveStatusScreen from './src/screens/student/LiveStatusScreen';
-import NotificationsScreen from './src/screens/student/NotificationsScreen';
-import SlotOccupiedAlertScreen from './src/screens/student/SlotOccupiedAlertScreen';
-import ExitSuccessScreen from './src/screens/student/ExitSuccessScreen';
-import StudentHistoryScreen from './src/screens/student/StudentHistoryScreen';
-import StudentProfileScreen from './src/screens/student/StudentProfileScreen';
-
-// Home Stack to handle nested navigation from the Home screen
+// Home Stack to handle nested navigation from Student Home
 const HomeStackNav = createStackNavigator();
-function HomeStack({ occupancy }) {
+function HomeStack({ occupancy, navigation }) {
   return (
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="StudentHome">
-        {props => <StudentHomeScreen {...props} occupancy={occupancy} />}
+        {props => <StudentHomeScreen {...props} occupancy={occupancy} parentNavigation={navigation} />}
       </HomeStackNav.Screen>
       <HomeStackNav.Screen name="Vehicles" component={StudentVehiclesScreen} />
+      <HomeStackNav.Screen name="Pass" component={StudentPassScreen} />
       <HomeStackNav.Screen name="LiveStatus" component={LiveStatusScreen} />
       <HomeStackNav.Screen name="Notifications" component={NotificationsScreen} />
       <HomeStackNav.Screen name="SlotOccupied" component={SlotOccupiedAlertScreen} />
@@ -141,7 +150,8 @@ function HomeStack({ occupancy }) {
 }
 
 // Student Tabs Navigator
-function StudentTabs({ occupancy, onLogout, session }) {
+const Tab = createBottomTabNavigator();
+function StudentTabs({ occupancy, onLogout, user }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -150,104 +160,134 @@ function StudentTabs({ occupancy, onLogout, session }) {
           let iconName;
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'Map') iconName = focused ? 'map' : 'map-outline';
+          else if (route.name === 'Pass') iconName = focused ? 'card' : 'card-outline';
           else if (route.name === 'Book') iconName = focused ? 'calendar' : 'calendar-outline';
           else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-          return <Ionicons name={iconName} size={size + 4} color={color} />;
+          return <Ionicons name={iconName} size={size + 3} color={color} />;
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: { height: 90, paddingBottom: 30, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.white },
-        tabBarLabelStyle: { fontWeight: '800', fontSize: 11, marginTop: -5 },
+        tabBarStyle: { height: 72, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.white },
+        tabBarLabelStyle: { fontWeight: '800', fontSize: 11, marginTop: -3 },
       })}
     >
       <Tab.Screen name="Home">
         {props => <HomeStack {...props} occupancy={occupancy} />}
       </Tab.Screen>
       <Tab.Screen name="Map" component={StudentMapScreen} />
+      <Tab.Screen name="Pass" component={StudentPassScreen} />
       <Tab.Screen name="Book" component={StudentBookScreen} />
       <Tab.Screen name="Profile">
-        {props => <StudentProfileScreen {...props} onLogout={onLogout} session={session} />}
+        {props => <StudentProfileScreen {...props} onLogout={onLogout} user={user} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
 }
 
+// Security Bottom Tab Navigator
+const SecurityTab = createBottomTabNavigator();
+function SecurityTabs({ onLogout, user }) {
+  return (
+    <SecurityTab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = focused ? 'shield' : 'shield-outline';
+          else if (route.name === 'CCTV') iconName = focused ? 'videocam' : 'videocam-outline';
+          else if (route.name === 'Visitors') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'Violations') iconName = focused ? 'receipt' : 'receipt-outline';
+          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={size + 3} color={color} />;
+        },
+        tabBarActiveTintColor: '#2563EB',
+        tabBarInactiveTintColor: '#64748B',
+        tabBarStyle: { height: 72, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+        tabBarLabelStyle: { fontWeight: '800', fontSize: 11, marginTop: -3 },
+      })}
+    >
+      <SecurityTab.Screen name="Home">
+        {props => <SecurityStack {...props} onLogout={onLogout} />}
+      </SecurityTab.Screen>
+      <SecurityTab.Screen name="CCTV">
+        {props => <SecurityDashboard {...props} onLogout={onLogout} initialTab="cctv" />}
+      </SecurityTab.Screen>
+      <SecurityTab.Screen name="Visitors">
+        {props => <SecurityDashboard {...props} onLogout={onLogout} initialTab="visitors" />}
+      </SecurityTab.Screen>
+      <SecurityTab.Screen name="Violations">
+        {props => <SecurityDashboard {...props} onLogout={onLogout} initialTab="violations" />}
+      </SecurityTab.Screen>
+      <SecurityTab.Screen name="Profile">
+        {props => <OfficerProfileScreen {...props} onLogout={onLogout} user={user} />}
+      </SecurityTab.Screen>
+    </SecurityTab.Navigator>
+  );
+}
+
+// Admin Bottom Tab Navigator
+const AdminTab = createBottomTabNavigator();
+function AdminTabs({ occupancy, events, onLogout, user }) {
+  return (
+    <AdminTab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = focused ? 'grid' : 'grid-outline';
+          else if (route.name === 'Zones') iconName = focused ? 'layers' : 'layers-outline';
+          else if (route.name === 'Users') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'Reports') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={size + 3} color={color} />;
+        },
+        tabBarActiveTintColor: '#0F172A',
+        tabBarInactiveTintColor: '#64748B',
+        tabBarStyle: { height: 72, paddingBottom: 14, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+        tabBarLabelStyle: { fontWeight: '800', fontSize: 11, marginTop: -3 },
+      })}
+    >
+      <AdminTab.Screen name="Home">
+        {props => <AdminStack {...props} occupancy={occupancy} events={events} onLogout={onLogout} />}
+      </AdminTab.Screen>
+      <AdminTab.Screen name="Zones" component={ManageZonesScreen} />
+      <AdminTab.Screen name="Users" component={UserManagementScreen} />
+      <AdminTab.Screen name="Reports" component={ReportsScreen} />
+      <AdminTab.Screen name="Profile">
+        {props => <AdminProfileScreen {...props} onLogout={onLogout} user={user} />}
+      </AdminTab.Screen>
+    </AdminTab.Navigator>
+  );
+}
+
 // Main App Component
+const Stack = createStackNavigator();
 function MainApp() {
-  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [occupancy, setOccupancy] = useState(null);
   const [events, setEvents] = useState([]);
-  const [expoPushToken, setExpoPushToken] = useState('');
-  const [isActionLoading, setIsActionLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    let notificationListener = { remove: () => {} };
-    let responseListener = { remove: () => {} };
-    let subscription = { unsubscribe: () => {} };
-
-    try {
-      NotificationService.registerForPushNotificationsAsync()
-        .then(token => { if (token) setExpoPushToken(token); })
-        .catch(() => {});
-
-      const listeners = NotificationService.setupNotificationListeners(
-        (notification) => console.log('App: Notification Received', notification),
-        (response) => console.log('App: Notification Response', response)
-      );
-      notificationListener = listeners.notificationListener;
-      responseListener = listeners.responseListener;
-    } catch (error) {}
-
-    try {
-      supabase.auth.getSession()
-        .then(({ data: { session }, error }) => {
-          if (error) {
-            if (error.message.includes('Refresh Token Not Found')) {
-              console.warn('Invalid refresh token. Signing out silently.');
-              supabase.auth.signOut().catch(() => {});
-            }
-            setIsInitializing(false);
-            return;
-          }
-          setSession(session);
-          if (session?.user?.user_metadata?.role) setRole(session.user.user_metadata.role);
-          setIsInitializing(false);
-        })
-        .catch(() => setIsInitializing(false));
-
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setSession(null);
-          setRole(null);
-        } else {
-          setSession(session);
-          if (session?.user?.user_metadata?.role) setRole(session.user.user_metadata.role);
+    const restoreSession = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('@parknex_user');
+        const storedRole = await AsyncStorage.getItem('@parknex_role');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+          setRole(storedRole || 'STUDENT');
         }
-      });
-      subscription = authListener?.subscription || { unsubscribe: () => {} };
-    } catch (error) {
-      setIsInitializing(false);
-    }
-
-    return () => {
-      if (subscription.unsubscribe) subscription.unsubscribe();
-      if (notificationListener.remove) notificationListener.remove();
-      if (responseListener.remove) responseListener.remove();
+      } catch (e) {
+      } finally {
+        setIsInitializing(false);
+      }
     };
+    restoreSession();
   }, []);
 
   useEffect(() => {
-    if (!session) return;
-
-    if (expoPushToken) {
-      axios.post(`${BACKEND_URL}/register-push-token`, {
-        email: session.user.email,
-        pushToken: expoPushToken,
-        role: session.user.user_metadata.role
-      }).catch(() => {});
-    }
+    if (!user) return;
 
     const fetchData = async () => {
       try {
@@ -257,60 +297,38 @@ function MainApp() {
         ]);
         setOccupancy(occ.data);
         setEvents(ev.data);
-      } catch (e) { console.error('Data fetch error:', e.message); }
+      } catch (e) {
+        console.warn('Data fetch warning:', e.message);
+      }
     };
 
     fetchData();
     const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [user]);
 
-    const channel = supabase.channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Event' },
-        (payload) => {
-          setEvents(prev => [payload.new, ...prev]);
-          axios.get(`${BACKEND_URL}/occupancy`).then(res => setOccupancy(res.data)).catch(() => {});
-        }
-      ).subscribe();
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
-  }, [session, expoPushToken]);
-
-  const simulateEvent = async (type) => {
-    setIsActionLoading(true);
+  const handleLoginSuccess = async (userData, token) => {
     try {
-      const zones = occupancy?.zones || [];
-      const randomZone = zones.length > 0 ? zones[Math.floor(Math.random() * zones.length)].id : 'mock-zone-id';
-      
-      await axios.post(`${BACKEND_URL}/simulate-event`, {
-        type,
-        plateNumber: `UP${Math.floor(10 + Math.random() * 90)}AB${Math.floor(1000 + Math.random() * 9000)}`,
-        zoneId: randomZone
-      });
-    } catch (error) {
-      alert('Failed to simulate event. Check backend connection.');
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const triggerAIScan = async () => {
-    setIsActionLoading(true);
-    try {
-      const res = await axios.post(`${BACKEND_URL}/trigger-ai`);
-      if (res.data.success) {
-        alert('AI scan process started in the background!');
+      if (token) await AsyncStorage.setItem('@parknex_token', token);
+      if (userData) {
+        await AsyncStorage.setItem('@parknex_user', JSON.stringify(userData));
+        await AsyncStorage.setItem('@parknex_role', userData.role || 'STUDENT');
+        setUser(userData);
+        setRole(userData.role || 'STUDENT');
       }
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to start AI scan.');
-    } finally {
-      setIsActionLoading(false);
+    } catch (e) {
+      console.error('Login storage error:', e);
     }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await AsyncStorage.removeItem('@parknex_token');
+      await AsyncStorage.removeItem('@parknex_user');
+      await AsyncStorage.removeItem('@parknex_role');
+      await supabase.auth.signOut().catch(() => {});
+    } catch (e) {}
+    setUser(null);
     setRole(null);
   };
 
@@ -325,20 +343,20 @@ function MainApp() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
+        {!user ? (
           <>
             <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Auth" component={AuthScreen} />
+            <Stack.Screen name="Auth">
+              {props => <AuthScreen {...props} onLoginSuccess={handleLoginSuccess} />}
+            </Stack.Screen>
           </>
         ) : (
           <Stack.Screen name="Main">
             {() => (
               <>
-                {role === 'STUDENT' && <StudentTabs occupancy={occupancy} onLogout={handleLogout} session={session} />}
-                {role === 'SECURITY' && <SecurityStack onLogout={handleLogout} />}
-                {role === 'ADMIN' && <AdminStack occupancy={occupancy} events={events} onLogout={handleLogout} />}
-                {/* Fallback if role is undefined */}
-                {!role && <StudentTabs occupancy={occupancy} onLogout={handleLogout} session={session} />}
+                {(role === 'STUDENT' || role === 'FACULTY' || !role) && <StudentTabs occupancy={occupancy} onLogout={handleLogout} user={user} />}
+                {role === 'SECURITY' && <SecurityTabs onLogout={handleLogout} user={user} />}
+                {(role === 'ADMIN' || role === 'CAMPUS_ADMIN' || role === 'DEPARTMENT_ADMIN') && <AdminTabs occupancy={occupancy} events={events} onLogout={handleLogout} user={user} />}
               </>
             )}
           </Stack.Screen>

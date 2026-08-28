@@ -1,0 +1,177 @@
+[
+  {
+    "id": "1787892178528",
+    "type": "EXIT",
+    "text": "🚗 Vehicle eaf32f73-f3dc-4bee-8f82-d39bfbd2d26b Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1787892174511",
+    "type": "EXIT",
+    "text": "🚗 Vehicle 6feea4b2-62f9-43a3-9e4b-965906f92987 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1787892012089",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787891809200",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787891472721",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787891290216",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787891253954",
+    "type": "USER",
+    "text": "🔑 User Login: Officer Davis (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787891057217",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787890906775",
+    "type": "USER",
+    "text": "🔑 User Login: Officer Davis (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787890711861",
+    "type": "USER",
+    "text": "🔑 User Login: Officer Davis (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787889362478",
+    "type": "USER",
+    "text": "🔑 User Login: Officer Davis (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787889320120",
+    "type": "USER",
+    "text": "✨ Fresh Account Auto-Registered: mdilyas1024 (mdilyas1024@gmail.com) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1787889042745",
+    "type": "USER",
+    "text": "✨ Fresh Account Auto-Registered: mraghavendra6305 (mraghavendra6305@gmail.com) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1787888358741",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787888143917",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787886880753",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787821569223",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787819154661",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1787819108839",
+    "type": "USER",
+    "text": "✨ Fresh Account Auto-Registered: admin (admin@colleg.edu) as ADMIN",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1787818626587",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1",
+    "type": "ENTRY",
+    "text": "Vehicle KA-01-AB-1234 scanned & cleared at Main Gate Barrier",
+    "time": "Just now",
+    "color": "#6366F1"
+  },
+  {
+    "id": "2",
+    "type": "ALERT",
+    "text": "Suspicious loitering alert triggered near Zone C Gate",
+    "time": "4m ago",
+    "color": "#EF4444"
+  },
+  {
+    "id": "3",
+    "type": "EXIT",
+    "text": "Vehicle MH-12-XY-9090 exited Main Gate Barrier",
+    "time": "12m ago",
+    "color": "#10B981"
+  },
+  {
+    "id": "4",
+    "type": "ENTRY",
+    "text": "Guest Vehicle DL-01-VX-7777 granted gate clearance",
+    "time": "25m ago",
+    "color": "#2563EB"
+  },
+  {
+    "id": "5",
+    "type": "TICKET",
+    "text": "Violation Ticket #V-8888 issued for UP-16-XX-8888",
+    "time": "40m ago",
+    "color": "#F59E0B"
+  }
+]

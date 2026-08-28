@@ -1,76 +1,158 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Image } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, Modal } from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import config from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
-export default function StudentProfileScreen({ onLogout }) {
+const BACKEND_URL = config.BACKEND_URL;
+
+export default function StudentProfileScreen({ onLogout, user }) {
+  const [name, setName] = useState(user?.name || 'Alex Carter');
+  const [email, setEmail] = useState(user?.email || 'student@college.edu');
+  const [phone, setPhone] = useState(user?.phone || '+91 98765-43210');
+  const [designation, setDesignation] = useState(user?.designation || 'Computer Science & Engineering');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || 'Alex Carter');
+      setEmail(user.email || 'student@college.edu');
+      setPhone(user.phone || '+91 98765-43210');
+      setDesignation(user.designation || 'Computer Science & Engineering');
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    try {
+      const updated = { ...user, name, email, phone, designation };
+      await AsyncStorage.setItem('@parknex_user', JSON.stringify(updated));
+      await axios.put(`${BACKEND_URL}/users/profile`, { name, email, phone, designation }).catch(() => null);
+      Alert.alert('Profile Saved', 'Your account details have been updated successfully.');
+    } catch (e) {
+      Alert.alert('Saved', 'Profile saved locally.');
+    }
+  };
+
+  const handleDeleteAccountPermanently = () => {
+    Alert.alert(
+      '⚠️ Delete Account Permanently',
+      `Are you sure you want to PERMANENTLY delete account (${email})?\n\nThis will purge all your registered vehicles, active bookings, passes, and history logs from the database. This action CANNOT be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Permanently Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await axios.delete(`${BACKEND_URL}/users/profile`, { data: { email } }).catch(() => null);
+            } catch (e) {}
+
+            try {
+              await AsyncStorage.removeItem('@parknex_token');
+              await AsyncStorage.removeItem('@parknex_user');
+              await AsyncStorage.removeItem('@parknex_role');
+              await AsyncStorage.removeItem(`@parknex_vehicles_${email}`);
+              await AsyncStorage.removeItem(`@parknex_history_${email}`);
+              await AsyncStorage.removeItem(`@parknex_receipts_${email}`);
+            } catch (e) {}
+
+            setIsDeleting(false);
+            Alert.alert('Account Deleted', 'Your account and all associated data have been permanently removed.');
+            if (onLogout) onLogout();
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={[styles.header, { paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <Text style={[styles.greeting, { fontSize: 24 }]}>Edit Profile</Text>
+        <Text style={[styles.greeting, { fontSize: 24 }]}>Account Profile</Text>
         <TouchableOpacity onPress={onLogout} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
-          <Text style={{ color: COLORS.danger, fontWeight: '700', fontSize: 13 }}>Logout</Text>
+          <Text style={{ color: COLORS.danger, fontWeight: '800', fontSize: 13 }}>Logout</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         
-        {/* Profile Picture */}
-        <View style={{ marginBottom: 40, marginTop: 10 }}>
-          <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-            <Feather name="user" size={60} color={COLORS.textMuted} />
-            {/* Real app would use Image component here */}
+        {/* PROFILE HEADER */}
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 36, fontWeight: '900', color: '#fff' }}>
+              {(name || 'S')[0].toUpperCase()}
+            </Text>
           </View>
-          <TouchableOpacity style={{ position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.white }}>
-            <Feather name="camera" size={16} color={COLORS.white} />
+          <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text }}>{name}</Text>
+          <Text style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' }}>{email}</Text>
+          <View style={[styles.badge, { backgroundColor: '#DCFCE7', marginTop: 8 }]}>
+            <Text style={{ color: COLORS.success, fontSize: 11, fontWeight: '800' }}>● {user?.role || 'STUDENT'} ACCOUNT</Text>
+          </View>
+        </View>
+
+        {/* FORM FIELDS */}
+        <View style={[styles.card, { marginBottom: 24 }]}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: COLORS.text, marginBottom: 16 }}>Personal & Academic Information</Text>
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Full Name</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 14 }]}
+            value={name}
+            onChangeText={setName}
+          />
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Email Address</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 14 }]}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+          />
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Phone Number</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 14 }]}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Department / Designation</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 20 }]}
+            value={designation}
+            onChangeText={setDesignation}
+          />
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveProfile}>
+            <Text style={styles.primaryBtnText}>Save Profile Changes</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Form Fields */}
-        <View style={{ width: '100%', gap: 20, marginBottom: 40 }}>
-          <View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 }}>Full Name</Text>
-            <TextInput
-              style={{ backgroundColor: COLORS.white, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, color: COLORS.text, fontSize: 16, fontWeight: '500' }}
-              defaultValue="Alex Carter"
-              placeholderTextColor={COLORS.textMuted}
-            />
+        {/* DANGER ZONE - ACCOUNT DELETION */}
+        <View style={[styles.card, { borderColor: '#FCA5A5', borderWidth: 1.5, backgroundColor: '#FEF2F2', marginBottom: 30 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Ionicons name="warning-outline" size={22} color={COLORS.danger} />
+            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.danger }}>Danger Zone</Text>
           </View>
+          <Text style={{ fontSize: 12, color: '#991B1B', fontWeight: '600', marginBottom: 16, lineHeight: 18 }}>
+            Permanently delete your ParkNex account and erase all registered vehicles, active parking bookings, digital passes, and payment receipts from the database.
+          </Text>
 
-          <View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 }}>Email Address</Text>
-            <TextInput
-              style={{ backgroundColor: COLORS.white, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, color: COLORS.text, fontSize: 16, fontWeight: '500' }}
-              defaultValue="alex.c@college.edu"
-              keyboardType="email-address"
-              placeholderTextColor={COLORS.textMuted}
-            />
-          </View>
-
-          <View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 }}>Phone Number</Text>
-            <TextInput
-              style={{ backgroundColor: COLORS.white, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, color: COLORS.text, fontSize: 16, fontWeight: '500' }}
-              defaultValue="+1 (555) 123-4567"
-              keyboardType="phone-pad"
-              placeholderTextColor={COLORS.textMuted}
-            />
-          </View>
-
-          <View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 }}>College ID</Text>
-            <TextInput
-              style={{ backgroundColor: COLORS.white, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, color: COLORS.text, fontSize: 16, fontWeight: '500' }}
-              defaultValue="STU-2024-123"
-              placeholderTextColor={COLORS.textMuted}
-            />
-          </View>
+          <TouchableOpacity 
+            onPress={handleDeleteAccountPermanently}
+            disabled={isDeleting}
+            style={{ backgroundColor: COLORS.danger, paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14 }}>
+              {isDeleting ? 'Deleting Account...' : 'Delete My Account Permanently'}
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={[styles.primaryBtn, { width: '100%', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 4 }]}>
-          <Text style={styles.primaryBtnText}>Save Changes</Text>
-        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

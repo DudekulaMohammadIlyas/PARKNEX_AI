@@ -5,6 +5,7 @@ export const globalStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
+    paddingTop: Platform.OS === 'android' ? 36 : 10,
   },
   center: {
     flex: 1,

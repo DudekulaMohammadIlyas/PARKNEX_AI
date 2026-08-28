@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1",
+    "plateNumber": "UP-16-XX-8888",
+    "type": "UNAUTHORIZED_ENTRY",
+    "description": "no entry",
+    "penaltyAmount": 1200,
+    "status": "PENDING"
+  },
+  {
+    "id": "2",
+    "plateNumber": "KA-01-AB-1234",
+    "type": "WRONG_PARKING",
+    "description": "Reported by Security Officer",
+    "penaltyAmount": 500,
+    "status": "PENDING"
+  },
+  {
+    "id": "3",
+    "plateNumber": "KA-01-AB-1234",
+    "type": "EXPIRED_PASS",
+    "description": "expired pass",
+    "penaltyAmount": 500,
+    "status": "RESOLVED"
+  }
+]

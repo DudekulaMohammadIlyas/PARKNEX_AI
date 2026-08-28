@@ -1,0 +1,98 @@
+[
+  {
+    "id": "z1",
+    "name": "Faculty Parking",
+    "total": 100,
+    "occupied": 10,
+    "type": "Faculty Only",
+    "status": "Active"
+  },
+  {
+    "id": "z2",
+    "name": "South Block",
+    "total": 150,
+    "occupied": 50,
+    "type": "Mixed",
+    "status": "Active"
+  },
+  {
+    "id": "z3",
+    "name": "Zone B",
+    "total": 80,
+    "occupied": 78,
+    "type": "4-Wheeler",
+    "status": "Active"
+  },
+  {
+    "id": "z4",
+    "name": "KRISHNA HOSTEL",
+    "total": 150,
+    "occupied": 50,
+    "type": "Hostel Block",
+    "status": "Active"
+  },
+  {
+    "id": "z5",
+    "name": "HOSPITAL PARKING",
+    "total": 200,
+    "occupied": 80,
+    "type": "Mixed",
+    "status": "Active"
+  },
+  {
+    "id": "z6",
+    "name": "Zone C",
+    "total": 200,
+    "occupied": 110,
+    "type": "2-Wheeler",
+    "status": "Active"
+  },
+  {
+    "id": "z7",
+    "name": "Zone A",
+    "total": 120,
+    "occupied": 45,
+    "type": "Academic",
+    "status": "Active"
+  },
+  {
+    "id": "z8",
+    "name": "Visitor Parking",
+    "total": 50,
+    "occupied": 10,
+    "type": "Visitor Only",
+    "status": "Active"
+  },
+  {
+    "id": "z9",
+    "name": "Scad",
+    "total": 75,
+    "occupied": 1,
+    "type": "Mixed",
+    "status": "Active"
+  },
+  {
+    "id": "z10",
+    "name": "Near Temple",
+    "total": 60,
+    "occupied": 0,
+    "type": "Mixed",
+    "status": "Active"
+  },
+  {
+    "id": "z11",
+    "name": "Faculty Block Parking",
+    "total": 100,
+    "occupied": 15,
+    "type": "Faculty Only",
+    "status": "Active"
+  },
+  {
+    "id": "z12",
+    "name": "North Block",
+    "total": 200,
+    "occupied": 80,
+    "type": "Academic",
+    "status": "Active"
+  }
+]

@@ -8,38 +8,365 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Role {
+  STUDENT
+  FACULTY
+  SECURITY
+  ADMIN
+  VISITOR
+}
+
+enum SlotStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  DISABLED
+}
+
+enum VehicleType {
+  TWO_WHEELER
+  FOUR_WHEELER
+  ELECTRIC_VEHICLE
+}
+
+enum PassCategory {
+  STUDENT_STANDARD
+  FACULTY_PRIORITY
+  VISITOR_TEMPORARY
+  VIP_SPECIAL
+}
+
+model Campus {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  code        String       @unique
+  address     String?
+  departments Department[]
+  zones       Zone[]
+  createdAt   DateTime     @default(now())
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   
+  campusId  String
+  campus    Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  password       String?
+  role           Role          @default(STUDENT)
+  name           String?
+  phone          String?
+  designation    String?       
+  academicYear   String?       
+  studentId      String?       
+  departmentId   String?
+  department     Department?   @relation(fields: [departmentId], references: [id])
+  emergencyPhone String?
+  pushToken      String?
+  vehicles       Vehicle[]
+  bookings       Booking[]
+  passes         ParkingPass[]
+  visitorsHosted Visitor[]     @relation("HostRelation")
+  notifications  Notification[]
+  violations     Violation[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+}
+
+model ParkingPass {
+  id           String       @id @default(uuid())
+  passNumber   String       @unique 
+  category     PassCategory @default(STUDENT_STANDARD)
+  qrCodeUrl    String?
+  issueDate    DateTime     @default(now())
+  expiryDate   DateTime
+  status       String       @default("ACTIVE") 
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+}
+
+model Vehicle {
+  id            String      @id @default(uuid())
+  plateNumber   String      @unique
+  brand         String
+  model         String?
+  color         String?
+  type          VehicleType @default(FOUR_WHEELER)
+  status        String      @default("Verified") 
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+  createdAt     DateTime    @default(now())
+}
+
 model Zone {
-  id       String  @id @default(uuid())
-  name     String
-  total    Int
-  occupied Int     @default(0)
-  events   Event[]
+  id            String        @id @default(uuid())
+  name          String        @unique
+  total         Int
+  occupied      Int           @default(0)
+  type          String        @default("Mixed")
+  status        String        @default("Active")
+  isFacultyOnly Boolean       @default(false)
+  campusId      String?
+  campus        Campus?       @relation(fields: [campusId], references: [id])
+  slots         Slot[]
+  events        Event[]
+  campusEvents  CampusEvent[]
+  createdAt     DateTime      @default(now())
+}
+
+model Slot {
+  id                    String     @id @default(uuid())
+  slotNumber            String     
+  status                SlotStatus @default(AVAILABLE)
+  isReservedForFaculty Boolean    @default(false)
+  zoneId                String
+  zone                  Zone       @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  bookings              Booking[]
+  createdAt             DateTime   @default(now())
+
+  @@unique([zoneId, slotNumber])
+}
+
+model Booking {
+  id            String   @id @default(uuid())
+  bookingDate   String
+  bookingTime   String
+  durationHours Int      @default(4)
+  status        String   @default("CONFIRMED") 
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slotId        String
+  slot          Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
+
+model Visitor {
+  id           String   @id @default(uuid())
+  name         String
+  phone        String
+  email        String?
+  plateNumber  String
+  visitPurpose String
+  expectedTime DateTime @default(now())
+  status       String   @default("APPROVED") 
+  qrCode       String   @unique
+  hostId       String?
+  host         User?    @relation("HostRelation", fields: [hostId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model CampusEvent {
+  id                String   @id @default(uuid())
+  title             String
+  eventType         String   
+  startDate         DateTime @default(now())
+  endDate           DateTime @default(now())
+  allocatedZoneId   String?
+  allocatedZone     Zone?    @relation(fields: [allocatedZoneId], references: [id])
+  reservedSlotCount Int      @default(20)
+  status            String   @default("UPCOMING") 
+  createdAt         DateTime @default(now())
+}
+
+model Policy {
+  id               String   @id @default(uuid())
+  role             Role     @unique
+  maxBookingHours  Int      @default(8)
+  priorityLevel    Int      @default(1)
+  allowedZoneTypes String   @default("ALL")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  category  String   
+  isRead    Boolean  @default(false)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Violation {
+  id            String   @id @default(uuid())
+  plateNumber   String
+  type          String   
+  description   String
+  penaltyAmount Float    @default(0)
+  status        String   @default("PENDING") 
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  timestamp     DateTime @default(now())
 }
 
 model Event {
   id          String   @id @default(uuid())
-  type        String   // 'ENTRY' or 'EXIT'
+  type        String   
   plateNumber String
   timestamp   DateTime @default(now())
-  status      String   // 'AUTHORIZED' or 'UNAUTHORIZED'
-  snapshotUrl String?  // URL to the image in Supabase Storage
-
+  status      String   
+  snapshotUrl String?
   zoneId      String
-  zone        Zone     @relation(fields: [zoneId], references: [id])
+  zone        Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 }
 
-enum Role {
-  STUDENT
-  SECURITY
-  ADMIN
-}
-
-model User {
+model Incident {
   id        String   @id @default(uuid())
-  email     String   @unique
-  role      Role     @default(STUDENT)
-  name      String?
-  pushToken String?
+  title     String
+  desc      String
+  severity  String   @default("CRITICAL")
+  status    String   @default("ACTIVE")
+  timestamp DateTime @default(now())
+}
+
+model AIPrediction {
+  id                  String   @id @default(uuid())
+  zoneId              String
+  targetWindow        String   
+  predictedOccupancy  Int
+  confidenceScore     Float    @default(0.92)
+  timestamp           DateTime @default(now())
+}
+
+model AIRecommendation {
+  id              String   @id @default(uuid())
+  userId          String
+  recommendedSlot String
+  recommendedZone String
+  reason          String
+  score           Float
+  createdAt       DateTime @default(now())
+}
+
+model AIInsight {
+  id        String   @id @default(uuid())
+  title     String
+  insight   String
+  category  String   
+  priority  String   @default("NORMAL")
   createdAt DateTime @default(now())
 }
 
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  category    String   
+  targetRole  String   @default("ALL") 
+  targetDept  String?  
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model MaintenanceLog {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  zoneName    String
+  status      String   @default("SCHEDULED") 
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model EmergencyLog {
+  id            String   @id @default(uuid())
+  vehicleType   String   
+  plateNumber   String
+  locationZone  String
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+}
+
+model DigitalSignage {
+  id             String   @id @default(uuid())
+  screenName     String   @unique
+  location       String
+  displayedText  String
+  status         String   @default("ONLINE")
+  updatedAt      DateTime @default(now()) @updatedAt
+}
+
+model QueueMetric {
+  id             String   @id @default(uuid())
+  gateName       String
+  averageWaitSec Int      @default(45)
+  queueLength    Int      @default(3)
+  status         String   @default("NORMAL") 
+  timestamp      DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   
+  user      String   
+  role      String   
+  details   String?
+  status    String   @default("SUCCESS") 
+  ipAddress String?  @default("127.0.0.1")
+  timestamp DateTime @default(now())
+}
+
+model SystemActivityLog {
+  id        String   @id @default(uuid())
+  category  String   
+  level     String   @default("INFO") 
+  message   String
+  timestamp DateTime @default(now())
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  category  String   @default("GENERAL")
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model DatabaseBackup {
+  id        String   @id @default(uuid())
+  filename  String
+  sizeBytes Int
+  status    String   @default("VERIFIED") 
+  createdAt DateTime @default(now())
+}
+
+model AnomalyAlert {
+  id        String   @id @default(uuid())
+  title     String
+  category  String   
+  riskScore Float    @default(0.85)
+  details   String
+  status    String   @default("OPEN") 
+  timestamp DateTime @default(now())
+}
+
+model AIModelMetadata {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  version         String
+  accuracyPercent Float
+  confidenceMin   Float    @default(0.85)
+  status          String   @default("DEPLOYED")
+  lastTrained     DateTime @default(now())
+}
+
+model AutomationRule {
+  id        String   @id @default(uuid())
+  ruleName  String   @unique
+  trigger   String   
+  action    String   
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

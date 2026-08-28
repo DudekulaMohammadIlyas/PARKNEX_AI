@@ -1,9 +1,19 @@
-/**
- * ParkNex-AI Mobile Configuration
- * Use your API backend URL and replace this value for local development.
- */
+import Constants from 'expo-constants';
+
+const getBackendUrl = () => {
+  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
+    return process.env.EXPO_PUBLIC_BACKEND_URL;
+  }
+  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || '';
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip) return `http://${ip}:5000/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+
 const config = {
-  BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:5000/api',
+  BACKEND_URL: getBackendUrl(),
 
   // Theme Colors (Royal Blue)
   COLORS: {

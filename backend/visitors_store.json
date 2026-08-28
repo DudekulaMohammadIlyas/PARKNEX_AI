@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1",
+    "name": "John Mark",
+    "phone": "+91 98765 11111",
+    "plateNumber": "DL-01-VX-7777",
+    "visitPurpose": "Guest Lecture in CS Dept",
+    "status": "APPROVED",
+    "qrCode": "VISITOR_QR_7777"
+  },
+  {
+    "id": "2",
+    "name": "Rahul Sharma",
+    "phone": "+91 98123 44444",
+    "plateNumber": "KA-03-MB-5555",
+    "visitPurpose": "Vendor Delivery to Canteen",
+    "status": "APPROVED",
+    "qrCode": "VISITOR_QR_5555"
+  }
+]

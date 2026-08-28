@@ -1,0 +1,34 @@
+[
+  {
+    "id": "cam_1",
+    "camId": "Cam 01",
+    "name": "Main Campus Entrance Gate",
+    "zone": "Zone A",
+    "plate": "KA-01-AB-1234",
+    "status": "AUTHORIZED"
+  },
+  {
+    "id": "cam_2",
+    "camId": "Cam 02",
+    "name": "Zone A - CS Academic Block",
+    "zone": "Zone A",
+    "plate": "MH-12-XY-9090",
+    "status": "PARKED"
+  },
+  {
+    "id": "cam_3",
+    "camId": "Cam 03",
+    "name": "Zone B - Central Library",
+    "zone": "Zone B",
+    "plate": "KA-05-XY-9876",
+    "status": "MONITORED"
+  },
+  {
+    "id": "cam_4",
+    "camId": "Cam 04",
+    "name": "North Security Gate Barrier",
+    "zone": "North Block",
+    "plate": "UP-16-XX-8888",
+    "status": "UNAUTHORIZED"
+  }
+]
