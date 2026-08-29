@@ -288,6 +288,29 @@ jobs:
         run: |
           cd web-app
           npm run build
+          cp dist/index.html dist/404.html
+
+      - name: Pre-Deployment Build Validation
+        run: |
+          echo "🔍 Validating built website artifact in web-app/dist..."
+          find web-app/dist -maxdepth 3 -type f
+          
+          if [ ! -f "web-app/dist/index.html" ]; then
+            echo "❌ ERROR: index.html missing from web-app/dist!"
+            exit 1
+          fi
+          
+          if [ ! -s "web-app/dist/index.html" ]; then
+            echo "❌ ERROR: index.html is empty!"
+            exit 1
+          fi
+
+          if [ ! -d "web-app/dist/assets" ]; then
+            echo "❌ ERROR: assets/ directory missing from web-app/dist!"
+            exit 1
+          fi
+
+          echo "✅ Pre-deployment build validation passed! index.html and assets/ present."
 
       - name: Setup GitHub Pages Configuration
         uses: actions/configure-pages@v5
@@ -300,3 +323,11 @@ jobs:
       - name: Deploy Web Application to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Post-Deployment Verification
+        run: |
+          echo "🌐 Validating live deployment at https://dudekulammohammadilyas.github.io/PARKNEX_AI/..."
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dudekulammohammadilyas.github.io/PARKNEX_AI/ || echo "000")
+          echo "Live HTTP Status Code: $STATUS"
+
