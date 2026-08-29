@@ -4,6 +4,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -31,8 +32,8 @@ export default function StudentHistoryScreen() {
         } else if (isDemoUser) {
           const demo = [
             { id: '1', date: '2026-08-25', time: '09:15 AM - 01:30 PM', zone: 'KRISHNA HOSTEL', slot: 'Slot K-30', vehicle: 'KA-01-AB-1234', duration: '4h 15m', status: 'CONFIRMED' },
-            { id: '2', date: '2026-08-24', time: '10:15 AM - 12:00 PM', zone: 'Zone A (Near CS)', slot: 'Slot A-12', vehicle: 'KA-01-AB-1234', duration: '1h 45m', status: 'EXITED' },
-            { id: '3', date: '2026-08-20', time: '08:30 AM - 05:00 PM', zone: 'Zone B (Library)', slot: 'Slot B-05', vehicle: 'KA-05-XY-9876', duration: '8h 30m', status: 'EXITED' }
+            { id: '2', date: '2026-08-24', time: '10:15 AM - 12:00 PM', zone: 'CS Academic Block', slot: 'Slot A-12', vehicle: 'KA-01-AB-1234', duration: '1h 45m', status: 'EXITED' },
+            { id: '3', date: '2026-08-20', time: '08:30 AM - 05:00 PM', zone: 'Central Library', slot: 'Slot B-05', vehicle: 'KA-05-XY-9876', duration: '8h 30m', status: 'EXITED' }
           ];
           setHistoryData(demo);
           await AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(demo));
@@ -40,23 +41,49 @@ export default function StudentHistoryScreen() {
           setHistoryData([]);
         }
 
-        const apiRes = await axios.get(`${BACKEND_URL}/bookings/my-bookings`).catch(() => null);
+        const apiRes = await axios.get(`${BACKEND_URL}/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
         if (Array.isArray(apiRes?.data) && apiRes.data.length > 0) {
-          setHistoryData(apiRes.data.map(b => ({
-            id: b.id,
+          const apiMapped = apiRes.data.map(b => ({
+            id: b.id || `b_${Date.now()}`,
             date: b.bookingDate || 'Today',
             time: b.bookingTime || '09:00 AM',
-            zone: b.zoneName || 'Zone A',
-            slot: b.slotNumber || 'A-12',
-            vehicle: b.vehiclePlate || 'KA-01-AB-1234',
+            zone: b.zoneName || b.slot?.zone?.name || 'KRISHNA HOSTEL',
+            slot: b.slotNumber || b.slot?.slotNumber || 'K-30',
+            vehicle: b.vehiclePlate || b.plateNumber || b.vehicle?.plateNumber || 'NO VEHICLE',
             duration: `${b.durationHours || 4} Hours`,
             status: b.status || 'CONFIRMED'
-          })));
+          }));
+
+          setHistoryData(prev => {
+            const map = new Map();
+            apiMapped.forEach(m => map.set(m.id, m));
+            prev.forEach(p => {
+              if (!map.has(p.id)) {
+                map.set(p.id, p);
+              }
+            });
+            const merged = Array.from(map.values());
+            AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(merged)).catch(() => null);
+            return merged;
+          });
         }
       } catch (e) {}
     };
 
     loadHistory();
+
+    const channel = supabase
+      .channel('student-history-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        loadHistory();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') loadHistory();
+      });
+
+    return () => {
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleConfirmExit = async () => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, MoreVertical, ShieldAlert, CheckCircle, Trash2, X, Users, Mail, UserCheck } from 'lucide-react';
 import axios from 'axios';
+import { supabase } from './supabaseClient';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -21,8 +22,8 @@ export default function UserManagement() {
     status: 'Active'
   });
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (isInitial = false) => {
+    if (isInitial && users.length === 0) setLoading(true);
     try {
       const res = await axios.get(`${BACKEND_URL}/users`, {
         params: { search: searchQuery, role: selectedRoleFilter }
@@ -40,20 +41,35 @@ export default function UserManagement() {
       }
     } catch (err) {
       console.warn("Backend users fetch failed, fallback mock:", err.message);
-      setUsers([
-        { id: 'STU-123', name: 'Alex Carter', email: 'alex@college.edu', role: 'Student', status: 'Active', initial: 'A' },
-        { id: 'FAC-456', name: 'Dr. Smith', email: 'smith@college.edu', role: 'Faculty', status: 'Active', initial: 'D' },
-        { id: 'SEC-789', name: 'Officer Davis', email: 'security@college.edu', role: 'Security', status: 'Active', initial: 'O' }
-      ]);
+      if (users.length === 0) {
+        setUsers([
+          { id: 'STU-123', name: 'Alex Carter', email: 'alex@college.edu', role: 'Student', status: 'Active', initial: 'A' },
+          { id: 'FAC-456', name: 'Dr. Smith', email: 'smith@college.edu', role: 'Faculty', status: 'Active', initial: 'D' },
+          { id: 'SEC-789', name: 'Officer Davis', email: 'security@college.edu', role: 'Security', status: 'Active', initial: 'O' }
+        ]);
+      }
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
-    const interval = setInterval(fetchUsers, 3000);
-    return () => clearInterval(interval);
+    fetchUsers(true);
+    const interval = setInterval(() => fetchUsers(false), 3000);
+
+    const channel = supabase
+      .channel('web-users-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchUsers(false);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchUsers(false);
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [searchQuery, selectedRoleFilter]);
 
   const handleAddUser = async (e) => {

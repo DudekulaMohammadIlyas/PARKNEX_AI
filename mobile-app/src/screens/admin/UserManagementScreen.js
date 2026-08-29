@@ -1,25 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Modal, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
+const defaultUsersList = [
+  { id: 'u_bhanu', name: 'bhanu', email: 'hemasaisiddarthahemasai@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'B' },
+  { id: 'u_raghu', name: 'mraghavendra6305', email: 'mraghavendra6305@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'M' },
+  { id: 'u_ilyas', name: 'mdilyas1024', email: 'mdilyas1024@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'M' },
+  { id: '1', name: 'Alex Carter', email: 'student@college.edu', role: 'STUDENT', status: 'ACTIVE', initial: 'A' },
+  { id: '2', name: 'Dr. Smith', email: 'faculty@college.edu', role: 'FACULTY', status: 'ACTIVE', initial: 'D' },
+  { id: '3', name: 'Officer Davis', email: 'security@college.edu', role: 'SECURITY', status: 'ACTIVE', initial: 'O' },
+  { id: '4', name: 'System Admin', email: 'admin@college.edu', role: 'ADMIN', status: 'ACTIVE', initial: 'S' }
+];
+
 export default function UserManagementScreen({ navigation }) {
-  const [users, setUsers] = useState([
-    { id: '1', name: 'Alex Carter', email: 'student@college.edu', role: 'STUDENT', status: 'ACTIVE', initial: 'A' },
-    { id: '2', name: 'Dr. Smith', email: 'faculty@college.edu', role: 'FACULTY', status: 'ACTIVE', initial: 'D' },
-    { id: '3', name: 'Officer Davis', email: 'security@college.edu', role: 'SECURITY', status: 'ACTIVE', initial: 'O' },
-    { id: '4', name: 'System Admin', email: 'admin@college.edu', role: 'ADMIN', status: 'ACTIVE', initial: 'S' }
-  ]);
+  const [users, setUsers] = useState(defaultUsersList);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   // New User Form State
   const [newUserName, setNewUserName] = useState('');
@@ -30,24 +36,61 @@ export default function UserManagementScreen({ navigation }) {
 
   const fetchUsersFromApi = async () => {
     try {
-      const res = await axios.get(`${BACKEND_URL}/users`);
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setUsers(res.data.map(u => ({
-          id: u.id,
-          name: u.name || u.email.split('@')[0],
-          email: u.email,
+      let combined = [...defaultUsersList];
+
+      const savedMem = await AsyncStorage.getItem('@parknex_registered_users').catch(() => null);
+      if (savedMem) {
+        try {
+          const parsed = JSON.parse(savedMem);
+          if (Array.isArray(parsed)) combined = [...parsed, ...combined];
+        } catch (e) {}
+      }
+
+      const res = await axios.get(`${BACKEND_URL}/users`).catch(() => null);
+      if (Array.isArray(res?.data) && res.data.length > 0) {
+        const apiUsers = res.data.map(u => ({
+          id: String(u.id || Date.now()),
+          name: u.name || (u.email ? u.email.split('@')[0] : 'User'),
+          email: u.email ? u.email.toLowerCase() : 'user@college.edu',
           role: u.role ? u.role.toUpperCase() : 'STUDENT',
           status: u.status || 'ACTIVE',
-          initial: (u.name || u.email).charAt(0).toUpperCase()
-        })));
+          department: u.department || '',
+          academicTerm: u.academicTerm || '',
+          initial: (u.name || u.email || 'U').charAt(0).toUpperCase()
+        }));
+        combined = [...apiUsers, ...combined];
       }
+
+      const map = new Map();
+      combined.forEach(u => {
+        if (u.email && !map.has(u.email.toLowerCase())) {
+          map.set(u.email.toLowerCase(), u);
+        }
+      });
+
+      const finalUsers = Array.from(map.values());
+      setUsers(finalUsers);
+      AsyncStorage.setItem('@parknex_registered_users', JSON.stringify(finalUsers)).catch(() => null);
     } catch (e) {}
   };
 
   useEffect(() => {
     fetchUsersFromApi();
     const interval = setInterval(fetchUsersFromApi, 3000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('mobile-users-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchUsersFromApi();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchUsersFromApi();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleAddUserSubmit = async () => {
@@ -150,38 +193,44 @@ export default function UserManagementScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar & Filter */}
+        {/* Search Bar & Role Filter Options */}
         <View style={{ backgroundColor: COLORS.white, borderRadius: 16, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, height: 44 }}>
-              <Feather name="search" size={18} color={COLORS.textMuted} style={{ marginRight: 8 }} />
-              <TextInput 
-                placeholder="Search user name or email..."
-                placeholderTextColor={COLORS.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={{ flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' }}
-              />
-            </View>
-            <TouchableOpacity onPress={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)} style={{ backgroundColor: COLORS.white, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center', height: 44, flexDirection: 'row' }}>
-              <Feather name="filter" size={16} color={COLORS.text} style={{ marginRight: 4 }} />
-              <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}>{selectedRole}</Text>
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, height: 44 }}>
+            <Feather name="search" size={18} color={COLORS.textMuted} style={{ marginRight: 8 }} />
+            <TextInput 
+              placeholder="Search user name or email..."
+              placeholderTextColor={COLORS.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={{ flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' }}
+            />
           </View>
 
-          {isFilterDropdownOpen && (
-            <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {['All', 'Student', 'Faculty', 'Security', 'Admin'].map(r => (
+          {/* Always-Visible Filter Role Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+            {['All', 'Student', 'Faculty', 'Security', 'Admin'].map(r => {
+              const count = r === 'All' ? users.length : users.filter(u => u.role === r.toUpperCase()).length;
+              const isSel = selectedRole.toLowerCase() === r.toLowerCase();
+              return (
                 <TouchableOpacity 
                   key={r} 
-                  onPress={() => { setSelectedRole(r); setIsFilterDropdownOpen(false); }}
-                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: selectedRole === r ? COLORS.primary : COLORS.border, backgroundColor: selectedRole === r ? 'rgba(37,99,235,0.05)' : COLORS.white }}
+                  onPress={() => setSelectedRole(r)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: isSel ? COLORS.primary : COLORS.border,
+                    backgroundColor: isSel ? COLORS.primary : COLORS.white
+                  }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: selectedRole === r ? COLORS.primary : COLORS.text }}>{r}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: isSel ? '#FFFFFF' : COLORS.text }}>
+                    {r} ({count})
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          )}
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* User Cards List */}
@@ -233,11 +282,11 @@ export default function UserManagementScreen({ navigation }) {
       </ScrollView>
 
       {/* Add User Modal */}
-      {isAddModalOpen && (
-        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20, zIndex: 100 }}>
-          <View style={{ backgroundColor: COLORS.white, borderRadius: 20, padding: 20 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>Register New User</Text>
+      <Modal visible={isAddModalOpen} animationType="fade" transparent onRequestClose={() => setIsAddModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
+          <View style={{ width: '92%', maxWidth: 440, backgroundColor: COLORS.white, borderRadius: 24, padding: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text }}>Register New User</Text>
               <TouchableOpacity onPress={() => setIsAddModalOpen(false)}>
                 <Feather name="x" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
@@ -256,24 +305,24 @@ export default function UserManagementScreen({ navigation }) {
             <TextInput style={[styles.input, { marginBottom: 14 }]} placeholder="+91 98765-43210" value={newUserPhone} onChangeText={setNewUserPhone} keyboardType="phone-pad" />
 
             <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Assign Role</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 22 }}>
               {['STUDENT', 'FACULTY', 'SECURITY', 'ADMIN'].map(role => (
                 <TouchableOpacity 
                   key={role} 
                   onPress={() => setNewUserRole(role)}
-                  style={{ flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: newUserRole === role ? COLORS.primary : COLORS.border, backgroundColor: newUserRole === role ? COLORS.primary : COLORS.white, alignItems: 'center' }}
+                  style={{ width: '48%', paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: newUserRole === role ? COLORS.primary : COLORS.border, backgroundColor: newUserRole === role ? COLORS.primary : COLORS.white, alignItems: 'center' }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: newUserRole === role ? '#fff' : COLORS.text }}>{role}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: newUserRole === role ? '#fff' : COLORS.text }}>{role}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleAddUserSubmit}>
-              <Text style={styles.primaryBtnText}>Register User Account</Text>
+            <TouchableOpacity style={[styles.primaryBtn, { borderRadius: 14, paddingVertical: 14 }]} onPress={handleAddUserSubmit}>
+              <Text style={[styles.primaryBtnText, { fontSize: 15, fontWeight: '900' }]}>Register User Account</Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      </Modal>
 
     </SafeAreaView>
   );

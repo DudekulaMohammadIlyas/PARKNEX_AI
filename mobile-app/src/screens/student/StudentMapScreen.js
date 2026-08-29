@@ -10,11 +10,10 @@ import { COLORS } from '../../theme/colors';
 const BACKEND_URL = config.BACKEND_URL;
 
 export default function StudentMapScreen() {
-  const [selectedZone, setSelectedZone] = useState('North Block');
+  const [selectedZone, setSelectedZone] = useState('KRISHNA HOSTEL');
   const [zones, setZones] = useState([
-    'Faculty Parking', 'South Block', 'Zone B', 'KRISHNA HOSTEL',
-    'HOSPITAL PARKING', 'Zone C', 'Zone A', 'Visitor Parking',
-    'Scad', 'Near Temple', 'Faculty Block Parking', 'North Block'
+    'Faculty Parking', 'South Block', 'Central Library', 'KRISHNA HOSTEL',
+    'HOSPITAL PARKING', 'Hostel Complex', 'CS Academic Block', 'Visitor Parking', 'Scad'
   ]);
   const [rawZoneObjs, setRawZoneObjs] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
@@ -57,14 +56,19 @@ export default function StudentMapScreen() {
           setAllBookings(allBookRes.value.data);
         }
 
+        const isDemoUser = userEmail === 'student@college.edu';
         if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0) {
           setVehicles(vehRes.value.data);
-          setSelectedVehiclePlate(vehRes.value.data[0].plateNumber || vehRes.value.data[0].plate || 'KA-09-ZZ-9999');
-        } else {
+          setSelectedVehiclePlate(vehRes.value.data[0].plateNumber || vehRes.value.data[0].plate || '');
+        } else if (isDemoUser) {
           setVehicles([
             { plate: 'KA-09-ZZ-9999', brand: 'Honda Civic' },
             { plate: 'AP02JT7894', brand: 'Yamaha R15' }
           ]);
+          setSelectedVehiclePlate('KA-09-ZZ-9999');
+        } else {
+          setVehicles([]);
+          setSelectedVehiclePlate('');
         }
       } catch (e) {}
     };
@@ -135,6 +139,11 @@ export default function StudentMapScreen() {
 
   const handleConfirmMapBooking = async () => {
     if (!selectedSlotForBooking) return;
+
+    if (!selectedVehiclePlate || vehicles.length === 0) {
+      Alert.alert('No Registered Vehicle 🚗', 'You must register a vehicle plate before reserving a slot. Please add your vehicle under My Vehicles first.');
+      return;
+    }
 
     const newBookingObj = {
       id: `b_${Date.now()}`,

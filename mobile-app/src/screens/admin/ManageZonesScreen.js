@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
+
+const defaultZones = [
+  { id: 'z1', name: 'Faculty Parking', capacity: '100 Slots', total: 100, occupied: 10, type: 'Faculty Only', status: 'Active' },
+  { id: 'z2', name: 'South Block', capacity: '150 Slots', total: 150, occupied: 50, type: 'Mixed', status: 'Active' },
+  { id: 'z3', name: 'Central Library', capacity: '80 Slots', total: 80, occupied: 78, type: '4-Wheeler', status: 'Active' },
+  { id: 'z4', name: 'KRISHNA HOSTEL', capacity: '150 Slots', total: 150, occupied: 50, type: 'Hostel Block', status: 'Active' },
+  { id: 'z5', name: 'HOSPITAL PARKING', capacity: '200 Slots', total: 200, occupied: 80, type: 'Mixed', status: 'Active' },
+  { id: 'z6', name: 'Hostel Complex', capacity: '200 Slots', total: 200, occupied: 110, type: '2-Wheeler', status: 'Active' },
+  { id: 'z7', name: 'CS Academic Block', capacity: '120 Slots', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
+  { id: 'z8', name: 'Visitor Parking', capacity: '50 Slots', total: 50, occupied: 10, type: 'Visitor Only', status: 'Active' },
+  { id: 'z9', name: 'Scad', capacity: '75 Slots', total: 75, occupied: 1, type: 'Mixed', status: 'Active' }
+];
 
 export default function ManageZonesScreen({ navigation }) {
   const [zones, setZones] = useState([]);
@@ -23,11 +36,12 @@ export default function ManageZonesScreen({ navigation }) {
   const [zoneStatus, setZoneStatus] = useState('Active');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchZones = async () => {
+  const fetchZones = async (isInitial = false) => {
+    if (isInitial && zones.length === 0) setLoading(true);
     try {
       const res = await axios.get(`${BACKEND_URL}/zones`);
       if (Array.isArray(res.data) && res.data.length > 0) {
-        setZones(res.data.map(z => ({
+        const mapped = res.data.map(z => ({
           id: z.id,
           name: z.name,
           capacity: `${z.total || 100} Slots`,
@@ -35,31 +49,38 @@ export default function ManageZonesScreen({ navigation }) {
           occupied: z.occupied || 0,
           type: z.type || 'Mixed',
           status: z.status || 'Active'
-        })));
+        }));
+        setZones(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(mapped)) return prev;
+          return mapped;
+        });
       } else {
-        setZones([
-          { id: 'z1', name: 'KRISHNA HOSTEL', capacity: '150 Slots', total: 150, occupied: 12, type: 'Hostel Block', status: 'Active' },
-          { id: 'z2', name: 'Zone A (Near CS)', capacity: '120 Slots', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
-          { id: 'z3', name: 'Zone B (Library)', capacity: '80 Slots', total: 80, occupied: 78, type: 'Library', status: 'Active' },
-          { id: 'z4', name: 'Zone C (Faculty)', capacity: '100 Slots', total: 100, occupied: 30, type: 'Faculty Only', status: 'Active' }
-        ]);
+        setZones(defaultZones);
       }
     } catch (e) {
-      setZones([
-        { id: 'z1', name: 'KRISHNA HOSTEL', capacity: '150 Slots', total: 150, occupied: 12, type: 'Hostel Block', status: 'Active' },
-        { id: 'z2', name: 'Zone A (Near CS)', capacity: '120 Slots', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
-        { id: 'z3', name: 'Zone B (Library)', capacity: '80 Slots', total: 80, occupied: 78, type: 'Library', status: 'Active' },
-        { id: 'z4', name: 'Zone C (Faculty)', capacity: '100 Slots', total: 100, occupied: 30, type: 'Faculty Only', status: 'Active' }
-      ]);
+      setZones(defaultZones);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchZones();
-    const interval = setInterval(fetchZones, 3000);
-    return () => clearInterval(interval);
+    fetchZones(true);
+    const interval = setInterval(() => fetchZones(false), 3000);
+
+    const channel = supabase
+      .channel('manage-zones-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchZones(false);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchZones(false);
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleAddSubmit = async () => {
@@ -224,72 +245,72 @@ export default function ManageZonesScreen({ navigation }) {
       </ScrollView>
 
       {/* Add / Edit Zone Modal Component */}
-      {(isAddModalOpen || isEditModalOpen) && (
-        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20, zIndex: 100 }}>
-          <View style={{ backgroundColor: COLORS.white, borderRadius: 20, padding: 20 }}>
+      <Modal visible={isAddModalOpen || isEditModalOpen} animationType="fade" transparent onRequestClose={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
+          <View style={{ width: '92%', maxWidth: 440, backgroundColor: COLORS.white, borderRadius: 24, padding: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 12 }}>
             
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>{isAddModalOpen ? 'Add New Parking Zone' : 'Edit Parking Zone'}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text }}>{isAddModalOpen ? 'Add New Parking Zone' : 'Edit Parking Zone'}</Text>
               <TouchableOpacity onPress={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }}>
                 <Feather name="x" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 4 }}>Zone Name</Text>
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>Zone Name</Text>
             <TextInput 
-              placeholder="e.g. ZONE E (INNOVATION PARK)"
+              placeholder="e.g. CS ACADEMIC BLOCK"
               value={zoneName}
               onChangeText={setZoneName}
-              style={[styles.input, { marginBottom: 12 }]}
+              style={[styles.input, { marginBottom: 14 }]}
             />
 
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 4 }}>Capacity (Total Slots)</Text>
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>Capacity (Total Slots)</Text>
             <TextInput 
               placeholder="e.g. 150"
               keyboardType="numeric"
               value={zoneCapacity}
               onChangeText={setZoneCapacity}
-              style={[styles.input, { marginBottom: 12 }]}
+              style={[styles.input, { marginBottom: 14 }]}
             />
 
             <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>Zone Category</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
               {['Mixed', '4-Wheeler', '2-Wheeler', 'Faculty Only'].map(type => (
                 <TouchableOpacity 
                   key={type} 
                   onPress={() => setZoneType(type)}
-                  style={{ flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: zoneType === type ? COLORS.primary : COLORS.border, backgroundColor: zoneType === type ? COLORS.primary : COLORS.white, alignItems: 'center' }}
+                  style={{ width: '48%', paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: zoneType === type ? COLORS.primary : COLORS.border, backgroundColor: zoneType === type ? COLORS.primary : COLORS.white, alignItems: 'center' }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: zoneType === type ? '#fff' : COLORS.text }}>{type}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: zoneType === type ? '#fff' : COLORS.text }}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>Operational Status</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
               {['Active', 'Maintenance'].map(status => (
                 <TouchableOpacity 
                   key={status} 
                   onPress={() => setZoneStatus(status)}
-                  style={{ flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: zoneStatus === status ? COLORS.primary : COLORS.border, backgroundColor: zoneStatus === status ? COLORS.primary : COLORS.white, alignItems: 'center' }}
+                  style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: zoneStatus === status ? COLORS.primary : COLORS.border, backgroundColor: zoneStatus === status ? COLORS.primary : COLORS.white, alignItems: 'center' }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: zoneStatus === status ? '#fff' : COLORS.text }}>{status}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: zoneStatus === status ? '#fff' : COLORS.text }}>{status}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity onPress={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
-                <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 14 }}>Cancel</Text>
+              <TouchableOpacity onPress={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center' }}>
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={isAddModalOpen ? handleAddSubmit : handleEditSubmit} disabled={isSubmitting} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' }}>
+              <TouchableOpacity onPress={isAddModalOpen ? handleAddSubmit : handleEditSubmit} disabled={isSubmitting} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center' }}>
                 <Text style={{ color: COLORS.white, fontWeight: '900', fontSize: 14 }}>{isSubmitting ? 'Saving...' : (isAddModalOpen ? 'Create Zone' : 'Save Changes')}</Text>
               </TouchableOpacity>
             </View>
 
           </View>
         </View>
-      )}
+      </Modal>
 
     </SafeAreaView>
   );

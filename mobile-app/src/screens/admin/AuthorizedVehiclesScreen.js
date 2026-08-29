@@ -1,39 +1,93 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, Modal } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import axios from 'axios';
+import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
+const BACKEND_URL = config.BACKEND_URL;
+
 export default function AuthorizedVehiclesScreen({ navigation }) {
   const [vehicles, setVehicles] = useState([
-    { plate: 'KA-01-AB-1234', owner: 'Alex Carter', type: '4-Wheeler' },
-    { plate: 'MH-12-XY-9090', owner: 'Dr. Smith', type: '4-Wheeler' },
-    { plate: 'DL-04-CZ-1111', owner: 'John Doe', type: '2-Wheeler' },
+    { plate: 'KA-09-ZZ-9999', owner: 'Student', type: '4-Wheeler', brand: 'Honda Civic' },
+    { plate: 'AP-CS-0234', owner: 'Alex Carter', type: '4-Wheeler', brand: 'Toyota Camry' },
+    { plate: 'KA-01-AB-1234', owner: 'System Admin', type: '4-Wheeler', brand: 'Honda City' },
   ]);
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newPlate, setNewPlate] = useState('');
   const [newOwner, setNewOwner] = useState('');
   const [newType, setNewType] = useState('4-Wheeler');
 
-  const handleAddVehicleSubmit = () => {
+  const fetchVehiclesFromApi = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/vehicles`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setVehicles(res.data.map(v => ({
+          id: v.id,
+          plate: v.plate || v.plateNumber || 'UNKNOWN',
+          owner: v.owner || v.userEmail?.split('@')[0] || 'Registered User',
+          type: v.type || '4-Wheeler',
+          brand: v.brand ? `${v.brand} ${v.model || ''}` : 'Standard Vehicle'
+        })));
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchVehiclesFromApi();
+    const interval = setInterval(fetchVehiclesFromApi, 3000);
+
+    const channel = supabase
+      .channel('authorized-vehicles-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchVehiclesFromApi();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchVehiclesFromApi();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleAddVehicleSubmit = async () => {
     if (!newPlate.trim() || !newOwner.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Error', 'Please fill in Plate Number and Owner Name.');
       return;
     }
-    // Basic format validator
+
     const formattedPlate = newPlate.trim().toUpperCase();
     const newVehicle = {
       plate: formattedPlate,
       owner: newOwner.trim(),
-      type: newType
+      type: newType,
+      brand: 'Whitelist Verified'
     };
-    setVehicles([...vehicles, newVehicle]);
+
+    try {
+      await axios.post(`${BACKEND_URL}/vehicles`, {
+        plate: formattedPlate,
+        brand: 'Whitelist',
+        model: 'Verified',
+        type: newType,
+        email: `${newOwner.toLowerCase().replace(/\s+/g, '')}@college.edu`
+      });
+      Alert.alert('Vehicle Authorized! 🚗', `Plate ${formattedPlate} added to campus whitelist.`);
+    } catch (e) {
+      Alert.alert('Vehicle Authorized', `Plate ${formattedPlate} added.`);
+    }
+
+    setVehicles([newVehicle, ...vehicles]);
     setNewPlate('');
     setNewOwner('');
     setNewType('4-Wheeler');
     setIsAddModalOpen(false);
-    Alert.alert('Success', 'Vehicle added successfully.');
   };
 
   return (
@@ -58,12 +112,24 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
         
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Text style={{ fontSize: 24, fontWeight: '900', color: COLORS.text, width: '55%' }}>Authorized{'\n'}Vehicles</Text>
           <TouchableOpacity onPress={() => setIsAddModalOpen(true)} style={{ backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="plus" size={16} color={COLORS.white} style={{ marginRight: 8 }} />
             <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 14 }}>Add{'\n'}Vehicle</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* SEARCH BAR */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, height: 46, marginBottom: 18 }}>
+          <Feather name="search" size={18} color={COLORS.textMuted} style={{ marginRight: 8 }} />
+          <TextInput
+            placeholder="Search vehicle plate number or owner name..."
+            placeholderTextColor={COLORS.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{ flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' }}
+          />
         </View>
 
         {/* Results Table */}
@@ -77,7 +143,7 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
           </View>
 
           {/* Table Rows */}
-          {vehicles.map((item, index) => (
+          {vehicles.filter(v => v.plate.toLowerCase().includes(searchQuery.toLowerCase()) || v.owner.toLowerCase().includes(searchQuery.toLowerCase())).map((item, index) => (
             <View key={index} style={{ flexDirection: 'row', padding: 20, borderBottomWidth: index === vehicles.length - 1 ? 0 : 1, borderBottomColor: COLORS.border, alignItems: 'center' }}>
               <View style={{ flex: 1.2 }}>
                 <Text style={{ fontSize: 14, fontWeight: '900', color: COLORS.text }}>{item.plate.includes('-') ? `${item.plate.split('-')[0]}-${item.plate.split('-')[1]}-` : item.plate}</Text>
@@ -95,9 +161,9 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
       </ScrollView>
 
       {/* Add Vehicle Modal */}
-      {isAddModalOpen && (
-        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24, zIndex: 100 }}>
-          <View style={{ backgroundColor: COLORS.white, borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 }}>
+      <Modal visible={isAddModalOpen} animationType="fade" transparent onRequestClose={() => setIsAddModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
+          <View style={{ width: '92%', maxWidth: 440, backgroundColor: COLORS.white, borderRadius: 24, padding: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 12 }}>
             
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text }}>Add Vehicle</Text>
@@ -135,9 +201,9 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
                     <TouchableOpacity 
                       key={type} 
                       onPress={() => setNewType(type)}
-                      style={{ flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: newType === type ? COLORS.primary : COLORS.border, backgroundColor: newType === type ? 'rgba(37,99,235,0.05)' : COLORS.white, alignItems: 'center' }}
+                      style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: newType === type ? COLORS.primary : COLORS.border, backgroundColor: newType === type ? 'rgba(37,99,235,0.05)' : COLORS.white, alignItems: 'center' }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: newType === type ? COLORS.primary : COLORS.text }}>{type}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: newType === type ? COLORS.primary : COLORS.text }}>{type}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -145,17 +211,17 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
             </View>
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={() => setIsAddModalOpen(false)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
-                <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 14 }}>Cancel</Text>
+              <TouchableOpacity onPress={() => setIsAddModalOpen(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center' }}>
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddVehicleSubmit} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' }}>
-                <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 14 }}>Add Vehicle</Text>
+              <TouchableOpacity onPress={handleAddVehicleSubmit} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center' }}>
+                <Text style={{ color: COLORS.white, fontWeight: '900', fontSize: 14 }}>Add Vehicle</Text>
               </TouchableOpacity>
             </View>
 
           </View>
         </View>
-      )}
+      </Modal>
 
     </SafeAreaView>
   );

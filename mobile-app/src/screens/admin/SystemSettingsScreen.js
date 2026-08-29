@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 import config from '../../../config';
@@ -12,6 +12,9 @@ export default function SystemSettingsScreen({ navigation }) {
   const [institutionName, setInstitutionName] = useState('Saveetha University');
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
   const [confidenceThreshold, setConfidenceThreshold] = useState('85%');
+  const [plateRecognition, setPlateRecognition] = useState(true);
+  const [suspiciousActivity, setSuspiciousActivity] = useState(true);
+  const [unauthorizedEntry, setUnauthorizedEntry] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -88,15 +91,40 @@ export default function SystemSettingsScreen({ navigation }) {
         <View style={[styles.card, { marginBottom: 24 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <Feather name="shield" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
-            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>AI Model & OCR Threshold</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>AI Model & Security Engine Control</Text>
           </View>
 
           <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 }}>AI License Plate Match Confidence Threshold</Text>
           <TextInput 
             value={confidenceThreshold}
             onChangeText={setConfidenceThreshold}
-            style={styles.input}
+            style={[styles.input, { marginBottom: 16 }]}
           />
+
+          {/* Toggle Switches */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text }}>ANPR Camera Plate Reader</Text>
+              <Text style={{ fontSize: 11, color: COLORS.textMuted }}>Enable automatic license plate recognition at gates</Text>
+            </View>
+            <Switch value={plateRecognition} onValueChange={setPlateRecognition} trackColor={{ true: COLORS.primary }} />
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text }}>AI Dwell Time & Loitering Alert</Text>
+              <Text style={{ fontSize: 11, color: COLORS.textMuted }}>Flag pedestrian linger durations exceeding 5 mins</Text>
+            </View>
+            <Switch value={suspiciousActivity} onValueChange={setSuspiciousActivity} trackColor={{ true: COLORS.primary }} />
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text }}>Automatic Barrier Release</Text>
+              <Text style={{ fontSize: 11, color: COLORS.textMuted }}>Auto-open gate for verified permit vehicles</Text>
+            </View>
+            <Switch value={unauthorizedEntry} onValueChange={setUnauthorizedEntry} trackColor={{ true: COLORS.primary }} />
+          </View>
         </View>
 
         {/* Save Button */}

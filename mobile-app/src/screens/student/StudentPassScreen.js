@@ -4,7 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -15,7 +15,10 @@ export default function StudentPassScreen({ navigation }) {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehiclePlate, setSelectedVehiclePlate] = useState('');
   const [digitalPass, setDigitalPass] = useState(null);
-  const [countdownDays, setCountdownDays] = useState(128);
+  const [passStartDate, setPassStartDate] = useState(new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }));
+  const [passValidityDate, setPassValidityDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }));
+  const [passPlanDays, setPassPlanDays] = useState('30');
+  const [countdownDays, setCountdownDays] = useState(30);
 
   useEffect(() => {
     const loadPassData = async () => {
@@ -25,30 +28,58 @@ export default function StudentPassScreen({ navigation }) {
         setUser(userObj);
 
         const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
+        const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
 
-        const savedVehicles = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail}`);
-        if (savedVehicles) {
-          try {
-            const parsed = JSON.parse(savedVehicles);
-            setVehicles(parsed);
-            if (parsed.length > 0) setSelectedVehiclePlate(parsed[0].plate);
-          } catch (e) {}
-        } else if (isDemoUser) {
-          const demo = [
-            { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-09-ZZ-9999', status: 'Verified' },
-            { id: '2', brand: 'Yamaha', model: 'R15', color: 'Racing Blue', type: '2-Wheeler', plate: 'AP02JT7894', status: 'Verified' },
-            { id: '3', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' },
-            { id: '4', brand: 'Honda', model: 'City', color: 'Silver', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' }
-          ];
-          setVehicles(demo);
-          setSelectedVehiclePlate('KA-09-ZZ-9999');
-        } else {
-          setVehicles([]);
-          setSelectedVehiclePlate('');
+        const savedStart = await AsyncStorage.getItem(`@parknex_start_${userEmail}`);
+        const savedValid = await AsyncStorage.getItem(`@parknex_valid_${userEmail}`);
+        const savedDays = await AsyncStorage.getItem(`@parknex_days_${userEmail}`);
+
+        if (savedStart) setPassStartDate(savedStart);
+        if (savedValid) setPassValidityDate(savedValid);
+        if (savedDays) {
+          setPassPlanDays(savedDays);
+          setCountdownDays(Number(savedDays));
         }
 
-        const passRes = await axios.get(`${BACKEND_URL}/passes/my-pass?email=${encodeURIComponent(userEmail)}`).catch(() => null);
+        // Fetch vehicles from server using smartApiRequest
+        try {
+          const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
+          if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
+            const mapped = vehRes.data.map(v => ({
+              id: v.id,
+              brand: v.brand,
+              model: v.model || 'Standard',
+              color: v.color || 'White',
+              type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
+              plate: v.plateNumber || v.plate,
+              status: v.status || 'Verified'
+            }));
+            setVehicles(mapped);
+            setSelectedVehiclePlate(mapped[0].plate);
+            await AsyncStorage.setItem(`@parknex_vehicles_${userEmail.toLowerCase()}`, JSON.stringify(mapped));
+          } else {
+            const savedVehicles = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
+            if (savedVehicles) {
+              const parsed = JSON.parse(savedVehicles);
+              setVehicles(parsed);
+              if (parsed.length > 0) setSelectedVehiclePlate(parsed[0].plate);
+            } else if (isDemoUser) {
+              const demo = [
+                { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-09-ZZ-9999', status: 'Verified' },
+                { id: '2', brand: 'Yamaha', model: 'R15', color: 'Racing Blue', type: '2-Wheeler', plate: 'AP02JT7894', status: 'Verified' }
+              ];
+              setVehicles(demo);
+              setSelectedVehiclePlate('KA-09-ZZ-9999');
+            } else {
+              setVehicles([]);
+              setSelectedVehiclePlate('');
+            }
+          }
+        } catch (e) {
+          setVehicles([]);
+        }
+
+        const passRes = await smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`).catch(() => null);
         if (passRes?.data) setDigitalPass(passRes.data);
       } catch (e) {}
     };
@@ -93,10 +124,10 @@ export default function StudentPassScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: '900', color: '#78350F' }}>
-                Permit Expiration Countdown: {countdownDays} Days Remaining
+                Permit Validity: {countdownDays} Days Remaining
               </Text>
               <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', marginTop: 2, lineHeight: 16 }}>
-                Your Digital Campus Parking Permit is valid until December 31, 2026. Advance renewal option available below.
+                Issued: {passStartDate} • Valid Until: {passValidityDate}
               </Text>
             </View>
           </View>
@@ -104,12 +135,65 @@ export default function StudentPassScreen({ navigation }) {
           <TouchableOpacity 
             style={{ backgroundColor: '#D97706', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
             onPress={() => {
-              setCountdownDays(365);
-              Alert.alert('Advance Renewal Successful! 💳✨', 'Your Digital Campus Parking Permit has been renewed for an additional full academic year (365 Days remaining)!');
+              Alert.alert(
+                'Select Advance Renewal Plan 🎫',
+                'Choose a dynamic validity duration plan:',
+                [
+                  {
+                    text: '🗓️ 1-Day Daily (₹50)',
+                    onPress: async () => {
+                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      const validStr = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      setPassStartDate(todayStr);
+                      setPassValidityDate(validStr);
+                      setPassPlanDays('1');
+                      setCountdownDays(1);
+                      const uEmail = user?.email || 'student@college.edu';
+                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '1');
+                      Alert.alert('Pass Renewed! 🎫', `1-Day Daily Plan Active until ${validStr}`);
+                    }
+                  },
+                  {
+                    text: '🗓️ 30-Day Monthly (₹499)',
+                    onPress: async () => {
+                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      const validStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      setPassStartDate(todayStr);
+                      setPassValidityDate(validStr);
+                      setPassPlanDays('30');
+                      setCountdownDays(30);
+                      const uEmail = user?.email || 'student@college.edu';
+                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '30');
+                      Alert.alert('Pass Renewed! 🎫', `30-Day Monthly Plan Active until ${validStr}`);
+                    }
+                  },
+                  {
+                    text: '🎓 180-Day Semester (₹1,499)',
+                    onPress: async () => {
+                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      const validStr = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                      setPassStartDate(todayStr);
+                      setPassValidityDate(validStr);
+                      setPassPlanDays('180');
+                      setCountdownDays(180);
+                      const uEmail = user?.email || 'student@college.edu';
+                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '180');
+                      Alert.alert('Pass Renewed! 🎫', `180-Day Semester Plan Active until ${validStr}`);
+                    }
+                  },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
             }}
           >
             <Ionicons name="card" size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Pay Advance Renewal</Text>
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Select & Pay Plan Renewal</Text>
           </TouchableOpacity>
         </View>
 
@@ -179,16 +263,28 @@ export default function StudentPassScreen({ navigation }) {
               </Text>
 
               <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', marginBottom: 4 }}>{user?.name || 'Student'}</Text>
-              <Text style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>ID: STU-2026-089 • {user?.designation || 'Computer Science Dept'}</Text>
+              <Text style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>{user?.email || 'student@college.edu'}</Text>
 
-              <View style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 14 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 14, gap: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Start Date</Text>
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>{passStartDate}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Valid Until</Text>
+                  <Text style={{ fontSize: 11, color: '#34D399', fontWeight: '800' }}>{passValidityDate}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>Renewal Plan</Text>
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>{passPlanDays === '1' ? 'Daily Plan (1 Day)' : passPlanDays === '180' ? 'Semester Plan (180 Days)' : 'Monthly Plan (30 Days)'}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 11, color: '#94A3B8' }}>Pass Serial</Text>
                   <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>{digitalPass?.passNumber || `PASS-STU-${(user?.email || 'USER').split('@')[0].toUpperCase()}`}</Text>
                 </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 11, color: '#94A3B8' }}>Category</Text>
-                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>Student Standard (Subsidized)</Text>
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>Student Tier (Subsidized)</Text>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 11, color: '#94A3B8' }}>Active QR Vehicle</Text>

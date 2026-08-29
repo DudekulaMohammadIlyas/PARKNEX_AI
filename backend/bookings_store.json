@@ -1,1 +1,47 @@
-[]
+[
+  {
+    "id": "b_1787984659923",
+    "userEmail": "mandalaraghavendra6305@gmail.com",
+    "zoneName": "Hostel Complex",
+    "slotNumber": "HC-200",
+    "plateNumber": "AP10LK2562",
+    "durationHours": 8,
+    "bookingDate": "2026-08-29",
+    "bookingTime": "11:54",
+    "status": "CONFIRMED"
+  },
+  {
+    "id": "b_1787906410131",
+    "userEmail": "hemasaisiddarthahemasai@gmail.com",
+    "zoneName": "Hostel Complex",
+    "slotNumber": "HC-14",
+    "plateNumber": "AP-CS-0234",
+    "durationHours": 4,
+    "bookingDate": "2026-08-28",
+    "bookingTime": "14:09",
+    "status": "CONFIRMED"
+  },
+  {
+    "id": "b_1787903792177",
+    "userEmail": "hemasaisiddarthahemasai@gmail.com",
+    "zoneName": "KRISHNA HOSTEL",
+    "slotNumber": "K-03",
+    "plateNumber": "AP-CS-0234",
+    "durationHours": 8,
+    "bookingDate": "2026-08-28",
+    "bookingTime": "13:26",
+    "status": "CONFIRMED"
+  },
+  {
+    "id": "b_1787903549696",
+    "userEmail": "hemasaisiddarthahemasai@gmail.com",
+    "zoneName": "KRISHNA HOSTEL",
+    "slotNumber": "K-132",
+    "plateNumber": "KA-01-AB-1234",
+    "durationHours": 4,
+    "bookingDate": "2026-08-28",
+    "bookingTime": "13:22",
+    "status": "EXITED",
+    "exitedAt": "2026-08-28T08:01:15.572Z"
+  }
+]

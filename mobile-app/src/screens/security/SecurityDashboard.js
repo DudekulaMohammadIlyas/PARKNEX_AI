@@ -3,6 +3,7 @@ import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Moda
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -14,12 +15,16 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
 
+  // Gate Barrier State
+  const [gate01BarrierOpen, setGate01BarrierOpen] = useState(false);
+  const [gate02BarrierOpen, setGate02BarrierOpen] = useState(false);
+
   // CCTV Cameras State
   const [cameras, setCameras] = useState([
-    { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate', zone: 'Zone A', plate: 'KA-01-AB-1234', status: 'AUTHORIZED' },
-    { id: 'cam_2', camId: 'Cam 02', name: 'Zone A - CS Academic Block', zone: 'Zone A', plate: 'MH-12-XY-9090', status: 'PARKED' },
-    { id: 'cam_3', camId: 'Cam 03', name: 'Zone B - Central Library', zone: 'Zone B', plate: 'KA-05-XY-9876', status: 'MONITORED' },
-    { id: 'cam_4', camId: 'Cam 04', name: 'North Security Gate Barrier', zone: 'North Block', plate: 'UP-16-XX-8888', status: 'UNAUTHORIZED' }
+    { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate 01', zone: 'CS Academic Block', plate: 'KA-09-ZZ-9999', status: 'AUTHORIZED' },
+    { id: 'cam_2', camId: 'Cam 02', name: 'CS Academic Block Lot', zone: 'CS Academic Block', plate: 'AP-CS-0234', status: 'PARKED' },
+    { id: 'cam_3', camId: 'Cam 03', name: 'Central Library Lot', zone: 'Central Library', plate: 'KA-05-XY-9876', status: 'MONITORED' },
+    { id: 'cam_4', camId: 'Cam 04', name: 'Hostel Complex Security Gate', zone: 'Hostel Complex', plate: 'UP-16-XX-8888', status: 'UNAUTHORIZED' }
   ]);
   const [isAddCamModalOpen, setIsAddCamModalOpen] = useState(false);
   const [newCamName, setNewCamName] = useState('');
@@ -46,17 +51,15 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   ]);
   
   const [alerts, setAlerts] = useState([
-    { id: '1', title: 'Suspicious loitering in Zone C', desc: 'Pedestrian lingering near gate', time: '4m ago' },
-    { id: '2', title: 'Unregistered Entry Attempt', desc: 'Plate UP-16-XX-8888 failed scan', time: '10m ago' }
+    { id: '1', title: 'Suspicious loitering in Hostel Complex', desc: 'Pedestrian lingering near dark corridor', time: '4m ago' },
+    { id: '2', title: 'Unregistered Gate Entry Attempt', desc: 'Plate UP-16-XX-8888 failed scan', time: '10m ago' }
   ]);
 
   // LIVE SECURITY ACTIVITY LOG STATE
   const [securityLogs, setSecurityLogs] = useState([
-    { id: '1', type: 'ENTRY', text: 'Vehicle KA-01-AB-1234 entered Zone A', time: 'Just now', color: '#6366F1' },
-    { id: '2', type: 'ALERT', text: 'Suspicious loitering detected near Zone C Gate', time: '4m ago', color: '#EF4444' },
-    { id: '3', type: 'EXIT', text: 'Vehicle MH-12-XY-9090 exited Main Gate Barrier', time: '12m ago', color: '#10B981' },
-    { id: '4', type: 'ENTRY', text: 'Guest Vehicle DL-01-VX-7777 granted gate clearance', time: '25m ago', color: '#2563EB' },
-    { id: '5', type: 'TICKET', text: 'Violation Ticket #V-8888 issued for UP-16-XX-8888', time: '40m ago', color: '#F59E0B' }
+    { id: '1', type: 'ENTRY', text: 'Vehicle KA-09-ZZ-9999 entered CS Academic Block', time: 'Just now', color: '#6366F1' },
+    { id: '2', type: 'ALERT', text: 'Suspicious loitering detected near Hostel Complex Gate', time: '4m ago', color: '#EF4444' },
+    { id: '3', type: 'EXIT', text: 'Vehicle AP-CS-0234 exited Central Library Gate Barrier', time: '12m ago', color: '#10B981' },
   ]);
 
   // OFFICER PROFILE & SETTINGS STATE
@@ -114,7 +117,20 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   useEffect(() => {
     fetchSecurityData();
     const interval = setInterval(fetchSecurityData, 3000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('security-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchSecurityData();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchSecurityData();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleAddCameraMobile = async () => {
@@ -430,18 +446,86 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
               </TouchableOpacity>
             </View>
 
+            {/* GATE BARRIER CONTROL SYSTEM */}
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1.5, borderColor: '#E2E8F0', elevation: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <Ionicons name="key" size={20} color="#6366F1" />
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F172A' }}>Gate Barrier Control System</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                {/* Gate 01 Barrier */}
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: gate01BarrierOpen ? '#10B981' : '#CBD5E1' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#64748B' }}>ENTRANCE GATE 01</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: gate01BarrierOpen ? '#10B981' : '#DC2626', marginTop: 4 }}>
+                    {gate01BarrierOpen ? '🟢 BARRIER OPEN' : '🔴 BARRIER LOCKED'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const nextState = !gate01BarrierOpen;
+                      setGate01BarrierOpen(nextState);
+                      pushSecurityLog('ENTRY', `🚪 Entrance Gate 01 Barrier ${nextState ? 'RELEASED / OPENED' : 'LOCKED / CLOSED'} by Security Officer`, nextState ? '#10B981' : '#EF4444');
+                    }}
+                    style={{ marginTop: 10, backgroundColor: gate01BarrierOpen ? '#EF4444' : '#10B981', paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 12 }}>
+                      {gate01BarrierOpen ? 'Lock Barrier' : 'Release Gate 01'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Gate 02 Barrier */}
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: gate02BarrierOpen ? '#10B981' : '#CBD5E1' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#64748B' }}>ENTRANCE GATE 02</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: gate02BarrierOpen ? '#10B981' : '#DC2626', marginTop: 4 }}>
+                    {gate02BarrierOpen ? '🟢 BARRIER OPEN' : '🔴 BARRIER LOCKED'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const nextState = !gate02BarrierOpen;
+                      setGate02BarrierOpen(nextState);
+                      pushSecurityLog('ENTRY', `🚪 Entrance Gate 02 Barrier ${nextState ? 'RELEASED / OPENED' : 'LOCKED / CLOSED'} by Security Officer`, nextState ? '#10B981' : '#EF4444');
+                    }}
+                    style={{ marginTop: 10, backgroundColor: gate02BarrierOpen ? '#EF4444' : '#10B981', paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 12 }}>
+                      {gate02BarrierOpen ? 'Lock Barrier' : 'Release Gate 02'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
             {/* CRITICAL ALERTS */}
             <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, borderWidth: 1.5, borderColor: '#E2E8F0', elevation: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Ionicons name="warning" size={20} color="#DC2626" />
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#DC2626' }}>Critical Security Alerts</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#DC2626' }}>Active Security Alerts ({alerts.length})</Text>
               </View>
-              {alerts.map(a => (
-                <View key={a.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                  <Text style={{ fontWeight: '800', color: '#0F172A', fontSize: 14 }}>{a.title}</Text>
-                  <Text style={{ fontSize: 12, color: '#64748B', marginTop: 3, fontWeight: '600' }}>{a.desc} • {a.time}</Text>
-                </View>
-              ))}
+              {alerts.length === 0 ? (
+                <Text style={{ color: '#10B981', fontWeight: '800', fontSize: 13, textAlign: 'center', marginVertical: 10 }}>
+                  ✅ All security alerts resolved & cleared.
+                </Text>
+              ) : (
+                alerts.map(a => (
+                  <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={{ fontWeight: '800', color: '#0F172A', fontSize: 14 }}>{a.title}</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', marginTop: 3, fontWeight: '600' }}>{a.desc} • {a.time}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setAlerts(prev => prev.filter(al => al.id !== a.id));
+                        pushSecurityLog('ALERT', `✅ Security Alert '${a.title}' Dismissed & Resolved by Officer`, '#10B981');
+                        Alert.alert('Alert Dismissed ✅', `Security alert "${a.title}" marked resolved.`);
+                      }}
+                      style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1' }}
+                    >
+                      <Text style={{ color: '#475569', fontWeight: '800', fontSize: 11 }}>Dismiss Alert</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
             </View>
           </>
         )}
@@ -652,30 +736,36 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
               </View>
             </View>
 
-            {/* LIVE SECURITY ACTIVITY LOG CARD */}
+            {/* LIVE SECURITY ACTIVITY LOG CARD WITH SMOOTH SCROLLING */}
             <View style={[styles.card, { padding: 20 }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>📜 Live Security Activity Log</Text>
                 <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                  <Text style={{ color: '#4F46E5', fontWeight: '900', fontSize: 11 }}>Real-time Feed</Text>
+                  <Text style={{ color: '#4F46E5', fontWeight: '900', fontSize: 11 }}>Live Scroll Feed</Text>
                 </View>
               </View>
 
-              {securityLogs.map((log) => (
-                <View key={log.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${log.color}20`, justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons 
-                      name={log.type === 'ALERT' ? 'warning' : log.type === 'ENTRY' ? 'enter' : log.type === 'EXIT' ? 'exit' : 'document-text'} 
-                      size={18} 
-                      color={log.color} 
-                    />
+              <ScrollView 
+                style={{ maxHeight: 320 }} 
+                nestedScrollEnabled={true} 
+                showsVerticalScrollIndicator={true}
+              >
+                {securityLogs.map((log, idx) => (
+                  <View key={`${log.id || 'log'}-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${log.color || '#6366F1'}20`, justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons 
+                        name={log.type === 'ALERT' ? 'warning' : log.type === 'ENTRY' ? 'enter' : log.type === 'EXIT' ? 'exit' : 'document-text'} 
+                        size={18} 
+                        color={log.color || '#6366F1'} 
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text, lineHeight: 18 }}>{log.text}</Text>
+                      <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{log.time}</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.text }}>{log.text}</Text>
-                    <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{log.time}</Text>
-                  </View>
-                </View>
-              ))}
+                ))}
+              </ScrollView>
             </View>
 
             {/* SYSTEM HEALTH & SECURITY PREFERENCES CARD */}
@@ -773,7 +863,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
 
             <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 6 }}>Link to Zone</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
-              {['KRISHNA HOSTEL', 'Faculty Parking', 'North Block', 'Zone A', 'Zone B', 'HOSPITAL PARKING'].map(z => (
+              {['Faculty Parking', 'South Block', 'Central Library', 'KRISHNA HOSTEL', 'HOSPITAL PARKING', 'Hostel Complex', 'CS Academic Block', 'Visitor Parking', 'Scad'].map(z => (
                 <TouchableOpacity
                   key={z}
                   onPress={() => setNewCamZone(z)}

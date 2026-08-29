@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -27,12 +26,12 @@ export default function StudentVehiclesScreen() {
         setUser(userObj);
 
         const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
-        const storageKey = `@parknex_vehicles_${userEmail}`;
+        const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
+        const storageKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
 
-        // 1. Fetch server-side vehicles
+        // 1. Fetch server-side vehicles using smartApiRequest
         try {
-          const apiRes = await axios.get(`${BACKEND_URL}/vehicles`);
+          const apiRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
           if (Array.isArray(apiRes.data) && apiRes.data.length > 0) {
             const mapped = apiRes.data.map(v => ({
               id: v.id,
@@ -40,7 +39,7 @@ export default function StudentVehiclesScreen() {
               model: v.model || 'Standard',
               color: v.color || 'White',
               type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
-              plate: v.plateNumber,
+              plate: v.plateNumber || v.plate,
               status: v.status || 'Verified'
             }));
             setVehicles(mapped);
@@ -52,7 +51,7 @@ export default function StudentVehiclesScreen() {
         // 2. Local fallback
         const saved = await AsyncStorage.getItem(storageKey);
         if (saved) {
-          try { setVehicles(JSON.parse(saved)); } catch (e) {}
+          try { setVehicles(JSON.parse(saved)); } catch (e) { setVehicles([]); }
         } else if (isDemoUser) {
           const demo = [
             { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' },
@@ -63,28 +62,29 @@ export default function StudentVehiclesScreen() {
         } else {
           setVehicles([]);
         }
-      } catch (e) {}
+      } catch (err) {
+        setVehicles([]);
+      }
     };
 
     loadUserAndVehicles();
-    const interval = setInterval(loadUserAndVehicles, 5000);
-    return () => clearInterval(interval);
   }, []);
 
-  const saveVehiclesLocally = async (updatedList) => {
-    setVehicles(updatedList);
+  const saveVehiclesLocally = async (newVehList) => {
+    setVehicles(newVehList);
     const userEmail = user?.email || 'student@college.edu';
-    await AsyncStorage.setItem(`@parknex_vehicles_${userEmail}`, JSON.stringify(updatedList));
+    const storageKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
+    await AsyncStorage.setItem(storageKey, JSON.stringify(newVehList)).catch(() => null);
   };
 
   const handleAddVehicle = async () => {
     if (!addBrand.trim() || !addPlate.trim()) {
-      Alert.alert('Validation Error', 'Please fill in vehicle brand and plate number.');
+      Alert.alert('Validation Error', 'Please enter Vehicle Brand and License Plate Number.');
       return;
     }
 
     const newVeh = {
-      id: Date.now().toString(),
+      id: `v_${Date.now()}`,
       brand: addBrand,
       model: addModel || 'Standard',
       color: addColor || 'Pearl White',
@@ -94,11 +94,12 @@ export default function StudentVehiclesScreen() {
     };
 
     try {
-      await axios.post(`${BACKEND_URL}/vehicles`, {
+      await smartApiRequest('post', '/vehicles', {
         brand: addBrand,
         model: addModel,
         color: addColor,
         plateNumber: addPlate.toUpperCase().trim(),
+        userEmail: user?.email,
         type: addType === '2-Wheeler' ? 'TWO_WHEELER' : addType === 'EV' ? 'ELECTRIC_VEHICLE' : 'FOUR_WHEELER'
       });
     } catch (e) {}

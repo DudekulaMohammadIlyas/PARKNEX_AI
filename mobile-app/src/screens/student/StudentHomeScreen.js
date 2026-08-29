@@ -4,7 +4,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -13,13 +14,13 @@ const BACKEND_URL = config.BACKEND_URL;
 export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const userEmail = user?.email || 'student@college.edu';
   const userName = user?.name || 'Student';
-  const isDemoUser = userEmail === 'student@college.edu' || userName === 'Alex Carter';
+  const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
 
   const [digitalPass, setDigitalPass] = useState(null);
   const [recommendations, setRecommendations] = useState([
-    { slotNumber: 'K-04', zoneName: 'KRISHNA HOSTEL', score: 96, reason: '80m from Academic Block • 96% vacant • EV Charger' },
-    { slotNumber: 'H-08', zoneName: 'HOSPITAL PARKING', score: 91, reason: '140m from CS Block • 100% vacant • High security' },
-    { slotNumber: 'N-15', zoneName: 'North Block', score: 85, reason: '190m from North Block • Wide shade cover' }
+    { slotNumber: 'C-04', zoneName: 'Central Library', score: 96, reason: '80m from CS Block • 96% vacant • EV Charger' },
+    { slotNumber: 'H-08', zoneName: 'Hostel Complex', score: 91, reason: '140m from CS Block • 100% vacant • High security' },
+    { slotNumber: 'F-15', zoneName: 'Faculty Parking', score: 85, reason: '190m from CS Block • Wide shade cover' }
   ]);
   const [vehicleLocation, setVehicleLocation] = useState(null);
   const [vehicles, setVehicles] = useState([]);
@@ -28,16 +29,13 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [campusZones, setCampusZones] = useState([
     { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 10 },
     { id: 'z2', name: 'South Block', total: 150, occupied: 50 },
-    { id: 'z3', name: 'Zone B', total: 80, occupied: 78 },
+    { id: 'z3', name: 'Central Library', total: 80, occupied: 78 },
     { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 50 },
     { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 80 },
-    { id: 'z6', name: 'Zone C', total: 200, occupied: 110 },
-    { id: 'z7', name: 'Zone A', total: 120, occupied: 45 },
+    { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 110 },
+    { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 45 },
     { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 10 },
-    { id: 'z9', name: 'Scad', total: 75, occupied: 1 },
-    { id: 'z10', name: 'Near Temple', total: 60, occupied: 0 },
-    { id: 'z11', name: 'Faculty Block Parking', total: 100, occupied: 15 },
-    { id: 'z12', name: 'North Block', total: 200, occupied: 80 }
+    { id: 'z9', name: 'Scad', total: 75, occupied: 1 }
   ]);
   const [isFindVehicleOpen, setIsFindVehicleOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -55,15 +53,15 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        const userVehiclesKey = `@parknex_vehicles_${userEmail}`;
-        const userHistoryKey = `@parknex_history_${userEmail}`;
+        const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
+        const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
 
         const [passRes, recRes, zoneRes, vehRes, bookRes] = await Promise.allSettled([
-          axios.get(`${BACKEND_URL}/passes/my-pass`),
-          axios.get(`${BACKEND_URL}/ai/recommendations?department=Computer Science`),
-          axios.get(`${BACKEND_URL}/zones`),
-          axios.get(`${BACKEND_URL}/vehicles`),
-          axios.get(`${BACKEND_URL}/bookings/my-bookings`)
+          smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
+          smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
+          smartApiRequest('get', `/zones`),
+          smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
+          smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`)
         ]);
 
         if (passRes.status === 'fulfilled' && passRes.value.data) {
@@ -77,13 +75,13 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         }
 
         // Fetch vehicles from API & AsyncStorage
-        let currentVeh = [...vehicles];
+        let currentVeh = [];
         if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0) {
           const apiVeh = vehRes.value.data.map(v => ({
             id: v.id,
             brand: v.brand,
             model: v.model || 'Standard',
-            plate: v.plateNumber,
+            plate: v.plateNumber || v.plate,
             type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : '4-Wheeler',
             status: 'Verified'
           }));
@@ -92,13 +90,16 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         } else {
           const savedVeh = await AsyncStorage.getItem(userVehiclesKey).catch(() => null);
           if (savedVeh) {
-            try { currentVeh = JSON.parse(savedVeh); setVehicles(currentVeh); } catch (e) {}
+            try { currentVeh = JSON.parse(savedVeh); setVehicles(currentVeh); } catch (e) { currentVeh = []; setVehicles([]); }
           } else if (isDemoUser) {
             currentVeh = [
               { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' },
               { id: '2', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' }
             ];
             setVehicles(currentVeh);
+          } else {
+            currentVeh = [];
+            setVehicles([]);
           }
         }
 
@@ -110,7 +111,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
               id: String(active.id),
               slotNumber: active.slotNumber || active.slot?.slotNumber || 'K-30',
               zoneName: active.zoneName || active.slot?.zone?.name || 'KRISHNA HOSTEL',
-              plateNumber: active.plateNumber || active.vehicle?.plateNumber || currentVeh[0]?.plate || 'KA-01-AB-1234',
+              plateNumber: active.plateNumber || active.vehicle?.plateNumber || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'NO VEHICLE LINKED'),
               durationHours: active.durationHours || 4,
               bookingTime: active.bookingTime || 'Just Now',
               bookingDate: active.bookingDate || new Date().toISOString().split('T')[0],
@@ -133,6 +134,17 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             } catch (e) {
               setActiveBooking(null);
             }
+          } else if (isDemoUser) {
+            setActiveBooking({
+              id: '1',
+              slotNumber: 'K-30',
+              zoneName: 'KRISHNA HOSTEL',
+              plateNumber: 'KA-01-AB-1234',
+              durationHours: 4,
+              bookingTime: 'Just Now',
+              bookingDate: new Date().toISOString().split('T')[0],
+              status: 'CONFIRMED'
+            });
           } else {
             setActiveBooking(null);
           }
@@ -142,7 +154,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
     fetchHomeData();
     const interval = setInterval(fetchHomeData, 3000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('student-home-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchHomeData();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchHomeData();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, [userEmail]);
 
   const handleAddVehicleSubmit = async () => {
@@ -225,8 +250,8 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A' }}>
               Welcome Back, {userName} ✨
             </Text>
-            <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '600', marginTop: 3 }}>
-              Computer Science & Engineering • Student ID: STU-2026-089
+            <Text style={{ fontSize: 12, color: (!user?.department || !user?.academicTerm) ? '#D97706' : '#64748B', fontWeight: '700', marginTop: 3 }}>
+              {(user?.department && user?.academicTerm) ? `${user.department} • ${user.academicTerm}` : '⚠️ Academic Profile Incomplete (Tap Profile)'}
             </Text>
           </View>
           <TouchableOpacity 
@@ -357,12 +382,12 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#2563EB' }}>🏆 TOP PICK #1</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>96% Match</Text>
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot Z-04 (Zone B)</Text>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot C-04 (Central Library)</Text>
             <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14 }}>
               80m from CS Block • 30% vacant • EV Charger available
             </Text>
             <TouchableOpacity style={{ backgroundColor: '#4F46E5', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }} onPress={() => navigation.navigate('Book')}>
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot Z-04</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot C-04</Text>
             </TouchableOpacity>
           </View>
 
@@ -372,12 +397,12 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#2 RECOMMENDATION</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>91% Match</Text>
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot Z-08 (Zone C)</Text>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot H-08 (Hostel Complex)</Text>
             <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14 }}>
               140m from CS Block • 45% vacant
             </Text>
             <TouchableOpacity style={{ backgroundColor: '#4F46E5', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }} onPress={() => navigation.navigate('Book')}>
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot Z-08</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot H-08</Text>
             </TouchableOpacity>
           </View>
 
@@ -477,26 +502,41 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
             <View style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 14, marginBottom: 16 }}>
               <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '600' }}>Parked Vehicle</Text>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.primary, marginTop: 2 }}>KA-01-AB-1234</Text>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: COLORS.text, marginTop: 8 }}>
-                {vehicleLocation?.currentZone || 'Zone A (Near CS)'} — {vehicleLocation?.slotNumber || 'Slot A-12'}
+              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.primary, marginTop: 2 }}>
+                {activeBooking?.plateNumber || activeBooking?.vehicle || (vehicles.length > 0 ? vehicles[0]?.plate : 'NO VEHICLE LINKED')}
               </Text>
-              <Text style={{ fontSize: 12, color: COLORS.success, fontWeight: '700', marginTop: 4 }}>
-                ● Parked Safely • Entry: 09:15 AM
-              </Text>
+              {activeBooking ? (
+                <>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: COLORS.text, marginTop: 8 }}>
+                    {activeBooking.zoneName} — Slot {activeBooking.slotNumber}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: COLORS.success, fontWeight: '700', marginTop: 4 }}>
+                    ● Parked Safely • Booking Date: {activeBooking.bookingDate}
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textMuted, marginTop: 6 }}>
+                  No Active Session Parked Currently
+                </Text>
+              )}
             </View>
 
             <Text style={{ fontWeight: '800', fontSize: 13, color: COLORS.text, marginBottom: 8 }}>Walking Route Guide:</Text>
-            {(vehicleLocation?.walkingDirections || [
-              'Exit Academic Block Main Gate',
-              'Turn Left towards Computer Science Courtyard',
-              'Walk 80 meters to Zone A',
-              'Your vehicle is parked in Slot A-12'
-            ]).map((dir, i) => (
-              <Text key={i} style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6 }}>
-                {i + 1}. {dir}
+            {activeBooking ? (
+              (vehicleLocation?.walkingDirections || [
+                `Exit Academic Block Main Gate`,
+                `Walk towards ${activeBooking.zoneName}`,
+                `Your vehicle is parked in Slot ${activeBooking.slotNumber}`
+              ]).map((dir, i) => (
+                <Text key={i} style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6 }}>
+                  {i + 1}. {dir}
+                </Text>
+              ))
+            ) : (
+              <Text style={{ fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' }}>
+                Reserve a parking slot from the map to view real-time AI walking route guidance to your car.
               </Text>
-            ))}
+            )}
 
             <TouchableOpacity style={[styles.primaryBtn, { marginTop: 16 }]} onPress={() => setIsFindVehicleOpen(false)}>
               <Text style={styles.primaryBtnText}>Close</Text>

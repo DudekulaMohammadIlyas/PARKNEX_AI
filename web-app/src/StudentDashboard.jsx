@@ -110,12 +110,19 @@ export default function StudentDashboard({
   const [digitalPass, setDigitalPass] = useState(null);
   
   // Subscription & Expiration Countdown State (PERSISTED IN LOCALSTORAGE)
+  const [passStartDate, setPassStartDate] = useState(() => {
+    return localStorage.getItem('parknex_passStartDate') || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  });
   const [passValidityDate, setPassValidityDate] = useState(() => {
-    return localStorage.getItem('parknex_passValidity') || 'December 31, 2026';
+    const defaultExp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    return localStorage.getItem('parknex_passValidity') || defaultExp.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  });
+  const [passPlanDays, setPassPlanDays] = useState(() => {
+    return localStorage.getItem('parknex_passPlanDays') || '30';
   });
   const [daysRemaining, setDaysRemaining] = useState(() => {
     const saved = localStorage.getItem('parknex_daysRemaining');
-    return saved ? Number(saved) : 128;
+    return saved ? Number(saved) : 30;
   });
   const [isAdvancePayModalOpen, setIsAdvancePayModalOpen] = useState(false);
   const [selectedPayTier, setSelectedPayTier] = useState('GRANT');
@@ -126,18 +133,15 @@ export default function StudentDashboard({
 
   // Admin-Created Campus Zones Registry State
   const [adminZones, setAdminZones] = useState([
-    { id: 'z1', name: 'Faculty Block Parking', total: 100, isFacultyOnly: true },
-    { id: 'z2', name: 'Faculty Parking', total: 100, isFacultyOnly: true },
-    { id: 'z3', name: 'HOSPITAL PARKING', total: 200 },
+    { id: 'z1', name: 'Faculty Parking', total: 100, isFacultyOnly: true },
+    { id: 'z2', name: 'South Block', total: 150 },
+    { id: 'z3', name: 'Central Library', total: 80, isFacultyOnly: true },
     { id: 'z4', name: 'KRISHNA HOSTEL', total: 150 },
-    { id: 'z5', name: 'Near Temple', total: 60 },
-    { id: 'z6', name: 'North Block', total: 200 },
-    { id: 'z7', name: 'Scad', total: 75 },
-    { id: 'z8', name: 'South Block', total: 150 },
-    { id: 'z9', name: 'Visitor Parking', total: 50 },
-    { id: 'z10', name: 'Zone A', total: 120 },
-    { id: 'z11', name: 'Zone B', total: 80, isFacultyOnly: true },
-    { id: 'z12', name: 'Zone C', total: 200 }
+    { id: 'z5', name: 'HOSPITAL PARKING', total: 200 },
+    { id: 'z6', name: 'Hostel Complex', total: 200 },
+    { id: 'z7', name: 'CS Academic Block', total: 120 },
+    { id: 'z8', name: 'Visitor Parking', total: 50 },
+    { id: 'z9', name: 'Scad', total: 75 }
   ]);
 
   // Distinct & Dynamic AI Recommendations State (Unique slots across zones, NO repetition)
@@ -359,30 +363,31 @@ export default function StudentDashboard({
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get(`${BACKEND_URL}/bookings/my-bookings`);
+      const res = await axios.get(`${BACKEND_URL}/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`);
       if (Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map(b => ({
-          id: b.id,
-          date: b.bookingDate,
-          time: `${b.bookingTime} (${b.durationHours} hrs)`,
-          zone: b.slot?.zone?.name || 'KRISHNA HOSTEL',
-          slot: b.slot?.slotNumber || 'K-30',
-          vehicle: b.vehicle?.plateNumber || 'KA-01-AB-1234',
-          duration: `${b.durationHours} Hours`,
+          id: b.id || `b_${Date.now()}`,
+          date: b.bookingDate || new Date().toISOString().split('T')[0],
+          time: `${b.bookingTime || '09:00 AM'} (${b.durationHours || 4} hrs)`,
+          zone: b.zoneName || b.slot?.zone?.name || 'KRISHNA HOSTEL',
+          slot: b.slotNumber || b.slot?.slotNumber || 'K-30',
+          vehicle: b.vehiclePlate || b.plateNumber || b.vehicle?.plateNumber || 'NO VEHICLE',
+          duration: `${b.durationHours || 4} Hours`,
           status: b.status || 'CONFIRMED'
         }));
         
-        // Merge with existing local history without losing EXITED status
         setHistoryList(prev => {
-          const mergedMap = new Map();
-          prev.forEach(p => mergedMap.set(`${p.date}_${p.zone}_${p.slot}`, p));
-          mapped.forEach(m => {
-            const key = `${m.date}_${m.zone}_${m.slot}`;
-            if (!mergedMap.has(key)) {
-              mergedMap.set(key, m);
+          const map = new Map();
+          mapped.forEach(m => map.set(m.id, m));
+          prev.forEach(p => {
+            if (!map.has(p.id)) {
+              map.set(p.id, p);
             }
           });
-          return Array.from(mergedMap.values());
+          const result = Array.from(map.values());
+          const userHistoryKey = `parknex_historyList_${userEmail}`;
+          localStorage.setItem(userHistoryKey, JSON.stringify(result));
+          return result;
         });
       }
     } catch (e) {}
@@ -401,16 +406,36 @@ export default function StudentDashboard({
       fetchBookings();
     }, 3000);
 
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel('student-dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchAdminZonesAndSlots();
+        fetchBookings();
+        fetchVehicles();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          fetchAdminZonesAndSlots();
+          fetchBookings();
+          fetchVehicles();
+        }
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // ACCURATE FULL CAPACITY HELPER: Builds ALL slots (e.g. 150 for KRISHNA HOSTEL)
   const getSlotsForZone = (zoneNameStr) => {
     const targetAdminZone = adminZones.find(z => z.name === zoneNameStr || z.name?.toLowerCase() === zoneNameStr?.toLowerCase());
     
-    // Compute prefix from Zone name
     let prefix = zoneNameStr.split(' ')[0].charAt(0).toUpperCase();
     if (zoneNameStr.startsWith('Faculty Block')) prefix = 'FB';
+    else if (zoneNameStr.startsWith('CS Academic')) prefix = 'CS';
+    else if (zoneNameStr.startsWith('Central Library')) prefix = 'CL';
+    else if (zoneNameStr.startsWith('Hostel Complex')) prefix = 'HC';
     else if (zoneNameStr.startsWith('HOSPITAL')) prefix = 'H';
     else if (zoneNameStr.startsWith('KRISHNA')) prefix = 'K';
     else if (zoneNameStr.startsWith('Near Temple')) prefix = 'T';
@@ -418,7 +443,7 @@ export default function StudentDashboard({
     else if (zoneNameStr.startsWith('South')) prefix = 'S';
     else if (zoneNameStr.startsWith('Visitor')) prefix = 'V';
 
-    const count = targetAdminZone?.total || (zoneNameStr === 'KRISHNA HOSTEL' ? 150 : zoneNameStr === 'HOSPITAL PARKING' || zoneNameStr === 'North Block' || zoneNameStr === 'Zone C' ? 200 : 100);
+    const count = targetAdminZone?.total || (zoneNameStr === 'KRISHNA HOSTEL' ? 150 : zoneNameStr === 'HOSPITAL PARKING' || zoneNameStr === 'Hostel Complex' ? 200 : 100);
     const slots = [];
 
     for (let i = 1; i <= count; i++) {
@@ -544,7 +569,13 @@ export default function StudentDashboard({
       return;
     }
 
-    const targetPlate = selectedVehicle || vehicles[0]?.plate || 'KA-01-AB-1234';
+    const targetPlate = passSelectedVehicle || selectedVehicle || (vehicles.length > 0 ? vehicles[0]?.plate : '');
+
+    if (!targetPlate || vehicles.length === 0) {
+      alert("🚗 No Registered Vehicle Found!\n\nYou must register your vehicle before booking a parking slot. Please add your vehicle details now.");
+      setIsAddVehicleModalOpen(true);
+      return;
+    }
 
     // 1. Check if this specific slot in this zone is ALREADY booked for the selected date!
     const isSlotBooked = historyList.some(b => {
@@ -673,22 +704,33 @@ export default function StudentDashboard({
     setIsAdvancePayModalOpen(false);
   };
 
-  // GENUINE 100% VALID BINARY PDF STATEMENT GENERATOR USING jsPDF
-  const handleDownloadPDFStatement = () => {
+  const downloadStatementPDF = () => {
+    const dept = profile?.department;
+    const term = profile?.academicTerm;
+
+    if (!dept || !term) {
+      alert("🎓 Academic Profile Incomplete!\n\nPlease enter your Department and Academic Term under Edit Profile before generating your parking permit statement.");
+      if (onEditProfile) onEditProfile();
+      return;
+    }
+
     try {
       const doc = new jsPDF();
+
+      // Header Banner
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, 210, 28, 'F');
       
-      doc.setFillColor(99, 102, 241);
-      doc.rect(0, 0, 210, 26, 'F');
-      doc.setFontSize(16);
       doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('PARKNEX-AI SMART CAMPUS PLATFORM', 14, 17);
+      doc.text('PARKNEX-AI SMART CAMPUS PLATFORM', 14, 14);
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('OFFICIAL DIGITAL PARKING PERMIT & STATEMENT RECEIPT', 14, 23);
+      doc.text('OFFICIAL DIGITAL PARKING PERMIT & STATEMENT RECEIPT', 14, 21);
 
+      // Section: Permit Holder Info
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -703,13 +745,12 @@ export default function StudentDashboard({
       doc.setTextColor(51, 65, 85);
 
       const infoLines = [
-        `Student Name:    ${profile?.name || 'Alex Carter'}`,
-        `Student ID:      STU-2026-089`,
-        `Department:      Computer Science & Engineering`,
-        `Academic Term:   Fall 2024 - Spring 2028`,
-        `Pass Serial No:  ${digitalPass?.passNumber || 'PASS-STU-2026-8812'}`,
+        `Student Name:    ${profile?.name || userEmail.split('@')[0]}`,
+        `Department:      ${dept}`,
+        `Academic Term:   ${term}`,
+        `Pass Serial No:  ${digitalPass?.passNumber || ('PASS-STU-' + userEmail.split('@')[0].toUpperCase())}`,
         `Permit Category: Student Tier (100% University Subsidized)`,
-        `Primary Vehicle: ${passSelectedVehicle || vehicles[0]?.plate || 'KA-01-AB-1234'}`
+        `Primary Vehicle: ${passSelectedVehicle || (vehicles.length > 0 ? vehicles[0].plate : 'AP-CS-0234')}`
       ];
 
       let y = 50;
@@ -770,6 +811,8 @@ export default function StudentDashboard({
     }
   };
 
+  const handleDownloadPDFStatement = downloadStatementPDF;
+
   const currentVehicleHasBookingOnSelectedDate = historyList.some(b => 
     b.vehicle === selectedVehicle && 
     b.date === bookingDate && 
@@ -788,8 +831,15 @@ export default function StudentDashboard({
             Welcome Back, {profile?.name || 'Alex Carter'} <Sparkles size={20} color="#fbbf24" />
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
-              Computer Science & Engineering • Student ID: STU-2026-089
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ color: (!profile?.department || !profile?.academicTerm) ? '#f59e0b' : 'inherit', fontWeight: (!profile?.department || !profile?.academicTerm) ? '800' : 'normal' }}>
+                {(profile?.department && profile?.academicTerm) ? `${profile.department} • ${profile.academicTerm}` : '⚠️ Academic Profile Incomplete (Click Edit Info to enter)'}
+              </span>
+              {onEditProfile && (
+                <button onClick={onEditProfile} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' }}>
+                  ✏️ Edit Profile Info
+                </button>
+              )}
             </p>
             <span className="badge" style={{ background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: '800', fontSize: '0.8rem', padding: '0.3rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Clock size={14} color="#3730a3" /> Live Clock: {liveClockTime} ({bookingDate})
@@ -1458,27 +1508,35 @@ export default function StudentDashboard({
                   <RealScannableQRCode value={getVehicleQRPayload(passSelectedVehicle)} size={165} />
                 </div>
 
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0f172a', marginTop: '0.85rem', marginBottom: '0.2rem' }}>{profile?.name || 'Alex Carter'}</h4>
+                <h4 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0f172a', marginTop: '0.85rem', marginBottom: '0.2rem' }}>{profile?.name || userEmail.split('@')[0]}</h4>
                 <p style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: '700', marginBottom: '1.25rem' }}>
-                  ID: STU-2026-089 • Pass Serial: {digitalPass?.passNumber || `PASS-STU-${userEmail.split('@')[0].toUpperCase()}`}
+                  Pass Serial: {digitalPass?.passNumber || `PASS-STU-${userEmail.split('@')[0].toUpperCase()}`}
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1.1rem', borderRadius: '18px', textAlign: 'left', border: '1px solid #e2e8f0' }}>
                   <div>
                     <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Department</span>
-                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>Computer Science & Engg</strong>
+                    <strong style={{ color: profile?.department ? '#0f172a' : '#f59e0b', fontSize: '0.9rem', fontWeight: '900' }}>{profile?.department || '⚠️ Not Set (Edit Profile)'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Academic Term</span>
+                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>{profile?.academicTerm || '⚠️ Not Set (Edit Profile)'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Start Date</span>
+                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>{passStartDate}</strong>
                   </div>
                   <div>
                     <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Valid Until</span>
-                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>{passValidityDate}</strong>
+                    <strong style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: '900' }}>{passValidityDate}</strong>
                   </div>
                   <div>
-                    <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Pass Category</span>
-                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>Student Tier (Subsidized)</strong>
+                    <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Renewal Plan</span>
+                    <strong style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: '900' }}>{passPlanDays === '1' ? 'Daily Plan (1 Day)' : passPlanDays === '180' ? 'Semester Plan (180 Days)' : 'Monthly Plan (30 Days)'}</strong>
                   </div>
                   <div>
                     <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '700', display: 'block' }}>Active QR Vehicle</span>
-                    <strong style={{ color: '#4f46e5', fontSize: '0.95rem', fontWeight: '900' }}>{passSelectedVehicle}</strong>
+                    <strong style={{ color: '#4f46e5', fontSize: '0.95rem', fontWeight: '900' }}>{passSelectedVehicle || (vehicles.length > 0 ? vehicles[0].plate : 'NONE')}</strong>
                   </div>
                 </div>
               </div>
@@ -1635,40 +1693,80 @@ export default function StudentDashboard({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
               <div style={{ padding: '1rem', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '16px' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.2rem' }}>Current Permit Validity</span>
-                <strong style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>{passValidityDate} ({daysRemaining} Days Left)</strong>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>Start: {passStartDate} • Valid Until: {passValidityDate} ({daysRemaining} Days Left)</strong>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Select Renewal Tier Options</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Select Renewal Plan Option</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  
                   <div 
-                    onClick={() => setSelectedPayTier('GRANT')}
-                    style={{ padding: '1rem', borderRadius: '14px', border: selectedPayTier === 'GRANT' ? '2px solid var(--primary)' : '1px solid var(--border)', background: selectedPayTier === 'GRANT' ? 'rgba(99,102,241,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onClick={() => setSelectedPayTier('DAILY')}
+                    style={{ padding: '1rem', borderRadius: '14px', border: selectedPayTier === 'DAILY' ? '2px solid var(--primary)' : '1px solid var(--border)', background: selectedPayTier === 'DAILY' ? 'rgba(99,102,241,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                   >
                     <div>
-                      <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>University Grant Subsidized Permit</strong>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Extend permit to Dec 31, 2027 under student grant</span>
+                      <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>🗓️ 1-Day Pass Renewal</strong>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valid for 1 Day from issue timestamp</span>
                     </div>
-                    <span style={{ fontWeight: '900', color: 'var(--success)', fontSize: '1.1rem' }}>₹0.00</span>
+                    <span style={{ fontWeight: '900', color: 'var(--success)', fontSize: '1rem' }}>₹50.00</span>
                   </div>
 
                   <div 
-                    onClick={() => setSelectedPayTier('PAID')}
-                    style={{ padding: '1rem', borderRadius: '14px', border: selectedPayTier === 'PAID' ? '2px solid var(--primary)' : '1px solid var(--border)', background: selectedPayTier === 'PAID' ? 'rgba(99,102,241,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onClick={() => setSelectedPayTier('MONTHLY')}
+                    style={{ padding: '1rem', borderRadius: '14px', border: selectedPayTier === 'MONTHLY' || selectedPayTier === 'GRANT' ? '2px solid var(--primary)' : '1px solid var(--border)', background: selectedPayTier === 'MONTHLY' || selectedPayTier === 'GRANT' ? 'rgba(99,102,241,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                   >
                     <div>
-                      <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>Advance Annual Premium Reserved Permit</strong>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Includes priority EV charging & reserved slot access</span>
+                      <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>🗓️ Monthly Pass Renewal (30 Days)</strong>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valid for 30 Days with auto-recharge</span>
                     </div>
-                    <span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.1rem' }}>₹500.00</span>
+                    <span style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1rem' }}>₹499.00</span>
                   </div>
+
+                  <div 
+                    onClick={() => setSelectedPayTier('SEMESTER')}
+                    style={{ padding: '1rem', borderRadius: '14px', border: selectedPayTier === 'SEMESTER' ? '2px solid var(--primary)' : '1px solid var(--border)', background: selectedPayTier === 'SEMESTER' ? 'rgba(99,102,241,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <div>
+                      <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>🎓 Semester Pass Renewal (180 Days)</strong>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Full Academic Semester access with VIP EV Charging</span>
+                    </div>
+                    <span style={{ fontWeight: '900', color: '#8B5CF6', fontSize: '1rem' }}>₹1,499.00</span>
+                  </div>
+
                 </div>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button className="btn btn-outline" onClick={() => setIsAdvancePayModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleConfirmAdvancePayment} style={{ flex: 1, justifyContent: 'center' }}>Confirm Advance Renewal</button>
+              <button 
+                className="btn btn-primary" 
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => {
+                  const planDays = selectedPayTier === 'DAILY' ? 1 : selectedPayTier === 'SEMESTER' ? 180 : 30;
+                  const planTitle = selectedPayTier === 'DAILY' ? '1-Day Pass' : selectedPayTier === 'SEMESTER' ? 'Semester Pass (180 Days)' : 'Monthly Pass (30 Days)';
+
+                  const today = new Date();
+                  const startStr = today.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                  const expDate = new Date(today.getTime() + planDays * 24 * 60 * 60 * 1000);
+                  const validUntilStr = expDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+                  setPassStartDate(startStr);
+                  setPassValidityDate(validUntilStr);
+                  setPassPlanDays(String(planDays));
+                  setDaysRemaining(planDays);
+
+                  localStorage.setItem('parknex_passStartDate', startStr);
+                  localStorage.setItem('parknex_passValidity', validUntilStr);
+                  localStorage.setItem('parknex_passPlanDays', String(planDays));
+                  localStorage.setItem('parknex_daysRemaining', String(planDays));
+
+                  alert(`Pass Renewed Successfully! 🎫\n\nPlan: ${planTitle}\nStart Date: ${startStr}\nValid Until: ${validUntilStr}`);
+                  setIsAdvancePayModalOpen(false);
+                }}
+              >
+                Confirm Plan Renewal
+              </button>
             </div>
           </div>
         </div>
@@ -1858,7 +1956,7 @@ export default function StudentDashboard({
             <div style={{ background: 'rgba(99,102,241,0.05)', border: '1px solid var(--primary-hover)', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Parked Vehicle</span>
-                <code style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: '900' }}>{vehicles[0]?.plate || 'KA-01-AB-1234'}</code>
+                <code style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: '900' }}>{passSelectedVehicle || vehicles[0]?.plate || 'NO VEHICLE LINKED'}</code>
               </div>
 
               <h4 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.25rem' }}>

@@ -3,34 +3,50 @@ import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Aler
 import { Feather, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
 export default function StudentProfileScreen({ onLogout, user }) {
-  const [name, setName] = useState(user?.name || 'Alex Carter');
+  const [name, setName] = useState(user?.name || 'Student');
   const [email, setEmail] = useState(user?.email || 'student@college.edu');
-  const [phone, setPhone] = useState(user?.phone || '+91 98765-43210');
-  const [designation, setDesignation] = useState(user?.designation || 'Computer Science & Engineering');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [department, setDepartment] = useState(user?.department || '');
+  const [academicTerm, setAcademicTerm] = useState(user?.academicTerm || 'Fall 2024 - Spring 2028');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setName(user.name || 'Alex Carter');
-      setEmail(user.email || 'student@college.edu');
-      setPhone(user.phone || '+91 98765-43210');
-      setDesignation(user.designation || 'Computer Science & Engineering');
-    }
+    const fetchProfile = async () => {
+      const targetEmail = user?.email || 'student@college.edu';
+      setEmail(targetEmail);
+      if (user?.name) setName(user.name);
+
+      try {
+        const res = await smartApiRequest('get', `/users/profile?email=${encodeURIComponent(targetEmail)}`);
+        if (res.data?.success && res.data?.user) {
+          const u = res.data.user;
+          if (u.name) setName(u.name);
+          if (u.phone) setPhone(u.phone);
+          if (u.department) setDepartment(u.department);
+          if (u.academicTerm) setAcademicTerm(u.academicTerm);
+
+          const updatedLocal = { ...user, name: u.name || user?.name, phone: u.phone, department: u.department, academicTerm: u.academicTerm };
+          await AsyncStorage.setItem('@parknex_user', JSON.stringify(updatedLocal));
+        }
+      } catch (e) {}
+    };
+
+    fetchProfile();
   }, [user]);
 
   const handleSaveProfile = async () => {
     try {
-      const updated = { ...user, name, email, phone, designation };
+      const updated = { ...user, name, email, phone, department, academicTerm };
       await AsyncStorage.setItem('@parknex_user', JSON.stringify(updated));
-      await axios.put(`${BACKEND_URL}/users/profile`, { name, email, phone, designation }).catch(() => null);
-      Alert.alert('Profile Saved', 'Your account details have been updated successfully.');
+      await smartApiRequest('put', '/users/profile', { name, email, phone, department, academicTerm }).catch(() => null);
+      Alert.alert('Profile Saved', 'Your account and academic details have been updated successfully.');
     } catch (e) {
       Alert.alert('Saved', 'Profile saved locally.');
     }
@@ -121,11 +137,20 @@ export default function StudentProfileScreen({ onLogout, user }) {
             keyboardType="phone-pad"
           />
 
-          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Department / Designation</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Academic Department</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 14 }]}
+            placeholder="e.g. Computer Science & Engineering"
+            value={department}
+            onChangeText={setDepartment}
+          />
+
+          <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 }}>Academic Term / Batch</Text>
           <TextInput
             style={[styles.input, { marginBottom: 20 }]}
-            value={designation}
-            onChangeText={setDesignation}
+            placeholder="e.g. Fall 2024 - Spring 2028"
+            value={academicTerm}
+            onChangeText={setAcademicTerm}
           />
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveProfile}>

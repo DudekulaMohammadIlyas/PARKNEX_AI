@@ -30,6 +30,8 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [isRecoverySessionActive, setIsRecoverySessionActive] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [resetCode, setResetCode] = useState('');
 
   // Check URL pathname or hash for password recovery
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
 
     try {
       if (authMode === 'login') {
-        // 1. Try Backend JWT Login
+        // 1. Backend JWT Login
         try {
           const res = await axios.post(`${BACKEND_URL}/auth/login`, { email: email.trim(), password: password.trim() });
           if (res.data?.success && res.data.user) {
@@ -84,50 +86,34 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
             onLogin(res.data.user.role, res.data.user);
             return;
           }
+          setAuthError(res.data?.error || 'Invalid email or password.');
+          return;
         } catch (backendErr) {
-          console.warn("Backend auth fallback:", backendErr.message);
+          const errorMessage = backendErr.response?.data?.error || backendErr.response?.data?.message || 'Invalid email or password.';
+          setAuthError(errorMessage);
+          localStorage.removeItem('parknex_token');
+          localStorage.removeItem('parknex_user');
+          return;
         }
-
-        // 2. Fallback to Supabase or auto-login for seamless multi-device access
-        try {
-          const { data } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
-          if (data?.user) {
-            const userRole = data.user.user_metadata?.role?.toUpperCase() || (email.includes('admin') ? 'ADMIN' : email.includes('security') ? 'SECURITY' : 'STUDENT');
-            onLogin(userRole, { email: data.user.email, name: data.user.user_metadata?.name || email.split('@')[0] });
-            return;
-          }
-        } catch (e) {}
-
-        const userRole = email.includes('admin') ? 'ADMIN' : email.includes('security') ? 'SECURITY' : 'STUDENT';
-        const fallbackUser = { email: email.trim(), name: email.split('@')[0], role: userRole };
-        localStorage.setItem('parknex_user', JSON.stringify(fallbackUser));
-        onLogin(userRole, fallbackUser);
-        return;
       } else {
         // Backend JWT Register
         try {
-          const res = await axios.post(`${BACKEND_URL}/auth/register`, { email, password, role, name });
+          const res = await axios.post(`${BACKEND_URL}/auth/register`, { email: email.trim(), password: password.trim(), role, name: name.trim() });
           if (res.data?.success) {
             localStorage.setItem('parknex_token', res.data.token);
+            localStorage.setItem('parknex_user', JSON.stringify(res.data.user));
             onLogin(res.data.user.role, res.data.user);
             return;
           }
+          setAuthError(res.data?.error || 'Registration failed.');
+          return;
         } catch (regErr) {
-          console.warn("Backend reg fallback:", regErr.message);
+          setAuthError(regErr.response?.data?.error || 'Registration failed. Password must be at least 8 characters long.');
+          return;
         }
-
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { role, name } }
-        });
-        if (error) throw error;
-        setAuthSuccess('Registration successful! You can now log in.');
-        setAuthMode('login');
       }
     } catch (err) {
-      console.error("Auth error:", err.message);
-      setAuthError(err.message || 'Authentication failed. Please check your credentials.');
+      setAuthError('Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -135,8 +121,8 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setAuthError('Please enter your registered email address.');
+    if (!email || !email.includes('@')) {
+      setAuthError('Please enter a valid college email address.');
       return;
     }
 
@@ -145,18 +131,24 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
     setAuthSuccess('');
 
     try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: redirectUrl
-      });
+      const res = await axios.post(`${BACKEND_URL}/auth/forgot-password`, { email: email.trim() });
+      if (res.data?.success) {
+        if (res.data.resetToken) setResetToken(res.data.resetToken);
+        if (res.data.resetCode) setResetCode(res.data.resetCode);
 
-      if (error) throw error;
-
-      setAuthSuccess('If an account exists for this email address, password reset instructions have been sent.');
+        setAuthSuccess(`Password reset code generated (${res.data.resetCode || 'Verification Code Sent'}). Proceed to set your new password.`);
+        setTimeout(() => {
+          setAuthMode('reset');
+        }, 1200);
+      } else {
+        setAuthError(res.data?.error || 'Failed to process password reset request.');
+      }
     } catch (err) {
-      console.error('Password reset request error:', err.message);
-      // OWASP: Keep message generic for email security or show friendly notice
-      setAuthSuccess('If an account exists for this email address, password reset instructions have been sent.');
+      if (err.response?.status === 429) {
+        setAuthError('A reset code was recently generated. Please wait 60 seconds before requesting another code.');
+      } else {
+        setAuthError('Failed to process password reset request. Please check server connection.');
+      }
     } finally {
       setLoading(false);
     }
@@ -167,8 +159,8 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
     setAuthError('');
     setAuthSuccess('');
 
-    if (newPassword.length < 8) {
-      setAuthError('Password must be at least 8 characters long.');
+    if (newPassword.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
       return;
     }
 
@@ -180,24 +172,23 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
     setLoading(true);
 
     try {
-      await axios.post(`${BACKEND_URL}/auth/reset-password`, {
+      const res = await axios.post(`${BACKEND_URL}/auth/confirm-reset-password`, {
         email: email.trim(),
+        resetToken,
+        resetCode,
         newPassword
-      }).catch(() => null);
+      });
 
-      await supabase.auth.updateUser({
-        password: newPassword
-      }).catch(() => null);
-
-      setAuthSuccess('Your password has been successfully reset in the database! Only your NEW password will work now.');
-      setTimeout(() => {
-        navigateTo('login', '/');
-      }, 2500);
+      if (res.data?.success) {
+        setAuthSuccess('Your password has been successfully updated! Invalidating old sessions and redirecting to login...');
+        setTimeout(() => {
+          navigateTo('login', '/');
+        }, 2000);
+      } else {
+        setAuthError(res.data?.error || 'Invalid or expired password reset token.');
+      }
     } catch (err) {
-      setAuthSuccess('Your password has been successfully reset! Redirecting to sign in...');
-      setTimeout(() => {
-        navigateTo('login', '/');
-      }, 2500);
+      setAuthError(err.response?.data?.error || 'Password reset failed. Token may be invalid or expired.');
     } finally {
       setLoading(false);
     }

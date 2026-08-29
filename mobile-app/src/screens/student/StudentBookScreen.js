@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, TextInpu
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -39,16 +40,13 @@ export default function StudentBookScreen({ navigation }) {
   const [zonesList, setZonesList] = useState([
     { id: 'z1', name: 'Faculty Parking', capacity: 100, isFaculty: true },
     { id: 'z2', name: 'South Block', capacity: 150, isFaculty: false },
-    { id: 'z3', name: 'Zone B', capacity: 80, isFaculty: false },
+    { id: 'z3', name: 'Central Library', capacity: 80, isFaculty: false },
     { id: 'z4', name: 'KRISHNA HOSTEL', capacity: 150, isFaculty: false },
     { id: 'z5', name: 'HOSPITAL PARKING', capacity: 200, isFaculty: false },
-    { id: 'z6', name: 'Zone C', capacity: 200, isFaculty: false },
-    { id: 'z7', name: 'Zone A', capacity: 120, isFaculty: false },
+    { id: 'z6', name: 'Hostel Complex', capacity: 200, isFaculty: false },
+    { id: 'z7', name: 'CS Academic Block', capacity: 120, isFaculty: false },
     { id: 'z8', name: 'Visitor Parking', capacity: 50, isFaculty: false },
-    { id: 'z9', name: 'Scad', capacity: 75, isFaculty: false },
-    { id: 'z10', name: 'Near Temple', capacity: 60, isFaculty: false },
-    { id: 'z11', name: 'Faculty Block Parking', capacity: 100, isFaculty: true },
-    { id: 'z12', name: 'North Block', capacity: 200, isFaculty: false }
+    { id: 'z9', name: 'Scad', capacity: 75, isFaculty: false }
   ]);
 
   // Render 150 slot matrix for Krishna Hostel
@@ -60,20 +58,33 @@ export default function StudentBookScreen({ navigation }) {
   useEffect(() => {
     const fetchZonesApi = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/zones`);
+        const res = await smartApiRequest('get', '/zones');
         if (Array.isArray(res.data) && res.data.length > 0) {
           setZonesList(res.data.map(z => ({
             id: z.id,
             name: z.name,
-            capacity: z.total || 100,
-            isFaculty: z.type === 'Faculty Only'
+            capacity: z.capacity || z.total || 100,
+            isFaculty: z.isFaculty || z.name?.toLowerCase().includes('faculty')
           })));
         }
       } catch (e) {}
     };
     fetchZonesApi();
     const interval = setInterval(fetchZonesApi, 5000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('student-book-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchZonesApi();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchZonesApi();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -86,26 +97,44 @@ export default function StudentBookScreen({ navigation }) {
         const userEmail = userObj.email || 'student@college.edu';
         const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
 
-        const [savedVeh, savedHist] = await Promise.all([
-          AsyncStorage.getItem(`@parknex_vehicles_${userEmail}`),
-          AsyncStorage.getItem(`@parknex_history_${userEmail}`)
-        ]);
-
-        if (savedVeh) {
-          try {
-            const parsedVeh = JSON.parse(savedVeh);
-            setVehicles(parsedVeh);
-            if (parsedVeh.length > 0) setSelectedVehicle(parsedVeh[0]);
-          } catch (e) {}
-        } else if (isDemoUser) {
-          const demoVeh = [
-            { brand: 'Honda', model: 'Civic', plate: 'KA-01-AB-1234' },
-            { brand: 'Royal Enfield', model: 'Classic 350', plate: 'KA-05-XY-9876' }
-          ];
-          setVehicles(demoVeh);
-          setSelectedVehicle(demoVeh[0]);
+        // Fetch vehicles from server using smartApiRequest
+        try {
+          const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
+          if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
+            const mapped = vehRes.data.map(v => ({
+              id: v.id,
+              brand: v.brand,
+              model: v.model || 'Standard',
+              color: v.color || 'White',
+              type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
+              plate: v.plateNumber || v.plate,
+              status: v.status || 'Verified'
+            }));
+            setVehicles(mapped);
+            setSelectedVehicle(mapped[0]);
+          } else {
+            const savedVeh = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
+            if (savedVeh) {
+              const parsedVeh = JSON.parse(savedVeh);
+              setVehicles(parsedVeh);
+              if (parsedVeh.length > 0) setSelectedVehicle(parsedVeh[0]);
+            } else if (isDemoUser) {
+              const demoVeh = [
+                { brand: 'Honda', model: 'Civic', plate: 'KA-01-AB-1234' },
+                { brand: 'Royal Enfield', model: 'Classic 350', plate: 'KA-05-XY-9876' }
+              ];
+              setVehicles(demoVeh);
+              setSelectedVehicle(demoVeh[0]);
+            } else {
+              setVehicles([]);
+              setSelectedVehicle(null);
+            }
+          }
+        } catch (e) {
+          setVehicles([]);
         }
 
+        const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail.toLowerCase()}`);
         if (savedHist) {
           try { setHistoryList(JSON.parse(savedHist)); } catch (e) {}
         } else if (isDemoUser) {

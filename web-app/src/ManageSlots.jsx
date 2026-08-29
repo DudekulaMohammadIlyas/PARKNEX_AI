@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Map, LayoutGrid, X, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import { supabase } from './supabaseClient';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -24,12 +25,12 @@ export default function ManageSlots({ occupancy, refreshData }) {
   const [zoneStatus, setZoneStatus] = useState('Active');
   const [isFacultyOnly, setIsFacultyOnly] = useState(false);
 
-  const fetchZonesFromBackend = async () => {
-    setLoading(true);
+  const fetchZonesFromBackend = async (isInitial = false) => {
+    if (isInitial && zones.length === 0) setLoading(true);
     try {
       const res = await axios.get(`${BACKEND_URL}/zones`);
       if (Array.isArray(res.data) && res.data.length > 0) {
-        setZones(res.data.map(z => ({
+        const mapped = res.data.map(z => ({
           id: z.id,
           name: z.name,
           capacity: z.total || 60,
@@ -37,14 +38,18 @@ export default function ManageSlots({ occupancy, refreshData }) {
           type: z.type || 'Mixed',
           status: z.status || 'Active',
           isFacultyOnly: z.isFacultyOnly || false
-        })));
+        }));
+        setZones(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(mapped)) return prev;
+          return mapped;
+        });
       } else {
         setZones(mockZones);
       }
     } catch (err) {
       console.warn("Falling back to local occupancy zones:", err.message);
       if (occupancy?.zones && occupancy.zones.length > 0) {
-        setZones(occupancy.zones.map(z => ({
+        const mapped = occupancy.zones.map(z => ({
           id: z.id,
           name: z.name || `Zone ${z.id}`,
           capacity: z.total || 60,
@@ -52,20 +57,37 @@ export default function ManageSlots({ occupancy, refreshData }) {
           type: 'Mixed',
           status: 'Active',
           isFacultyOnly: false
-        })));
+        }));
+        setZones(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(mapped)) return prev;
+          return mapped;
+        });
       } else {
         setZones(mockZones);
       }
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchZonesFromBackend();
-    const interval = setInterval(fetchZonesFromBackend, 3000);
-    return () => clearInterval(interval);
-  }, [occupancy]);
+    fetchZonesFromBackend(true);
+    const interval = setInterval(() => fetchZonesFromBackend(false), 3000);
+
+    const channel = supabase
+      .channel('web-zones-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchZonesFromBackend(false);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchZonesFromBackend(false);
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();

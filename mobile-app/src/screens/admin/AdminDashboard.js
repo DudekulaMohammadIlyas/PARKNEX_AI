@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import axios from 'axios';
 import config from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -11,25 +12,74 @@ const BACKEND_URL = config.BACKEND_URL;
 export default function AdminDashboard({ navigation, onLogout, occupancy }) {
   const [executiveData, setExecutiveData] = useState({ systemHealth: '99.8% Optimal' });
   const [sustainability, setSustainability] = useState({ co2ReducedKg: 1450, fuelSavedLiters: 620, greenCampusRating: 'A+ Excellent' });
-  const [signage, setSignage] = useState([{ screenName: 'MAIN_GATE_LED_01', displayedText: 'WELCOME • ZONE A: 75 FREE • ZONE B: 30 FREE' }]);
+  const [signage, setSignage] = useState([{ screenName: 'MAIN_GATE_LED_01', displayedText: 'WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE' }]);
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
+  const [isSignageModalOpen, setIsSignageModalOpen] = useState(false);
+  const [customSignageText, setCustomSignageText] = useState('WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE');
+  const [liveOccupancyPct, setLiveOccupancyPct] = useState('68%');
+
+  const fetchAdminData = async () => {
+    try {
+      const [execRes, sustRes, signRes, zoneRes] = await Promise.allSettled([
+        axios.get(`${BACKEND_URL}/executive/dashboard`),
+        axios.get(`${BACKEND_URL}/sustainability/metrics`),
+        axios.get(`${BACKEND_URL}/signage`),
+        axios.get(`${BACKEND_URL}/zones`)
+      ]);
+
+      if (execRes.status === 'fulfilled' && execRes.value.data) setExecutiveData(execRes.value.data);
+      if (sustRes.status === 'fulfilled' && sustRes.value.data) setSustainability(sustRes.value.data);
+      if (signRes.status === 'fulfilled' && Array.isArray(signRes.value.data) && signRes.value.data.length > 0) {
+        setSignage(signRes.value.data);
+        if (signRes.value.data[0].displayedText) setCustomSignageText(signRes.value.data[0].displayedText);
+      }
+      if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
+        const totalCap = zoneRes.value.data.reduce((acc, z) => acc + (z.total || 100), 0);
+        const totalOcc = zoneRes.value.data.reduce((acc, z) => acc + (z.occupied || 0), 0);
+        const pct = Math.round((totalOcc / totalCap) * 100);
+        setLiveOccupancyPct(`${pct}%`);
+      }
+    } catch (e) {}
+  };
 
   useEffect(() => {
-    const fetchAdminData = async () => {
-      try {
-        const [execRes, sustRes, signRes] = await Promise.allSettled([
-          axios.get(`${BACKEND_URL}/executive/dashboard`),
-          axios.get(`${BACKEND_URL}/sustainability/metrics`),
-          axios.get(`${BACKEND_URL}/signage`)
-        ]);
-
-        if (execRes.status === 'fulfilled' && execRes.value.data) setExecutiveData(execRes.value.data);
-        if (sustRes.status === 'fulfilled' && sustRes.value.data) setSustainability(sustRes.value.data);
-        if (signRes.status === 'fulfilled' && Array.isArray(signRes.value.data) && signRes.value.data.length > 0) setSignage(signRes.value.data);
-      } catch (e) {}
-    };
     fetchAdminData();
+    const interval = setInterval(fetchAdminData, 3000);
+
+    const channel = supabase
+      .channel('admin-dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchAdminData();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchAdminData();
+      });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
+
+  const handleBroadcastSignage = async () => {
+    if (!customSignageText.trim()) {
+      Alert.alert('Error', 'Please enter text to broadcast onto campus LED screens.');
+      return;
+    }
+    try {
+      await axios.post(`${BACKEND_URL}/signage`, {
+        screenName: 'MAIN_GATE_LED_01',
+        displayedText: customSignageText.trim()
+      });
+      setSignage([{ screenName: 'MAIN_GATE_LED_01', displayedText: customSignageText.trim() }]);
+      setIsSignageModalOpen(false);
+      Alert.alert('Broadcast Published! 📺', 'New message is now displayed live on main entrance LED screens!');
+    } catch (e) {
+      setSignage([{ screenName: 'MAIN_GATE_LED_01', displayedText: customSignageText.trim() }]);
+      setIsSignageModalOpen(false);
+      Alert.alert('Broadcast Updated', 'Signage updated locally.');
+    }
+  };
 
   const handleTriggerEmergency = async () => {
     try {
@@ -96,9 +146,9 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 18 }}>
           <View style={{ flex: 1, backgroundColor: '#FFFFFF', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2 }}>
             <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B' }}>OCCUPANCY</Text>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginTop: 4 }}>68%</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginTop: 4 }}>{liveOccupancyPct}</Text>
             <View style={{ height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-              <View style={{ width: '68%', height: '100%', backgroundColor: '#6366F1' }} />
+              <View style={{ width: liveOccupancyPct, height: '100%', backgroundColor: '#6366F1' }} />
             </View>
           </View>
 
@@ -200,13 +250,22 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
 
         {/* DIGITAL SIGNAGE FEED */}
         <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Ionicons name="tv-outline" size={18} color="#0F172A" />
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Digital Signage Matrix Feed</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="tv-outline" size={18} color="#0F172A" />
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Digital Signage Matrix Feed</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setIsSignageModalOpen(true)}
+              style={{ backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              <Feather name="edit-3" size={14} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 11 }}>Broadcast Text</Text>
+            </TouchableOpacity>
           </View>
           {signage.map((s, idx) => (
             <View key={idx} style={{ backgroundColor: '#020617', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#1E293B' }}>
-              <Text style={{ color: '#34D399', fontWeight: '900', fontSize: 12, fontFamily: 'Platform' }}>
+              <Text style={{ color: '#34D399', fontWeight: '900', fontSize: 12 }}>
                 ▶ {s.displayedText}
               </Text>
             </View>
@@ -237,6 +296,43 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      {/* EDIT & BROADCAST SIGNAGE MODAL */}
+      <Modal visible={isSignageModalOpen} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginBottom: 6 }}>
+              📺 Broadcast LED Signage
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
+              Enter message text to display live across main gate matrix screens:
+            </Text>
+
+            <TextInput
+              style={{ backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#CBD5E1', borderRadius: 14, padding: 14, fontSize: 14, color: '#0F172A', fontWeight: '700', minHeight: 80, marginBottom: 20, textAlignVertical: 'top' }}
+              multiline
+              value={customSignageText}
+              onChangeText={setCustomSignageText}
+              placeholder="e.g. WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity 
+                onPress={() => setIsSignageModalOpen(false)}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center' }}
+              >
+                <Text style={{ fontWeight: '800', color: '#64748B' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleBroadcastSignage}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center' }}
+              >
+                <Text style={{ fontWeight: '900', color: '#FFFFFF' }}>Publish Live 📡</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

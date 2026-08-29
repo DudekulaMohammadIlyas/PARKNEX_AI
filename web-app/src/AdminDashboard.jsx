@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import axios from 'axios';
+import { supabase } from './supabaseClient';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -77,7 +78,7 @@ export default function AdminDashboard({ occupancy, events }) {
     localStorage.setItem('parknex_admin_users', JSON.stringify(usersList));
   }, [usersList]);
 
-  // Fetch users from backend database on mount
+  // Fetch users from backend database on mount & subscribe to Realtime updates
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -102,7 +103,21 @@ export default function AdminDashboard({ occupancy, events }) {
         }
       } catch (e) {}
     };
+
     fetchUsers();
+
+    const channel = supabase
+      .channel('admin-dashboard-web-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchUsers();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchUsers();
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // User Management Modals State

@@ -4,15 +4,15 @@
     "email": "admin@college.edu",
     "name": "System Admin",
     "role": "ADMIN",
-    "passwordHash": "",
-    "lastLogin": "2026-08-28T03:39:18.740Z"
+    "passwordHash": "$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe",
+    "lastLogin": "2026-08-28T13:14:15.298Z"
   },
   {
     "id": "u_security",
     "email": "security@college.edu",
     "name": "Officer Davis",
     "role": "SECURITY",
-    "passwordHash": "",
+    "passwordHash": "$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe",
     "lastLogin": "2026-08-28T04:27:33.953Z"
   },
   {
@@ -20,8 +20,9 @@
     "email": "student@college.edu",
     "name": "Alex Carter",
     "role": "STUDENT",
-    "passwordHash": "",
-    "lastLogin": "2026-08-28T04:40:12.088Z"
+    "passwordHash": "$2b$10$aBeeBRe9OY3Mlsl8xIyUbel5cAEjFSy2eLa5oF4F5vo0vZtiUqJc6",
+    "lastLogin": "2026-08-29T02:41:10.877Z",
+    "passwordChangedAt": "2026-08-29T02:41:10.576Z"
   },
   {
     "id": "u_1787811379511",
@@ -58,7 +59,81 @@
     "role": "STUDENT",
     "passwordHash": "$2b$10$QCacXbz6dQaa1ngUJuljROE9eZz4TfF3cWM9QTGvbWgbPRfe9175.",
     "rawPassword": "123456789",
-    "lastLogin": "2026-08-28T03:55:20.115Z",
+    "lastLogin": "2026-08-28T13:13:19.245Z",
     "createdAt": "2026-08-28T03:55:20.115Z"
+  },
+  {
+    "id": "306f0c1a-7fc5-44bc-bb9e-6d7291466473",
+    "email": "hemasaisiddarthahemasai@gmail.com",
+    "password": "$2b$10$OQIwRr5.2kK196BW0QlcSOznVG8WBOTFABiQqybqhyMJ3ExuxxnqC",
+    "role": "STUDENT",
+    "name": "bhanu",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-163",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "createdAt": "2026-08-28T07:52:08.925Z",
+    "updatedAt": "2026-08-28T07:52:08.925Z",
+    "lastLogin": "2026-08-28T08:38:33.264Z"
+  },
+  {
+    "id": "u_faculty",
+    "email": "faculty@college.edu",
+    "name": "Dr. Smith",
+    "role": "FACULTY",
+    "passwordHash": "",
+    "lastLogin": "2026-08-28T09:00:00.000Z"
+  },
+  {
+    "id": "u_1787937543417",
+    "email": "demodumb8@gmail.com",
+    "name": "demodumb8",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$V9sNiXZ2n/Jt3NB7FhK3l.cdKw2rRFS0bwa5US8n7dyTpqyar0uwG",
+    "rawPassword": "123456789",
+    "lastLogin": "2026-08-29T06:21:44.473Z",
+    "createdAt": "2026-08-28T17:19:03.418Z"
+  },
+  {
+    "id": "u_1787937602042",
+    "email": "demodumb8@gmail.com",
+    "name": "demodumb8",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$.sm3aKA1GcVsZDFsLdELQ.5wwvd2ZPrtjAFMqoaHyFZN9nnE6IzlO",
+    "rawPassword": "12345678",
+    "lastLogin": "2026-08-28T17:20:02.042Z",
+    "createdAt": "2026-08-28T17:20:02.042Z"
+  },
+  {
+    "id": "u_1787937621463",
+    "email": "demodumb8@gmail.com",
+    "name": "demodumb8",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$s6dPvGq85Gh9kUQLQqk/gORxOs0CtTIekL2MtxiDuHYh2ZTh8FXuq",
+    "rawPassword": "hkjbhv bnkljbhv bkl",
+    "lastLogin": "2026-08-28T17:20:21.463Z",
+    "createdAt": "2026-08-28T17:20:21.463Z"
+  },
+  {
+    "id": "u_1787938614595",
+    "email": "nobody_12345@college.edu",
+    "name": "nobody_12345",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$Ed4c2I9BjjJGOXxyW4leDeEbrNLtBN4Rz1Hm./rYuXHXtuSK4PP4K",
+    "rawPassword": "any_password",
+    "lastLogin": "2026-08-28T17:38:56.418Z",
+    "createdAt": "2026-08-28T17:36:54.595Z"
+  },
+  {
+    "id": "66e90242-7a92-45d6-ba4a-12bbd6321b4a",
+    "email": "mandalaraghavendra6305@gmail.com",
+    "name": "mandalaraghavendra6305",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$f.S2YC.1fbnRqP126WxVr.FqLLox8wj18VJy5nJXa.6TTHJZQVMAy",
+    "passwordChangedAt": "2026-08-29T02:20:42.040Z",
+    "lastLogin": "2026-08-29T06:25:27.302Z"
   }
 ]

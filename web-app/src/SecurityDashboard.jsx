@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Camera, AlertTriangle, Activity, History, Search, Eye, MapPin, CheckCircle, Clock, UserCheck, Ticket, Plus, X, Video, Play, Pause, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { supabase } from './supabaseClient';
 
 // Animated Live CCTV Video Stream Component with AI Bounding Box Overlays & Clear High-Contrast Typography
 function DynamicCCTVStream({ camId, id, camName, zoneName, targetPlate, status, onIssueTicket, onDeleteCam }) {
@@ -319,7 +320,10 @@ export default function SecurityDashboard({
     try {
       const res = await axios.get(`${BACKEND_URL}/security-logs`);
       if (Array.isArray(res.data) && res.data.length > 0) {
-        setLogs(res.data);
+        setLogs(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(res.data)) return prev;
+          return res.data;
+        });
       }
     } catch (e) {}
   };
@@ -347,7 +351,29 @@ export default function SecurityDashboard({
       fetchSecurityLogs();
     }, 3000);
 
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel('security-web-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchIncidentsFromBackend();
+        fetchVisitors();
+        fetchViolations();
+        fetchCameras();
+        fetchSecurityLogs();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          fetchIncidentsFromBackend();
+          fetchVisitors();
+          fetchViolations();
+          fetchCameras();
+          fetchSecurityLogs();
+        }
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -626,18 +652,22 @@ export default function SecurityDashboard({
               )}
             </div>
 
-            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                <History size={20} color="var(--primary)" /> Live Security Activity Log
-              </h3>
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                  <History size={20} color="var(--primary)" /> Live Security Activity Log
+                </h3>
+                <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>Smooth Feed • Live Scroll</span>
+              </div>
+              
+              <div style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {logs.map((log, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '1rem', paddingBottom: '1.25rem', borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${log.color}15`, color: log.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {log.type === 'alert' ? <AlertTriangle size={16} /> : <MapPin size={16} />}
+                  <div key={`${log.id || log.text}-${i}`} style={{ display: 'flex', gap: '1rem', paddingBottom: '1rem', borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${log.color || '#6366f1'}15`, color: log.color || '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {log.type === 'alert' || log.type === 'ALERT' ? <AlertTriangle size={16} /> : <MapPin size={16} />}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)' }}>{log.text}</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.3' }}>{log.text}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{log.time}</div>
                     </div>
                   </div>
@@ -895,7 +925,7 @@ export default function SecurityDashboard({
                   onChange={e => setNewCamZone(e.target.value)} 
                   style={{ width: '100%', padding: '0.75rem 1rem', color: '#0F172A', backgroundColor: '#F8FAFC', border: '1.5px solid #CBD5E1', borderRadius: '12px', fontSize: '0.9rem', fontWeight: '700' }}
                 >
-                  {['Faculty Parking', 'South Block', 'Zone B', 'KRISHNA HOSTEL', 'HOSPITAL PARKING', 'Zone C', 'Zone A', 'Visitor Parking', 'Scad', 'Near Temple', 'Faculty Block Parking', 'North Block'].map(z => (
+                  {['Faculty Parking', 'South Block', 'Central Library', 'KRISHNA HOSTEL', 'HOSPITAL PARKING', 'Hostel Complex', 'CS Academic Block', 'Visitor Parking', 'Scad'].map(z => (
                     <option key={z} value={z} style={{ color: '#0F172A', backgroundColor: '#FFFFFF' }}>{z}</option>
                   ))}
                 </select>

@@ -87,10 +87,18 @@ function App() {
   const [profile, setProfile] = useState({
     name: 'User',
     email: '',
-    phone: '+91 98765 43210',
+    phone: '',
+    department: '',
+    academicTerm: '',
     avatar: 'U'
   });
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '' });
+  const [profileForm, setProfileForm] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    department: '', 
+    academicTerm: '' 
+  });
 
   // Attach token header to axios requests
   axios.interceptors.request.use((config) => {
@@ -112,9 +120,13 @@ function App() {
 
     // Restore updated profile from localStorage cache first
     const cachedProfile = localStorage.getItem(`parknex_user_profile_${userDetails.email || formattedRole}`);
-    let initialName = userDetails.name || (formattedRole === 'ADMIN' ? 'System Admin' : formattedRole === 'SECURITY' ? 'Officer Davis' : 'Alex Carter');
-    let initialPhone = userDetails.phone || '+91 98765 43210';
+    let initialName = userDetails.name || (formattedRole === 'ADMIN' ? 'System Admin' : formattedRole === 'SECURITY' ? 'Officer Davis' : 'Student');
+    let initialPhone = userDetails.phone || '';
     let initialEmail = userDetails.email || `${formattedRole.toLowerCase()}@college.edu`;
+
+    const isDemo = initialEmail === 'student@college.edu' || initialEmail === 'admin@college.edu' || initialEmail === 'security@college.edu';
+    let initialDept = userDetails.department || (isDemo ? 'Computer Science & Engineering' : '');
+    let initialTerm = userDetails.academicTerm || (isDemo ? 'Fall 2024 - Spring 2028' : '');
 
     if (cachedProfile) {
       try {
@@ -122,6 +134,8 @@ function App() {
         if (parsed.name) initialName = parsed.name;
         if (parsed.phone) initialPhone = parsed.phone;
         if (parsed.email) initialEmail = parsed.email;
+        if (parsed.department !== undefined) initialDept = parsed.department;
+        if (parsed.academicTerm !== undefined) initialTerm = parsed.academicTerm;
       } catch (e) {}
     }
 
@@ -129,6 +143,8 @@ function App() {
       name: initialName,
       email: initialEmail,
       phone: initialPhone,
+      department: initialDept,
+      academicTerm: initialTerm,
       avatar: initialName.charAt(0).toUpperCase()
     });
   };
@@ -216,7 +232,9 @@ function App() {
     setProfileForm({
       name: profile.name,
       email: profile.email,
-      phone: profile.phone
+      phone: profile.phone,
+      department: profile.department || '',
+      academicTerm: profile.academicTerm || ''
     });
     setIsProfileModalOpen(true);
   };
@@ -227,6 +245,8 @@ function App() {
       name: profileForm.name,
       email: profileForm.email,
       phone: profileForm.phone,
+      department: profileForm.department || '',
+      academicTerm: profileForm.academicTerm || '',
       avatar: profileForm.name.charAt(0).toUpperCase()
     };
 
@@ -239,9 +259,11 @@ function App() {
       await axios.put(`${BACKEND_URL}/users/profile`, {
         name: profileForm.name,
         email: profileForm.email,
-        phone: profileForm.phone
+        phone: profileForm.phone,
+        department: profileForm.department,
+        academicTerm: profileForm.academicTerm
       });
-      alert('Profile updated and saved permanently to PostgreSQL database!');
+      alert('Profile updated and saved permanently!');
     } catch (err) {
       alert('Profile updated locally.');
     }
@@ -524,6 +546,30 @@ function App() {
                   required
                   value={profileForm.phone} 
                   onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} 
+                  className="search-input"
+                  style={{ paddingLeft: '1rem' }} 
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Academic Department</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={profileForm.department} 
+                  onChange={e => setProfileForm({ ...profileForm, department: e.target.value })} 
+                  className="search-input"
+                  style={{ paddingLeft: '1rem' }} 
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Academic Term / Batch</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Fall 2024 - Spring 2028"
+                  value={profileForm.academicTerm} 
+                  onChange={e => setProfileForm({ ...profileForm, academicTerm: e.target.value })} 
                   className="search-input"
                   style={{ paddingLeft: '1rem' }} 
                 />

@@ -17,7 +17,7 @@
   },
   {
     "id": "z3",
-    "name": "Zone B",
+    "name": "Central Library",
     "total": 80,
     "occupied": 78,
     "type": "4-Wheeler",
@@ -41,7 +41,7 @@
   },
   {
     "id": "z6",
-    "name": "Zone C",
+    "name": "Hostel Complex",
     "total": 200,
     "occupied": 110,
     "type": "2-Wheeler",
@@ -49,7 +49,7 @@
   },
   {
     "id": "z7",
-    "name": "Zone A",
+    "name": "CS Academic Block",
     "total": 120,
     "occupied": 45,
     "type": "Academic",
@@ -69,30 +69,6 @@
     "total": 75,
     "occupied": 1,
     "type": "Mixed",
-    "status": "Active"
-  },
-  {
-    "id": "z10",
-    "name": "Near Temple",
-    "total": 60,
-    "occupied": 0,
-    "type": "Mixed",
-    "status": "Active"
-  },
-  {
-    "id": "z11",
-    "name": "Faculty Block Parking",
-    "total": 100,
-    "occupied": 15,
-    "type": "Faculty Only",
-    "status": "Active"
-  },
-  {
-    "id": "z12",
-    "name": "North Block",
-    "total": 200,
-    "occupied": 80,
-    "type": "Academic",
     "status": "Active"
   }
 ]

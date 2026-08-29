@@ -70,14 +70,29 @@ model User {
   department     Department?   @relation(fields: [departmentId], references: [id])
   emergencyPhone String?
   pushToken      String?
+  passwordChangedAt DateTime?
   vehicles       Vehicle[]
   bookings       Booking[]
   passes         ParkingPass[]
   visitorsHosted Visitor[]     @relation("HostRelation")
   notifications  Notification[]
   violations     Violation[]
+  passwordResets PasswordReset[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @default(now()) @updatedAt
+}
+
+model PasswordReset {
+  id          String    @id @default(uuid())
+  email       String
+  tokenHash   String
+  resetCode   String?
+  attempts    Int       @default(0)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
 }
 
 model ParkingPass {

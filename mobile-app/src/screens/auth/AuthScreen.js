@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Image } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  SafeAreaView, 
+  ActivityIndicator, 
+  Alert, 
+  Image, 
+  Modal, 
+  KeyboardAvoidingView, 
+  ScrollView, 
+  Platform 
+} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -24,6 +37,8 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [resetStep, setResetStep] = useState('request'); // 'request' | 'sent' | 'reset'
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetCode, setResetCode] = useState('');
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
@@ -35,9 +50,9 @@ export default function AuthScreen({ onLoginSuccess }) {
 
     try {
       if (isLogin) {
-        // 1. Try Backend REST Auth (JWT)
+        // Backend REST Auth (JWT) with Smart Auto-Failover
         try {
-          const res = await axios.post(`${BACKEND_URL}/auth/login`, {
+          const res = await smartApiRequest('post', '/auth/login', {
             email: email.trim(),
             password: password.trim()
           });
@@ -48,48 +63,15 @@ export default function AuthScreen({ onLoginSuccess }) {
             }
             return;
           }
+          Alert.alert('Authentication Failed', res.data?.error || 'Invalid email or password.');
         } catch (backendErr) {
-          console.warn('Backend REST auth failed, trying Supabase fallback:', backendErr.message);
-        }
-
-        // 2. Supabase Auth Fallback
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim()
-        });
-
-        if (error) {
-          // Construct fallback user
-          let mockRole = 'STUDENT';
-          if (email.includes('admin')) mockRole = 'ADMIN';
-          else if (email.includes('security')) mockRole = 'SECURITY';
-          else if (email.includes('faculty')) mockRole = 'FACULTY';
-
-          const mockUser = {
-            id: 'user-id',
-            email: email.trim(),
-            name: email.split('@')[0],
-            role: mockRole
-          };
-
-          if (onLoginSuccess) {
-            onLoginSuccess(mockUser, 'demo-jwt-token');
-          }
-        } else if (data?.user) {
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
-            role: data.user.user_metadata?.role || role
-          };
-          if (onLoginSuccess) {
-            onLoginSuccess(userData, data.session?.access_token || 'supabase-token');
-          }
+          const errorMessage = backendErr.response?.data?.error || backendErr.response?.data?.message || backendErr.message || 'Invalid email or password.';
+          Alert.alert('Login Failed', errorMessage);
         }
       } else {
         // Register flow
         try {
-          const res = await axios.post(`${BACKEND_URL}/auth/register`, {
+          const res = await smartApiRequest('post', '/auth/register', {
             email: email.trim(),
             password: password.trim(),
             role,
@@ -103,32 +85,52 @@ export default function AuthScreen({ onLoginSuccess }) {
             }
             return;
           }
+          Alert.alert('Registration Failed', res.data?.error || 'Registration failed.');
         } catch (e) {
-          Alert.alert('Registration', 'Registered user locally.');
-          const mockUser = { id: Date.now().toString(), email: email.trim(), name: email.split('@')[0], role };
-          if (onLoginSuccess) onLoginSuccess(mockUser, 'demo-token');
+          Alert.alert('Registration Error', e.response?.data?.error || e.message || 'Registration failed. Password must be at least 8 characters long.');
         }
       }
     } catch (err) {
-      Alert.alert('Auth Error', err.message || 'Authentication failed.');
+      Alert.alert('Error', err.message || 'Authentication failed. Please check your network connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSendResetEmail = async () => {
-    if (!forgotEmail.trim()) {
-      Alert.alert('Error', 'Please enter your registered email address.');
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
+      Alert.alert('Validation Error', 'Please enter a valid registered email address.');
       return;
     }
 
     setLoading(true);
-    try {
-      await supabase.auth.resetPasswordForEmail(forgotEmail.trim()).catch(() => null);
-    } catch (e) {}
 
-    setLoading(false);
-    setResetStep('sent');
+    try {
+      const res = await smartApiRequest('post', '/auth/forgot-password', {
+        email: forgotEmail.trim()
+      });
+
+      if (res.data?.success) {
+        const token = res.data.resetToken || res.data._devResetToken || '';
+        const code = res.data.resetCode || res.data._devResetCode || '';
+
+        setResetToken(token);
+        setResetCode(code);
+
+        Alert.alert('Reset Code Sent 🔑', `Verification code generated (${code || 'Sent'}). Enter your new password to complete reset.`);
+        setResetStep('reset');
+      } else {
+        Alert.alert('Error', res.data?.error || 'Failed to request password reset.');
+      }
+    } catch (e) {
+      if (e.response?.status === 429) {
+        Alert.alert('Rate Limit Exceeded', 'A reset request was recently sent. Please wait 60 seconds before requesting another code.');
+      } else {
+        Alert.alert('Error', e.response?.data?.error || e.message || 'Failed to reach server. Please check your network connection.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCompletePasswordReset = async () => {
@@ -144,21 +146,27 @@ export default function AuthScreen({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      await axios.post(`${BACKEND_URL}/auth/reset-password`, {
+      const res = await smartApiRequest('post', '/auth/confirm-reset-password', {
         email: forgotEmail.trim(),
+        resetToken,
+        resetCode,
         newPassword: newPassword.trim()
       });
-      Alert.alert('Password Reset Complete! 🎉', 'Your password has been updated in database. Only your NEW password will work now.');
+
+      if (res.data?.success) {
+        Alert.alert('Password Reset Complete! 🎉', 'Your password has been updated in database and old sessions invalidated. Only your NEW password will work now.');
+        setIsForgotModalOpen(false);
+        setEmail(forgotEmail.trim());
+        setPassword(newPassword.trim());
+        setResetStep('request');
+      } else {
+        Alert.alert('Error', res.data?.error || 'Invalid or expired password reset token.');
+      }
     } catch (e) {
-      Alert.alert('Password Reset Complete! 🎉', 'Your password has been updated.');
+      Alert.alert('Error', e.response?.data?.error || e.response?.data?.message || e.message || 'Password reset failed. Token may be invalid or expired.');
     } finally {
       setLoading(false);
     }
-
-    setIsForgotModalOpen(false);
-    setEmail(forgotEmail);
-    setPassword(newPassword);
-    setResetStep('request');
   };
 
   return (
@@ -251,117 +259,138 @@ export default function AuthScreen({ onLoginSuccess }) {
         </TouchableOpacity>
       </View>
 
-      {/* FORGOT & RESET PASSWORD MODAL WITH OFFICIAL EMAIL TEMPLATE PREVIEW */}
-      {isForgotModalOpen && (
-        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20, zIndex: 100 }}>
-          <View style={{ backgroundColor: COLORS.white, borderRadius: 24, padding: 20 }}>
-            
-            {resetStep === 'request' && (
-              <>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text, marginBottom: 6 }}>Reset Password</Text>
-                <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '600', marginBottom: 16 }}>
-                  Enter your registered campus email address to receive an official password reset email.
-                </Text>
+      {/* FORGOT & RESET PASSWORD MODAL WITH KEYBOARD AVOIDANCE & PADDING */}
+      <Modal
+        visible={isForgotModalOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsForgotModalOpen(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ScrollView 
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, width: '100%' }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ 
+              backgroundColor: COLORS.white, 
+              borderRadius: 28, 
+              paddingHorizontal: 24, 
+              paddingVertical: 26, 
+              width: '100%', 
+              maxWidth: 400,
+              elevation: 10,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.25,
+              shadowRadius: 15
+            }}>
+              
+              {resetStep === 'request' && (
+                <>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 6 }}>Reset Password</Text>
+                  <Text style={{ fontSize: 13, color: COLORS.textMuted, fontWeight: '500', marginBottom: 20, lineHeight: 18 }}>
+                    Enter your registered campus email address to generate a secure password reset token.
+                  </Text>
 
-                <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4 }}>Registered Email</Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 20 }]}
-                  placeholder="you@college.edu"
-                  value={forgotEmail}
-                  onChangeText={setForgotEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 6 }}>Registered Email</Text>
+                  <TextInput
+                    style={[styles.input, { marginBottom: 22 }]}
+                    placeholder="you@college.edu"
+                    value={forgotEmail}
+                    onChangeText={setForgotEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
 
-                <TouchableOpacity style={styles.primaryBtn} onPress={handleSendResetEmail} disabled={loading}>
-                  <Text style={styles.primaryBtnText}>{loading ? 'Sending Request...' : 'Send Reset Email'}</Text>
-                </TouchableOpacity>
-              </>
-            )}
+                  <TouchableOpacity style={[styles.primaryBtn, { paddingVertical: 14, borderRadius: 14 }]} onPress={handleForgotPassword} disabled={loading}>
+                    <Text style={styles.primaryBtnText}>{loading ? 'Generating Code...' : 'Send Reset Code'}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
-            {resetStep === 'sent' && (
-              <>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.primary, marginBottom: 4 }}>
-                  📬 Official Reset Email Sent!
-                </Text>
-                <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 14 }}>
-                  Password reset link dispatched to <Text style={{ fontWeight: '800', color: COLORS.text }}>{forgotEmail}</Text>.
-                </Text>
+              {resetStep === 'sent' && (
+                <>
+                  <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.primary, marginBottom: 6 }}>
+                    📬 Official Reset Code Sent!
+                  </Text>
+                  <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16, lineHeight: 18 }}>
+                    Password reset code generated for <Text style={{ fontWeight: '800', color: COLORS.text }}>{forgotEmail}</Text>.
+                  </Text>
 
-                {/* REAL-TIME OFFICIAL EMAIL TEMPLATE CARD PREVIEW */}
-                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#CBD5E1', marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                    <MaterialCommunityIcons name="shield-check" size={20} color={COLORS.primary} />
-                    <View>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#0F172A' }}>Saveetha University Security</Text>
-                      <Text style={{ fontSize: 10, color: COLORS.textMuted }}>noreply@parknex.saveetha.edu</Text>
+                  <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#CBD5E1', marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                      <MaterialCommunityIcons name="shield-check" size={22} color={COLORS.primary} />
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: '900', color: '#0F172A' }}>Saveetha University Security</Text>
+                        <Text style={{ fontSize: 11, color: COLORS.textMuted }}>noreply@parknex.saveetha.edu</Text>
+                      </View>
                     </View>
+
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#1E293B', marginBottom: 6 }}>
+                      Subject: 🔒 Reset Your ParkNex-AI Password
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 18, marginBottom: 14 }}>
+                      Hello {forgotEmail.split('@')[0] || 'User'},{'\n'}
+                      We received a request to reset your password. Tap the button below to enter your new password:
+                    </Text>
+
+                    <TouchableOpacity 
+                      onPress={() => setResetStep('reset')}
+                      style={{ backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginBottom: 10 }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Reset Password Now →</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#1E293B', marginBottom: 6 }}>
-                    Subject: 🔒 Reset Your ParkNex-AI Password
-                  </Text>
-                  <Text style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 16, marginBottom: 12 }}>
-                    Hello {forgotEmail.split('@')[0] || 'User'},{'\n'}
-                    We received a request to reset your password for your ParkNex-AI Campus Parking account. Click the button below to update your password securely:
-                  </Text>
-
-                  <TouchableOpacity 
-                    onPress={() => setResetStep('reset')}
-                    style={{ backgroundColor: COLORS.primary, paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginBottom: 10 }}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>Reset Password Now →</Text>
+                  <TouchableOpacity style={[styles.primaryBtn, { paddingVertical: 14, borderRadius: 14 }]} onPress={() => setResetStep('reset')}>
+                    <Text style={styles.primaryBtnText}>Proceed to Set New Password</Text>
                   </TouchableOpacity>
+                </>
+              )}
 
-                  <Text style={{ fontSize: 10, color: '#94A3B8', textAlign: 'center' }}>
-                    This reset link expires in 24 hours. If you did not request this, please ignore this message.
+              {resetStep === 'reset' && (
+                <>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 6 }}>Set New Password</Text>
+                  <Text style={{ fontSize: 13, color: COLORS.textMuted, fontWeight: '500', marginBottom: 20, lineHeight: 18 }}>
+                    Create a new password for <Text style={{ fontWeight: '800', color: COLORS.text }}>{forgotEmail}</Text>.
                   </Text>
-                </View>
 
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => setResetStep('reset')}>
-                  <Text style={styles.primaryBtnText}>Proceed to Set New Password</Text>
-                </TouchableOpacity>
-              </>
-            )}
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 6 }}>New Password</Text>
+                  <TextInput
+                    style={[styles.input, { marginBottom: 14 }]}
+                    placeholder="At least 8 characters"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                  />
 
-            {resetStep === 'reset' && (
-              <>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text, marginBottom: 6 }}>Set New Password</Text>
-                <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '600', marginBottom: 16 }}>
-                  Create a new secure password for <Text style={{ fontWeight: '800', color: COLORS.text }}>{forgotEmail}</Text>.
-                </Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 6 }}>Confirm New Password</Text>
+                  <TextInput
+                    style={[styles.input, { marginBottom: 22 }]}
+                    placeholder="Repeat new password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                  />
 
-                <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4 }}>New Password</Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 12 }]}
-                  placeholder="At least 8 characters"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                />
+                  <TouchableOpacity style={[styles.primaryBtn, { paddingVertical: 14, borderRadius: 14 }]} onPress={handleCompletePasswordReset} disabled={loading}>
+                    <Text style={styles.primaryBtnText}>{loading ? 'Updating Password...' : 'Update Password & Sign In'}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
-                <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4 }}>Confirm New Password</Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 20 }]}
-                  placeholder="Repeat new password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                />
+              <TouchableOpacity onPress={() => setIsForgotModalOpen(false)} style={{ marginTop: 16, paddingVertical: 8, alignItems: 'center' }}>
+                <Text style={{ color: COLORS.textMuted, fontWeight: '700', fontSize: 13 }}>Cancel</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity style={styles.primaryBtn} onPress={handleCompletePasswordReset}>
-                  <Text style={styles.primaryBtnText}>Update Password & Sign In</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <TouchableOpacity onPress={() => setIsForgotModalOpen(false)} style={{ marginTop: 12, alignItems: 'center' }}>
-              <Text style={{ color: COLORS.textMuted, fontWeight: '700', fontSize: 13 }}>Cancel</Text>
-            </TouchableOpacity>
-
-          </View>
-        </View>
-      )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
 
     </SafeAreaView>
   );
