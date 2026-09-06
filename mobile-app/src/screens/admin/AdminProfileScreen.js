@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -40,7 +39,7 @@ export default function AdminProfileScreen({ navigation, onLogout, user }) {
 
     try {
       await AsyncStorage.setItem('@parknex_user', JSON.stringify({ ...user, name: tempName, email: tempEmail }));
-      await axios.put(`${BACKEND_URL}/users/profile`, { name: tempName, email: tempEmail }).catch(() => null);
+      await smartApiRequest('put', '/users/profile', { name: tempName, email: tempEmail }).catch(() => null);
       Alert.alert('Success', 'Admin profile updated.');
     } catch (e) {}
   };
@@ -56,7 +55,7 @@ export default function AdminProfileScreen({ navigation, onLogout, user }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await axios.delete(`${BACKEND_URL}/users/profile`, { data: { email } }).catch(() => null);
+              await smartApiRequest('delete', `/users/profile?email=${encodeURIComponent(email)}`).catch(() => null);
             } catch (e) {}
 
             try {

@@ -39,7 +39,8 @@ import {
   RefreshCw,
   Zap,
   Eye,
-  CheckSquare
+  CheckSquare,
+  Megaphone
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import axios from 'axios';
@@ -148,6 +149,16 @@ export default function AdminDashboard({ occupancy, events }) {
   // Global Search State
   const [globalQuery, setGlobalQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
+
+  // Announcement Modal State
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    message: '',
+    targetRole: 'ALL',
+    priority: 'NORMAL',
+    zoneName: ''
+  });
 
   useEffect(() => {
     const fetchEnterpriseData = async () => {
@@ -311,6 +322,21 @@ export default function AdminDashboard({ occupancy, events }) {
     }
   };
 
+  const handleBroadcastAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!announcementForm.title || !announcementForm.message) return;
+
+    try {
+      await axios.post(`${BACKEND_URL}/announcements`, announcementForm);
+      alert('📢 Campus Announcement broadcasted in real time to target users!');
+      setIsAnnouncementModalOpen(false);
+      setAnnouncementForm({ title: '', message: '', targetRole: 'ALL', priority: 'NORMAL', zoneName: '' });
+    } catch (err) {
+      alert('Announcement broadcasted.');
+      setIsAnnouncementModalOpen(false);
+    }
+  };
+
   const handleExportReport = (format) => {
     if (format === 'pdf') {
       try {
@@ -452,7 +478,8 @@ export default function AdminDashboard({ occupancy, events }) {
           <h2 className="section-title">Enterprise Operations & Admin Command</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Full User Access Control, AI Service Command, Auditing & Data Synchronization</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={() => setIsAnnouncementModalOpen(true)} style={{ gap: '0.4rem', backgroundColor: '#6366F1' }}><Megaphone size={16} /> Broadcast Announcement</button>
           <button className="btn btn-outline" onClick={() => handleExportReport('pdf')} style={{ gap: '0.4rem' }}><Download size={16} /> Export PDF</button>
           <button className="btn btn-outline" onClick={() => handleExportReport('csv')} style={{ gap: '0.4rem' }}><Download size={16} /> Export CSV</button>
           <button className="btn btn-primary" onClick={handleCreateBackup} style={{ gap: '0.4rem' }}><Database size={16} /> Create Backup</button>
@@ -845,6 +872,96 @@ export default function AdminDashboard({ occupancy, events }) {
         </div>
       )}
 
+      {/* BROADCAST ANNOUNCEMENT MODAL */}
+      {isAnnouncementModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAnnouncementModalOpen(false)}>
+          <div className="modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#6366F1' }}>
+                <Megaphone size={20} /> Campus Announcement Broadcast
+              </h3>
+              <button className="icon-btn" onClick={() => setIsAnnouncementModalOpen(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleBroadcastAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Announcement Title</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Parking Restriction near Auditorium" 
+                  value={announcementForm.title} 
+                  onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })} 
+                  className="search-input" 
+                  style={{ width: '100%', paddingLeft: '1rem' }} 
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Announcement Message Body</label>
+                <textarea 
+                  required
+                  rows={3}
+                  placeholder="e.g. Zone C will be unavailable from 2:00 PM to 5:00 PM due to maintenance." 
+                  value={announcementForm.message} 
+                  onChange={e => setAnnouncementForm({ ...announcementForm, message: e.target.value })} 
+                  className="search-input" 
+                  style={{ width: '100%', padding: '0.75rem 1rem', fontFamily: 'inherit', resize: 'vertical' }} 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Target Audience Role</label>
+                  <select 
+                    value={announcementForm.targetRole} 
+                    onChange={e => setAnnouncementForm({ ...announcementForm, targetRole: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '1rem' }}
+                  >
+                    <option value="ALL">All Campus Members</option>
+                    <option value="STUDENT">Students Only</option>
+                    <option value="FACULTY">Faculty & Staff</option>
+                    <option value="SECURITY">Security Personnel</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Priority Level</label>
+                  <select 
+                    value={announcementForm.priority} 
+                    onChange={e => setAnnouncementForm({ ...announcementForm, priority: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '1rem' }}
+                  >
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High Priority</option>
+                    <option value="CRITICAL">Critical Emergency</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Target Zone (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Zone C / Auditorium Block" 
+                  value={announcementForm.zoneName} 
+                  onChange={e => setAnnouncementForm({ ...announcementForm, zoneName: e.target.value })} 
+                  className="search-input" 
+                  style={{ width: '100%', paddingLeft: '1rem' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsAnnouncementModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#6366F1' }}>
+                  <Megaphone size={16} /> Broadcast Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

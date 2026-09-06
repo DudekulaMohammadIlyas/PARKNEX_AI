@@ -64,7 +64,7 @@ export default function StudentProfileScreen({ onLogout, user }) {
           onPress: async () => {
             setIsDeleting(true);
             try {
-              await axios.delete(`${BACKEND_URL}/users/profile`, { data: { email } }).catch(() => null);
+              await smartApiRequest('delete', `/users/profile?email=${encodeURIComponent(email)}`).catch(() => null);
             } catch (e) {}
 
             try {

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -39,7 +38,7 @@ export default function ManageZonesScreen({ navigation }) {
   const fetchZones = async (isInitial = false) => {
     if (isInitial && zones.length === 0) setLoading(true);
     try {
-      const res = await axios.get(`${BACKEND_URL}/zones`);
+      const res = await smartApiRequest('get', '/zones');
       if (Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map(z => ({
           id: z.id,
@@ -93,7 +92,7 @@ export default function ManageZonesScreen({ navigation }) {
     const numCap = Number(zoneCapacity.trim()) || 60;
 
     try {
-      await axios.post(`${BACKEND_URL}/zones`, {
+      await smartApiRequest('post', '/zones', {
         name: zoneName.trim(),
         total: numCap,
         type: zoneType,
@@ -133,7 +132,7 @@ export default function ManageZonesScreen({ navigation }) {
     const numCap = Number(zoneCapacity.trim()) || 60;
 
     try {
-      await axios.put(`${BACKEND_URL}/zones/${activeZone.id}`, {
+      await smartApiRequest('put', `/zones/${activeZone.id}`, {
         name: zoneName.trim(),
         total: numCap,
         type: zoneType,
@@ -163,7 +162,7 @@ export default function ManageZonesScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await axios.delete(`${BACKEND_URL}/zones/${id}`).catch(() => null);
+              await smartApiRequest('delete', `/zones/${id}`).catch(() => null);
             } catch (e) {}
             await fetchZones();
             Alert.alert('Deleted', 'Zone has been deleted from database.');

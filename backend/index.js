@@ -128,6 +128,25 @@ const VISITORS_FILE = path.join(__dirname, 'visitors_store.json');
 const BOOKINGS_FILE = path.join(__dirname, 'bookings_store.json');
 const SECURITY_LOGS_FILE = path.join(__dirname, 'security_logs_store.json');
 const PASSWORD_RESETS_FILE = path.join(__dirname, 'password_resets.json');
+const NOTIFICATIONS_FILE = path.join(__dirname, 'notifications_store.json');
+const NOTIF_PREFS_FILE = path.join(__dirname, 'notification_prefs.json');
+const SENT_REMINDERS_FILE = path.join(__dirname, 'sent_reminders.json');
+
+let sentRemindersStore = loadJSONStore(SENT_REMINDERS_FILE, {});
+let initialNotificationsStore = loadJSONStore(NOTIFICATIONS_FILE, [
+  {
+    id: 'notif_welcome_1',
+    title: '🔔 Welcome to ParkNex AI Notification Center',
+    message: 'Your Smart Campus Parking Platform is active and monitoring real-time slot occupancy, session expiries, and security events.',
+    category: 'SYSTEM',
+    priority: 'NORMAL',
+    isRead: false,
+    userId: null,
+    targetRole: 'ALL',
+    deepLink: 'StudentHomeScreen',
+    createdAt: new Date().toISOString()
+  }
+]);
 
 const initialCamerasStore = [
   { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate', zone: 'Zone A', plate: 'KA-01-AB-1234', status: 'AUTHORIZED' },
@@ -495,6 +514,17 @@ app.post('/api/bookings', async (req, res) => {
 
   fileBookings.unshift(newBooking);
   saveJSONStore(BOOKINGS_FILE, fileBookings);
+
+  createNotification({
+    userEmail: userEmail,
+    targetRole: 'STUDENT',
+    category: 'BOOKING',
+    priority: 'NORMAL',
+    title: '🎟️ Parking Booking Confirmed',
+    message: `Your booking for ${zoneName || 'Zone A'} (${slotNumber || 'A-01'}) is confirmed for vehicle ${plateNumber || 'KA-01-AB-1234'}.`,
+    relatedEntity: newBooking.id,
+    deepLink: 'StudentBookScreen'
+  });
 
   try {
     const user = await prisma.user.findUnique({ where: { email: userEmail } }).catch(() => null);
@@ -1078,29 +1108,6 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-app.put('/api/users/profile', async (req, res) => {
-  const { name, email, phone, designation } = req.body;
-  try {
-    let targetUserId = req.user?.id;
-    if (!targetUserId && email) {
-      const found = await prisma.user.findUnique({ where: { email } });
-      targetUserId = found?.id;
-    }
-    if (targetUserId) {
-      const updated = await prisma.user.update({
-        where: { id: targetUserId },
-        data: {
-          name: name || undefined,
-          phone: phone || undefined,
-          designation: designation || undefined
-        }
-      });
-      return res.json({ success: true, user: updated });
-    }
-    res.json({ success: true, message: 'Profile updated locally' });
-  } catch (error) { handleDatabaseError(res, error, 'update profile'); }
-});
-
 // ================= USER MANAGEMENT ENDPOINTS ================= //
 
 app.get('/api/users', async (req, res) => {
@@ -1676,17 +1683,21 @@ let initialZonesStore = [
 
 app.get('/api/zones', async (req, res) => {
   try {
-    const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
-    if (Array.isArray(fileZones) && fileZones.length > 0) {
-      return res.json(fileZones);
-    }
     const dbZones = await prisma.zone.findMany({
       include: { slots: true },
       orderBy: { name: 'asc' }
-    });
+    }).catch(() => []);
+
+    const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
 
     if (Array.isArray(dbZones) && dbZones.length > 0) {
-      return res.json(dbZones);
+      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase()));
+      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase()));
+      return res.json([...dbZones, ...fileOnly]);
+    }
+
+    if (Array.isArray(fileZones) && fileZones.length > 0) {
+      return res.json(fileZones);
     }
   } catch (error) {
     console.warn("DB zones query fallback:", error.message);
@@ -1695,7 +1706,7 @@ app.get('/api/zones', async (req, res) => {
 });
 
 app.post('/api/zones', async (req, res) => {
-  const { name, total, type, status } = req.body;
+  const { name, total, type, status, isFacultyOnly } = req.body;
   const numTotal = Number(total) || 100;
   const newZone = {
     id: `z_${Date.now()}`,
@@ -1703,7 +1714,8 @@ app.post('/api/zones', async (req, res) => {
     total: numTotal,
     type: type || 'Mixed',
     occupied: 0,
-    status: status || 'Active'
+    status: status || 'Active',
+    isFacultyOnly: !!isFacultyOnly
   };
 
   try {
@@ -1723,20 +1735,21 @@ app.post('/api/zones', async (req, res) => {
     console.warn("DB zone create fallback:", error.message);
   }
 
-  // Push to memory store so all clients see it instantly
+  // Push to memory store so all clients see it instantly and save to file
   const existingIdx = initialZonesStore.findIndex(z => z.name === name);
   if (existingIdx >= 0) {
     initialZonesStore[existingIdx] = newZone;
   } else {
     initialZonesStore.push(newZone);
   }
+  saveJSONStore(ZONES_FILE, initialZonesStore);
 
   res.status(201).json(newZone);
 });
 
 app.put('/api/zones/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, total, type, status, occupied } = req.body;
+  const { name, total, type, status, occupied, isFacultyOnly } = req.body;
 
   let updatedZone = null;
   try {
@@ -1752,7 +1765,7 @@ app.put('/api/zones/:id', async (req, res) => {
     }).catch(() => null);
   } catch (e) {}
 
-  // Update memory store
+  // Update memory store and save to file
   const idx = initialZonesStore.findIndex(z => z.id === id || z.name === name);
   if (idx >= 0) {
     initialZonesStore[idx] = {
@@ -1761,10 +1774,14 @@ app.put('/api/zones/:id', async (req, res) => {
       total: total !== undefined ? Number(total) : initialZonesStore[idx].total,
       type: type || initialZonesStore[idx].type,
       status: status || initialZonesStore[idx].status,
-      occupied: occupied !== undefined ? Number(occupied) : initialZonesStore[idx].occupied
+      occupied: occupied !== undefined ? Number(occupied) : initialZonesStore[idx].occupied,
+      isFacultyOnly: isFacultyOnly !== undefined ? !!isFacultyOnly : initialZonesStore[idx].isFacultyOnly
     };
     updatedZone = initialZonesStore[idx];
+  } else if (updatedZone) {
+    initialZonesStore.push(updatedZone);
   }
+  saveJSONStore(ZONES_FILE, initialZonesStore);
 
   res.json(updatedZone || { success: true });
 });
@@ -1778,6 +1795,7 @@ app.delete('/api/zones/:id', async (req, res) => {
   } catch (e) {}
 
   initialZonesStore = initialZonesStore.filter(z => z.id !== id && z.name !== id);
+  saveJSONStore(ZONES_FILE, initialZonesStore);
   res.json({ success: true, message: 'Zone deleted successfully' });
 });
 
@@ -1792,6 +1810,7 @@ app.put('/api/slots/:id', async (req, res) => {
     res.json(updated);
   } catch (error) { handleDatabaseError(res, error, 'update slot'); }
 });
+
 
 
 
@@ -1831,10 +1850,466 @@ app.post('/api/simulate-event', async (req, res) => {
           status: 'ACTIVE'
         }
       });
+
+      createNotification({
+        targetRole: 'SECURITY',
+        category: 'SECURITY',
+        priority: 'CRITICAL',
+        title: `🚨 Unauthorized Vehicle Alert: ${targetPlate}`,
+        message: `Vehicle ${targetPlate} failed OCR verification at Entry Gate Barrier. Security response dispatched.`,
+        relatedEntity: targetPlate,
+        deepLink: 'UnauthorizedLogsScreen'
+      });
+    } else {
+      createNotification({
+        targetRole: 'ALL',
+        category: type === 'EXIT' ? 'VEHICLE_EXIT' : 'VEHICLE_ENTRY',
+        priority: 'NORMAL',
+        title: type === 'EXIT' ? '🚪 Vehicle Exit Scanned' : '🚗 Vehicle Entry Scanned',
+        message: `Vehicle ${targetPlate} ${type === 'EXIT' ? 'exited campus' : 'entered campus'} via ${zone?.name || 'Main Entrance Gate'}.`,
+        relatedEntity: targetPlate,
+        deepLink: 'StudentVehiclesScreen'
+      });
     }
 
     res.json({ success: true, event });
   } catch (error) { handleDatabaseError(res, error, 'simulate event'); }
+});
+
+// ================= CENTRALIZED REALTIME NOTIFICATION ENGINE & TIME SCHEDULER ================= //
+
+async function createNotification({
+  userId = null,
+  userEmail = null,
+  targetRole = 'ALL',
+  category = 'SYSTEM',
+  title,
+  message,
+  priority = 'NORMAL',
+  relatedEntity = null,
+  deepLink = null,
+  metadata = null,
+  reminderKey = null
+}) {
+  if (reminderKey) {
+    sentRemindersStore = loadJSONStore(SENT_REMINDERS_FILE, {});
+    if (sentRemindersStore[reminderKey]) {
+      return null; // Duplicate notification prevented!
+    }
+    sentRemindersStore[reminderKey] = new Date().toISOString();
+    saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
+  }
+
+  let dbUserId = userId;
+  let targetEmail = userEmail;
+  if (!dbUserId && targetEmail) {
+    const foundUser = await prisma.user.findFirst({ where: { email: targetEmail.toLowerCase().trim() } }).catch(() => null);
+    if (foundUser) dbUserId = foundUser.id;
+  }
+
+  const notifObj = {
+    id: `notif_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+    title,
+    message,
+    category,
+    priority: (priority || 'NORMAL').toUpperCase(),
+    isRead: false,
+    userId: dbUserId || null,
+    userEmail: targetEmail || null,
+    targetRole: (targetRole || 'ALL').toUpperCase(),
+    relatedEntity: relatedEntity ? String(relatedEntity) : null,
+    deepLink: deepLink || null,
+    metadata: metadata ? (typeof metadata === 'object' ? JSON.stringify(metadata) : metadata) : null,
+    createdAt: new Date().toISOString()
+  };
+
+  // 1. Database Storage (Prisma PostgreSQL)
+  try {
+    const createdDb = await prisma.notification.create({
+      data: {
+        title,
+        message,
+        category,
+        priority: notifObj.priority,
+        isRead: false,
+        userId: dbUserId || undefined,
+        targetRole: notifObj.targetRole,
+        relatedEntity: notifObj.relatedEntity || undefined,
+        deepLink: notifObj.deepLink || undefined,
+        metadata: notifObj.metadata || undefined
+      }
+    }).catch(() => null);
+    if (createdDb?.id) notifObj.id = String(createdDb.id);
+  } catch (e) {}
+
+  // 2. JSON Store Persistence
+  const store = loadJSONStore(NOTIFICATIONS_FILE, []);
+  store.unshift(notifObj);
+  if (store.length > 1000) store.pop();
+  saveJSONStore(NOTIFICATIONS_FILE, store);
+
+  return notifObj;
+}
+
+// Time-Based Automated Notification Scheduler Engine
+async function evaluateScheduledNotifications() {
+  try {
+    const now = new Date();
+    const nowMs = now.getTime();
+
+    // A. EVALUATE BOOKINGS & PARKING EXPIRY
+    const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+    const dbBookings = await prisma.booking.findMany({
+      include: { slot: { include: { zone: true } }, vehicle: true, user: true }
+    }).catch(() => []);
+
+    const allBookingsMap = new Map();
+    dbBookings.forEach(b => {
+      allBookingsMap.set(String(b.id), {
+        id: String(b.id),
+        userEmail: b.user?.email || 'student@college.edu',
+        zoneName: b.slot?.zone?.name || 'Zone A',
+        slotNumber: b.slot?.slotNumber || 'A-01',
+        plateNumber: b.vehicle?.plateNumber || 'KA-01-AB-1234',
+        durationHours: Number(b.durationHours) || 4,
+        createdAt: b.createdAt ? new Date(b.createdAt).getTime() : nowMs,
+        status: b.status || 'CONFIRMED'
+      });
+    });
+
+    fileBookings.forEach(b => {
+      if (!allBookingsMap.has(String(b.id))) {
+        allBookingsMap.set(String(b.id), {
+          id: String(b.id),
+          userEmail: b.userEmail || b.user || 'student@college.edu',
+          zoneName: b.zoneName || 'Zone A',
+          slotNumber: b.slotNumber || 'A-01',
+          plateNumber: b.plateNumber || 'KA-01-AB-1234',
+          durationHours: Number(b.durationHours) || 4,
+          createdAt: b.createdAt ? new Date(b.createdAt).getTime() : (nowMs - 60000),
+          status: b.status || 'CONFIRMED'
+        });
+      }
+    });
+
+    allBookingsMap.forEach(b => {
+      if (b.status === 'EXITED' || b.status === 'CANCELLED') return;
+
+      const durationMs = (b.durationHours || 4) * 3600 * 1000;
+      const expiryMs = b.createdAt + durationMs;
+      const minsRemaining = Math.floor((expiryMs - nowMs) / 60000);
+      const recipient = b.userEmail;
+
+      // 30 MINUTE REMINDER
+      if (minsRemaining <= 30 && minsRemaining > 15) {
+        createNotification({
+          userEmail: recipient,
+          targetRole: 'STUDENT',
+          category: 'PARKING_EXPIRY',
+          priority: 'NORMAL',
+          title: '⏳ Parking Session Expiry Warning',
+          message: `Your parking session for ${b.zoneName} (${b.slotNumber}) expires in 30 minutes.`,
+          relatedEntity: b.id,
+          deepLink: 'StudentBookScreen',
+          reminderKey: `booking_${b.id}_30m`
+        });
+      }
+
+      // 15 MINUTE REMINDER
+      if (minsRemaining <= 15 && minsRemaining > 5) {
+        createNotification({
+          userEmail: recipient,
+          targetRole: 'STUDENT',
+          category: 'PARKING_EXPIRY',
+          priority: 'NORMAL',
+          title: '⚠️ Parking Expires in 15 Minutes',
+          message: `Your parking session for ${b.zoneName} (${b.slotNumber}) expires in 15 minutes. You can extend your parking time now.`,
+          relatedEntity: b.id,
+          deepLink: 'StudentBookScreen',
+          reminderKey: `booking_${b.id}_15m`
+        });
+      }
+
+      // 5 MINUTE REMINDER
+      if (minsRemaining <= 5 && minsRemaining > 0) {
+        createNotification({
+          userEmail: recipient,
+          targetRole: 'STUDENT',
+          category: 'PARKING_EXPIRY',
+          priority: 'HIGH',
+          title: '🚨 Parking Expires in 5 Minutes!',
+          message: `Your parking session for ${b.zoneName} (${b.slotNumber}) expires in 5 minutes.`,
+          relatedEntity: b.id,
+          deepLink: 'StudentBookScreen',
+          reminderKey: `booking_${b.id}_5m`
+        });
+      }
+
+      // EXPIRED NOTIFICATION
+      if (minsRemaining <= 0 && minsRemaining >= -15) {
+        createNotification({
+          userEmail: recipient,
+          targetRole: 'STUDENT',
+          category: 'PARKING_EXPIRED',
+          priority: 'HIGH',
+          title: '🛑 Parking Session Expired',
+          message: `Your parking session for ${b.zoneName} (${b.slotNumber}) has expired. Please exit the parking area or extend your session if permitted.`,
+          relatedEntity: b.id,
+          deepLink: 'StudentBookScreen',
+          reminderKey: `booking_${b.id}_expired`
+        });
+      }
+
+      // OVERSTAY ALERT (> 15 MINS OVER)
+      if (minsRemaining < -15) {
+        createNotification({
+          userEmail: recipient,
+          targetRole: 'STUDENT',
+          category: 'PARKING_EXPIRED',
+          priority: 'CRITICAL',
+          title: '⚠️ Overstay Violation Warning',
+          message: `Your vehicle (${b.plateNumber}) has exceeded your parking session time by over 15 minutes. A penalty ticket may be issued.`,
+          relatedEntity: b.id,
+          deepLink: 'StudentBookScreen',
+          reminderKey: `booking_${b.id}_overstay`
+        });
+      }
+    });
+
+    // B. EVALUATE ZONE OCCUPANCY & AVAILABILITY ALERTS
+    const dbZones = await prisma.zone.findMany().catch(() => []);
+    const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
+    const zones = dbZones.length > 0 ? dbZones : fileZones;
+
+    zones.forEach(z => {
+      const total = Number(z.total || 100);
+      const occupied = Number(z.occupied || 0);
+      const pct = Math.round((occupied / (total || 1)) * 100);
+
+      if (pct >= 100) {
+        createNotification({
+          targetRole: 'ALL',
+          category: 'PARKING',
+          priority: 'HIGH',
+          title: `🚫 Zone Full: ${z.name}`,
+          message: `${z.name} is currently 100% full (${occupied}/${total} slots occupied). AI recommends checking alternative zones.`,
+          relatedEntity: z.id,
+          reminderKey: `zone_full_${z.id}_${now.getHours()}`
+        });
+      } else if (pct >= 90) {
+        createNotification({
+          targetRole: 'ALL',
+          category: 'PARKING',
+          priority: 'NORMAL',
+          title: `⚠️ High Occupancy Alert: ${z.name}`,
+          message: `${z.name} is currently ${pct}% occupied (${occupied}/${total} slots occupied).`,
+          relatedEntity: z.id,
+          reminderKey: `zone_high_${z.id}_${now.getHours()}`
+        });
+      }
+    });
+
+  } catch (e) {}
+}
+
+setInterval(evaluateScheduledNotifications, 10000);
+
+// ================= NOTIFICATION REST API ENDPOINTS ================= //
+
+app.get('/api/notifications', async (req, res) => {
+  const { email, role, category, unreadOnly } = req.query;
+  const userEmail = (email || req.user?.email || '').toLowerCase().trim();
+  const userRole = (role || req.user?.role || 'STUDENT').toUpperCase();
+
+  try {
+    const dbNotifs = await prisma.notification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    }).catch(() => []);
+
+    const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, initialNotificationsStore);
+    const combined = [...dbNotifs.map(n => ({
+      id: String(n.id),
+      title: n.title,
+      message: n.message,
+      category: n.category || 'SYSTEM',
+      priority: n.priority || 'NORMAL',
+      isRead: !!n.isRead,
+      userId: n.userId || null,
+      userEmail: n.user?.email || null,
+      targetRole: n.targetRole || 'ALL',
+      relatedEntity: n.relatedEntity || null,
+      deepLink: n.deepLink || null,
+      createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString()
+    })), ...fileNotifs];
+
+    const notifMap = new Map();
+    combined.forEach(n => notifMap.set(String(n.id), n));
+    const allUnique = Array.from(notifMap.values());
+
+    const filtered = allUnique.filter(n => {
+      const targetR = (n.targetRole || 'ALL').toUpperCase();
+      const roleMatches = targetR === 'ALL' || targetR === userRole || userRole === 'ADMIN';
+      const emailMatches = !n.userEmail || !userEmail || n.userEmail.toLowerCase() === userEmail;
+      
+      if (!roleMatches || !emailMatches) return false;
+      if (category && category !== 'ALL' && n.category !== category) return false;
+      if (unreadOnly === 'true' && n.isRead) return false;
+      return true;
+    });
+
+    const unreadCount = filtered.filter(n => !n.isRead).length;
+    res.json({ success: true, count: filtered.length, unreadCount, notifications: filtered });
+  } catch (e) {
+    res.json({ success: true, count: 0, unreadCount: 0, notifications: [] });
+  }
+});
+
+app.put('/api/notifications/:id/read', async (req, res) => {
+  const { id } = req.params;
+  const targetId = String(id);
+
+  try {
+    await prisma.notification.update({
+      where: { id: targetId },
+      data: { isRead: true }
+    }).catch(() => {});
+  } catch (e) {}
+
+  const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, []);
+  const updated = fileNotifs.map(n => String(n.id) === targetId ? { ...n, isRead: true } : n);
+  saveJSONStore(NOTIFICATIONS_FILE, updated);
+
+  res.json({ success: true, message: 'Notification marked as read', id: targetId });
+});
+
+app.put('/api/notifications/read-all', async (req, res) => {
+  const { email } = req.body;
+  const userEmail = (email || req.user?.email || '').toLowerCase().trim();
+
+  try {
+    if (userEmail) {
+      const user = await prisma.user.findUnique({ where: { email: userEmail } }).catch(() => null);
+      if (user) {
+        await prisma.notification.updateMany({
+          where: { userId: user.id },
+          data: { isRead: true }
+        }).catch(() => {});
+      }
+    } else {
+      await prisma.notification.updateMany({ data: { isRead: true } }).catch(() => {});
+    }
+  } catch (e) {}
+
+  const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, []);
+  const updated = fileNotifs.map(n => {
+    if (!userEmail || !n.userEmail || n.userEmail.toLowerCase() === userEmail) {
+      return { ...n, isRead: true };
+    }
+    return n;
+  });
+  saveJSONStore(NOTIFICATIONS_FILE, updated);
+
+  res.json({ success: true, message: 'All notifications marked as read' });
+});
+
+app.delete('/api/notifications/:id', async (req, res) => {
+  const { id } = req.params;
+  const targetId = String(id);
+
+  try {
+    await prisma.notification.delete({ where: { id: targetId } }).catch(() => {});
+  } catch (e) {}
+
+  let fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, []);
+  fileNotifs = fileNotifs.filter(n => String(n.id) !== targetId);
+  saveJSONStore(NOTIFICATIONS_FILE, fileNotifs);
+
+  res.json({ success: true, message: 'Notification deleted' });
+});
+
+app.post('/api/announcements', async (req, res) => {
+  const { title, message, targetRole, priority, zoneName } = req.body;
+  if (!title || !message) return res.status(400).json({ error: 'Title and message are required' });
+
+  const notif = await createNotification({
+    targetRole: targetRole || 'ALL',
+    category: 'ANNOUNCEMENT',
+    priority: priority || 'NORMAL',
+    title: `📢 ${title}`,
+    message: message + (zoneName ? ` [Zone: ${zoneName}]` : ''),
+    deepLink: 'StudentHomeScreen'
+  });
+
+  res.status(201).json({ success: true, message: 'Campus announcement broadcasted successfully!', announcement: notif });
+});
+
+app.post('/api/emergency/trigger', async (req, res) => {
+  const { type, location, details } = req.body;
+  
+  const incident = await prisma.incident.create({
+    data: {
+      title: `🚨 EMERGENCY ALERT: ${type || 'CAMPUS EMERGENCY'}`,
+      desc: details || `Emergency reported at ${location || 'Main Campus'}.`,
+      severity: 'CRITICAL',
+      status: 'ACTIVE'
+    }
+  }).catch(() => null);
+
+  const notif = await createNotification({
+    targetRole: 'ALL',
+    category: 'EMERGENCY',
+    priority: 'CRITICAL',
+    title: `🚨 EMERGENCY ALERT: ${type || 'CAMPUS EMERGENCY'}`,
+    message: location ? `Emergency reported at ${location}. Please follow security personnel instructions.` : 'Immediate campus-wide emergency alert issued.',
+    deepLink: 'Emergency'
+  });
+
+  addSecurityLogEntry('ALERT', `🚨 EMERGENCY TRIGGERED: ${type || 'CAMPUS EMERGENCY'} at ${location || 'Main Gate'}`, '#EF4444');
+
+  res.status(201).json({ success: true, message: 'Emergency broadcasted across campus!', incident, notification: notif });
+});
+
+app.put('/api/bookings/:id/extend', async (req, res) => {
+  const { id } = req.params;
+  const { additionalHours } = req.body;
+  const addHrs = Number(additionalHours) || 1;
+
+  // Clear existing expiry reminder keys so new expiry notifications schedule cleanly!
+  sentRemindersStore = loadJSONStore(SENT_REMINDERS_FILE, {});
+  delete sentRemindersStore[`booking_${id}_30m`];
+  delete sentRemindersStore[`booking_${id}_15m`];
+  delete sentRemindersStore[`booking_${id}_5m`];
+  delete sentRemindersStore[`booking_${id}_expired`];
+  delete sentRemindersStore[`booking_${id}_overstay`];
+  saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
+
+  const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+  let targetUserEmail = '';
+  let updatedBooking = null;
+  const updatedBookings = fileBookings.map(b => {
+    if (String(b.id) === String(id)) {
+      const newDur = (Number(b.durationHours) || 4) + addHrs;
+      targetUserEmail = b.userEmail || b.user;
+      updatedBooking = { ...b, durationHours: newDur };
+      return updatedBooking;
+    }
+    return b;
+  });
+  saveJSONStore(BOOKINGS_FILE, updatedBookings);
+
+  createNotification({
+    userEmail: targetUserEmail,
+    targetRole: 'STUDENT',
+    category: 'PARKING',
+    priority: 'NORMAL',
+    title: '✅ Parking Session Extended',
+    message: `Your parking session has been extended by ${addHrs} hour(s).`,
+    relatedEntity: id,
+    deepLink: 'StudentBookScreen'
+  });
+
+  res.json({ success: true, message: `Parking session extended by ${addHrs} hour(s).`, booking: updatedBooking });
 });
 
 // ================= GLOBAL SEARCH ENDPOINT ================= //
@@ -1927,10 +2402,19 @@ app.get('/api/campus/map', async (req, res) => {
 
 app.get('/api/occupancy', async (req, res) => {
   try {
+    const dbZones = await prisma.zone.findMany().catch(() => []);
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
+
+    let zones = fileZones;
+    if (Array.isArray(dbZones) && dbZones.length > 0) {
+      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase()));
+      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase()));
+      zones = [...dbZones, ...fileOnly];
+    }
+
     let totalSlots = 0, occupiedSlots = 0;
-    fileZones.forEach(z => { totalSlots += Number(z.total || 100); occupiedSlots += Number(z.occupied || 20); });
-    res.json({ totalSlots, occupiedSlots, totalOccupied: occupiedSlots, zones: fileZones });
+    zones.forEach(z => { totalSlots += Number(z.total || 100); occupiedSlots += Number(z.occupied || 20); });
+    res.json({ totalSlots, occupiedSlots, totalOccupied: occupiedSlots, zones });
   } catch (error) {
     res.json({ totalSlots: 1000, occupiedSlots: 350, totalOccupied: 350, zones: initialZonesStore });
   }

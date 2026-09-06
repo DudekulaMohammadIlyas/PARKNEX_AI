@@ -36,10 +36,10 @@ export default function StudentMapScreen() {
         setCurrentUserEmail(userEmail);
 
         const [zoneRes, bookRes, allBookRes, vehRes] = await Promise.allSettled([
-          axios.get(`${BACKEND_URL}/zones`),
-          axios.get(`${BACKEND_URL}/bookings/my-bookings?email=${userEmail}`),
-          axios.get(`${BACKEND_URL}/bookings/all`),
-          axios.get(`${BACKEND_URL}/vehicles?email=${userEmail}`)
+          smartApiRequest('get', '/zones'),
+          smartApiRequest('get', `/bookings/my-bookings?email=${userEmail}`),
+          smartApiRequest('get', '/bookings/all'),
+          smartApiRequest('get', `/vehicles?email=${userEmail}`)
         ]);
 
         if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {

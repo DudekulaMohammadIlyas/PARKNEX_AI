@@ -254,12 +254,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
               {(user?.department && user?.academicTerm) ? `${user.department} • ${user.academicTerm}` : '⚠️ Academic Profile Incomplete (Tap Profile)'}
             </Text>
           </View>
-          <TouchableOpacity 
-            style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
-            onPress={() => setIsChatOpen(true)}
-          >
-            <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity 
+              style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
+              onPress={() => navigation?.navigate('Notifications')}
+            >
+              <Feather name="bell" size={20} color="#2563EB" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
+              onPress={() => setIsChatOpen(true)}
+            >
+              <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* LIVE CLOCK & DATE PILL */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -21,10 +21,10 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
   const fetchAdminData = async () => {
     try {
       const [execRes, sustRes, signRes, zoneRes] = await Promise.allSettled([
-        axios.get(`${BACKEND_URL}/executive/dashboard`),
-        axios.get(`${BACKEND_URL}/sustainability/metrics`),
-        axios.get(`${BACKEND_URL}/signage`),
-        axios.get(`${BACKEND_URL}/zones`)
+        smartApiRequest('get', '/executive/dashboard'),
+        smartApiRequest('get', '/sustainability/metrics'),
+        smartApiRequest('get', '/signage'),
+        smartApiRequest('get', '/zones')
       ]);
 
       if (execRes.status === 'fulfilled' && execRes.value.data) setExecutiveData(execRes.value.data);

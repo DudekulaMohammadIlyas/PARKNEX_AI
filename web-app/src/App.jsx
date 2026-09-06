@@ -35,6 +35,7 @@ import ManageSlots from './ManageSlots';
 import UserManagement from './UserManagement';
 import Analytics from './Analytics';
 import SettingsPage from './SettingsPage';
+import NotificationDrawer from './NotificationDrawer';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -83,6 +84,8 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [toastAlert, setToastAlert] = useState(null);
   
   const [profile, setProfile] = useState({
     name: 'User',
@@ -202,24 +205,38 @@ function App() {
   useEffect(() => {
     if (!role) return;
 
-    const fetchData = async () => {
+    const fetchNotificationsCount = async () => {
       try {
-        const [occRes, evRes] = await Promise.allSettled([
-          axios.get(`${BACKEND_URL}/occupancy`),
-          axios.get(`${BACKEND_URL}/events`)
-        ]);
-        if (occRes.status === 'fulfilled' && occRes.value?.data) {
-          setOccupancy(occRes.value.data);
+        const email = encodeURIComponent(profile.email || `${role.toLowerCase()}@college.edu`);
+        const res = await axios.get(`${BACKEND_URL}/notifications?email=${email}&role=${role}`);
+        if (res.data?.success) {
+          setUnreadNotifCount(res.data.unreadCount || 0);
+          
+          // Check for latest CRITICAL/HIGH unread notification to trigger toast alert
+          const latestAlert = (res.data.notifications || []).find(n => !n.isRead && (n.priority === 'CRITICAL' || n.priority === 'HIGH'));
+          if (latestAlert && (!toastAlert || toastAlert.id !== latestAlert.id)) {
+            setToastAlert(latestAlert);
+            setTimeout(() => setToastAlert(null), 8000);
+          }
         }
-        if (evRes.status === 'fulfilled' && Array.isArray(evRes.value?.data)) {
-          setEvents(evRes.value.data);
-        }
-      } catch (error) {}
+      } catch (e) {}
     };
-    fetchData();
-    const interval = setInterval(fetchData, 12000);
-    return () => clearInterval(interval);
-  }, [role]);
+
+    fetchNotificationsCount();
+    const notifInterval = setInterval(fetchNotificationsCount, 5000);
+    return () => clearInterval(notifInterval);
+  }, [role, profile.email]);
+
+  const handleNotifNavigate = (targetScreen, notif) => {
+    setIsNotificationOpen(false);
+    if (targetScreen === 'StudentBookScreen' || targetScreen === 'slots') {
+      setActivePage(role === 'STUDENT' ? 'dashboard' : 'slots');
+    } else if (targetScreen === 'StudentVehiclesScreen' || targetScreen === 'vehicles') {
+      setActivePage(role === 'ADMIN' ? 'users' : 'dashboard');
+    } else if (targetScreen === 'UnauthorizedLogsScreen' || targetScreen === 'security') {
+      setActivePage('dashboard');
+    }
+  };
 
   const refreshData = async () => {
     try {
@@ -421,26 +438,22 @@ function App() {
         <header className="top-nav" style={{ position: 'relative' }}>
           <h2 className="page-title">{activePage.replace(/_/g, ' ').toUpperCase()}</h2>
           <div className="top-nav-right">
-            <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
+            <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)} style={{ position: 'relative' }}>
               <Bell size={20} />
-              <div className="notification-dot"></div>
+              {unreadNotifCount > 0 && (
+                <span className="notification-dot" style={{ position: 'absolute', top: '-4px', right: '-4px', backgroundColor: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: '900', borderRadius: '10px', padding: '1px 5px', minWidth: '14px', textAlign: 'center', height: 'auto', width: 'auto' }}>
+                  {unreadNotifCount}
+                </span>
+              )}
             </button>
-            
-            {isNotificationOpen && (
-              <div className="card animate-fade-in" style={{ position: 'absolute', top: '65px', right: '14rem', width: '320px', zIndex: 100, boxShadow: 'var(--shadow)', padding: '1.25rem', border: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}>
-                <h4 style={{ fontWeight: '800', fontSize: '1rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-main)' }}>Notifications</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '0.85rem', padding: '0.6rem', borderRadius: '10px', background: 'var(--primary-light)', color: 'var(--text-main)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                    <strong style={{ display: 'block', color: 'var(--primary)', fontWeight: '800', marginBottom: '0.2rem' }}>System Alert</strong>
-                    Zone B is currently operating at 95% capacity.
-                  </div>
-                  <div style={{ fontSize: '0.85rem', padding: '0.6rem', borderRadius: '10px', background: 'var(--success-bg)', color: 'var(--text-main)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                    <strong style={{ display: 'block', color: 'var(--success)', fontWeight: '800', marginBottom: '0.2rem' }}>Access Granted</strong>
-                    Your vehicle KA-01-AB-1234 cleared Main Gate successfully.
-                  </div>
-                </div>
-              </div>
-            )}
+
+            <NotificationDrawer 
+              isOpen={isNotificationOpen} 
+              onClose={() => setIsNotificationOpen(false)} 
+              userEmail={profile.email} 
+              userRole={role} 
+              onNavigate={handleNotifNavigate} 
+            />
 
             <div className="user-profile" onClick={openProfileModal} style={{ cursor: 'pointer', transition: 'opacity 0.2s' }} title="Edit Profile">
               <div className="user-info">
@@ -592,6 +605,42 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* REAL-TIME TOAST ALERT POPUP BANNER */}
+      {toastAlert && (
+        <div 
+          className="animate-slide-in"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            backgroundColor: toastAlert.priority === 'CRITICAL' ? '#7F1D1D' : '#1E1B4B',
+            color: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '1rem 1.25rem',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.4)',
+            borderLeft: `6px solid ${toastAlert.priority === 'CRITICAL' ? '#EF4444' : '#F59E0B'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            maxWidth: '420px'
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: '900', letterSpacing: '0.5px', color: toastAlert.priority === 'CRITICAL' ? '#FCA5A5' : '#FDE047', textTransform: 'uppercase', display: 'block' }}>
+              {toastAlert.priority} ALERT • {toastAlert.category}
+            </span>
+            <strong style={{ fontSize: '0.95rem', display: 'block', margin: '2px 0' }}>{toastAlert.title}</strong>
+            <p style={{ fontSize: '0.82rem', margin: 0, opacity: 0.9 }}>{toastAlert.message}</p>
+          </div>
+          <button 
+            onClick={() => setToastAlert(null)}
+            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
+          >
+            Dismiss
+          </button>
         </div>
       )}
     </div>
