@@ -17,6 +17,7 @@
     "@supabase/supabase-js": "^2.43.4",
     "axios": "^1.6.8",
     "expo": "~51.0.38",
+    "@expo/vector-icons": "^14.0.0",
     "expo-dev-client": "~4.0.29",
     "expo-device": "~6.0.2",
     "expo-notifications": "~0.28.19",

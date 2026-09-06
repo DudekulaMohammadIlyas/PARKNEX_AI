@@ -1,5 +1,35 @@
 [
   {
+    "id": "d942ef34-50ef-49ff-873a-12ff258f06aa",
+    "title": "⚠️ High Occupancy Alert: Zone B",
+    "message": "Zone B is currently 98% occupied (78/80 slots occupied).",
+    "category": "PARKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": null,
+    "userEmail": null,
+    "targetRole": "ALL",
+    "relatedEntity": "176514cc-8862-4539-b849-9df6ae21033e",
+    "deepLink": null,
+    "metadata": null,
+    "createdAt": "2026-09-06T07:39:13.366Z"
+  },
+  {
+    "id": "notif_1788679938232_8932",
+    "title": "⚠️ High Occupancy Alert: Central Library",
+    "message": "Central Library is currently 98% occupied (78/80 slots occupied).",
+    "category": "PARKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": null,
+    "userEmail": null,
+    "targetRole": "ALL",
+    "relatedEntity": "z3",
+    "deepLink": null,
+    "metadata": null,
+    "createdAt": "2026-09-06T07:32:18.232Z"
+  },
+  {
     "id": "beb28824-e4f8-4a55-b249-eb13f8450098",
     "title": "🚨 EMERGENCY ALERT: FIRE",
     "message": "Emergency reported at Zone B Library Block. Please follow security personnel instructions.",
