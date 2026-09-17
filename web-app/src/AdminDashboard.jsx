@@ -65,13 +65,7 @@ export default function AdminDashboard({ occupancy, events }) {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return [
-      { id: 'u1', name: 'Alex Carter', email: 'student@college.edu', role: 'STUDENT', phone: '+91 98765 43210', designation: 'CS Dept (Yr 3)', status: 'ACTIVE' },
-      { id: 'u2', name: 'Dr. Robert Langdon', email: 'faculty@college.edu', role: 'FACULTY', phone: '+91 98123 45678', designation: 'Professor & Dean', status: 'ACTIVE' },
-      { id: 'u3', name: 'Officer Vikram Singh', email: 'security@college.edu', role: 'SECURITY', phone: '+91 97654 32109', designation: 'Chief Gate Guard', status: 'ACTIVE' },
-      { id: 'u4', name: 'System Administrator', email: 'admin@college.edu', role: 'ADMIN', phone: '+91 99999 88888', designation: 'Super Admin', status: 'ACTIVE' },
-      { id: 'u5', name: 'Rahul Sharma', email: 'rahul.s@college.edu', role: 'STUDENT', phone: '+91 98888 77777', designation: 'Mechanical Dept', status: 'SUSPENDED' }
-    ];
+    return [];
   });
 
   // Save usersList to localStorage on change
@@ -107,17 +101,19 @@ export default function AdminDashboard({ occupancy, events }) {
 
     fetchUsers();
 
+    const chName = `admin-dashboard-web-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('admin-dashboard-web-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchUsers();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchUsers();
       });
 
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchUsers();
+    });
+
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -297,7 +293,7 @@ export default function AdminDashboard({ occupancy, events }) {
     } catch (e) {
       setSearchResults({
         users: usersList.filter(u => u.name.toLowerCase().includes(globalQuery.toLowerCase()) || u.email.toLowerCase().includes(globalQuery.toLowerCase())),
-        vehicles: [{ plateNumber: 'KA-01-AB-1234', brand: 'Honda' }]
+        vehicles: []
       });
     }
   };

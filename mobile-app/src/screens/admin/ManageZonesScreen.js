@@ -67,18 +67,20 @@ export default function ManageZonesScreen({ navigation }) {
     fetchZones(true);
     const interval = setInterval(() => fetchZones(false), 3000);
 
+    const chName = `manage-zones-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('manage-zones-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchZones(false);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchZones(false);
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchZones(false);
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 

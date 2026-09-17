@@ -44,11 +44,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   const [violationDesc, setViolationDesc] = useState('');
   const [penaltyAmount, setPenaltyAmount] = useState('500');
 
-  const [violationsList, setViolationsList] = useState([
-    { id: '1', plateNumber: 'UP-16-XX-8888', type: 'UNAUTHORIZED_ENTRY', description: 'no entry', penaltyAmount: 1200, status: 'PENDING' },
-    { id: '2', plateNumber: 'KA-01-AB-1234', type: 'WRONG_PARKING', description: 'Reported by Security Officer', penaltyAmount: 500, status: 'PENDING' },
-    { id: '3', plateNumber: 'KA-01-AB-1234', type: 'EXPIRED_PASS', description: 'expired pass', penaltyAmount: 500, status: 'RESOLVED' }
-  ]);
+  const [violationsList, setViolationsList] = useState([]);
   
   const [alerts, setAlerts] = useState([
     { id: '1', title: 'Suspicious loitering in Hostel Complex', desc: 'Pedestrian lingering near dark corridor', time: '4m ago' },
@@ -116,20 +112,20 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
 
   useEffect(() => {
     fetchSecurityData();
-    const interval = setInterval(fetchSecurityData, 3000);
-
+    const chName = `security-realtime-sync-${Date.now()}`;
     const channel = supabase
-      .channel('security-realtime-sync')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchSecurityData();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchSecurityData();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchSecurityData();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -361,7 +357,25 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
         {activeTab === 'overview' && (
           <>
             {/* ACTION QUICK BUTTONS */}
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 18 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+              <TouchableOpacity 
+                style={{ 
+                  flex: 1, 
+                  backgroundColor: '#10B981', 
+                  paddingVertical: 14, 
+                  borderRadius: 16, 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: 6,
+                  elevation: 3
+                }} 
+                onPress={() => navigation?.navigate('ExitScan')}
+              >
+                <Ionicons name="qr-code-outline" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Scan QR Release</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity 
                 style={{ 
                   flex: 1, 
@@ -371,13 +385,13 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
                   flexDirection: 'row', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  gap: 8,
+                  gap: 6,
                   elevation: 3
                 }} 
                 onPress={handleTriggerEmergency}
               >
-                <Ionicons name="alert-circle" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14 }}>Emergency</Text>
+                <Ionicons name="alert-circle" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Emergency</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -389,13 +403,13 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
                   flexDirection: 'row', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  gap: 8,
+                  gap: 6,
                   elevation: 3
                 }} 
                 onPress={() => setIsViolationModalOpen(true)}
               >
-                <Ionicons name="receipt" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14 }}>Issue Ticket</Text>
+                <Ionicons name="receipt" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Ticket</Text>
               </TouchableOpacity>
             </View>
 
@@ -565,7 +579,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
                     <Text style={{ color: '#F8FAFC', fontSize: 10, fontWeight: '800', marginTop: 4 }}>LIVE AI VISION STREAM</Text>
                     <View style={{ position: 'absolute', bottom: 6, left: 8, backgroundColor: '#06150B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: isUnauth ? '#EF4444' : '#00FF66' }}>
                       <Text style={{ color: isUnauth ? '#FCA5A5' : '#00FF66', fontSize: 10, fontWeight: '900', fontFamily: 'monospace' }}>
-                        PLATE: {cam.plate || 'KA-01-AB-1234'}
+                        PLATE: {cam.plate || 'NO SCAN'}
                       </Text>
                     </View>
                   </View>

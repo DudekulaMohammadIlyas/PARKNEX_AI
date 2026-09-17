@@ -4,7 +4,12 @@ import { Feather } from '@expo/vector-icons';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
-export default function ExitSuccessScreen({ navigation }) {
+export default function ExitSuccessScreen({ navigation, route }) {
+  const plate = route?.params?.plate || 'NO VEHICLE LINKED';
+  const duration = route?.params?.duration || '4 Hours';
+  const time = route?.params?.time || 'Just Now';
+  const amount = route?.params?.amount || '₹0.00';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
@@ -24,22 +29,22 @@ export default function ExitSuccessScreen({ navigation }) {
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Vehicle</Text>
-            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>KA-01-AB-1234</Text>
+            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>{plate}</Text>
           </View>
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Duration</Text>
-            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>4h 30m</Text>
+            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>{duration}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Time</Text>
-            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '800' }}>09:00 AM - 01:30 PM</Text>
+            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '800' }}>{time}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 20 }}>
             <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '900' }}>Total Fee</Text>
-            <Text style={{ fontSize: 22, color: COLORS.primary, fontWeight: '900' }}>$0.00</Text>
+            <Text style={{ fontSize: 22, color: COLORS.primary, fontWeight: '900' }}>{amount}</Text>
           </View>
         </View>
 

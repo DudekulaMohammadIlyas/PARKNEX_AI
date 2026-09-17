@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Modal, TextInput, Image, Animated } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
@@ -12,10 +12,10 @@ import { COLORS } from '../../theme/colors';
 const BACKEND_URL = config.BACKEND_URL;
 
 export default function StudentHomeScreen({ occupancy, navigation, user }) {
-  const userEmail = user?.email || 'student@college.edu';
-  const userName = user?.name || 'Student';
-  const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
+  const userEmail = user?.email || '';
+  const userName = user?.name || '';
 
+  const [userProfile, setUserProfile] = useState(user || {});
   const [digitalPass, setDigitalPass] = useState(null);
   const [recommendations, setRecommendations] = useState([
     { slotNumber: 'C-04', zoneName: 'Central Library', score: 96, reason: '80m from CS Block • 96% vacant • EV Charger' },
@@ -41,7 +41,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: `👋 Hi ${userName}! I am your ParkNex AI Assistant. Ask me "Where should I park?", "Find my car", or "Show my pass".` }
+    { sender: 'ai', text: `👋 Hi ${userProfile?.name || userName}! I am your ParkNex AI Assistant. Ask me "Where should I park?", "Find my car", or "Show my pass".` }
   ]);
 
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
@@ -50,19 +50,61 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [newPlate, setNewPlate] = useState('');
   const [newType, setNewType] = useState('4-Wheeler');
 
+  // Focus listener to continuously keep userProfile synced without screen flickering
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfileState = async () => {
+      try {
+        const storedUserStr = await AsyncStorage.getItem('@parknex_user').catch(() => null);
+        if (storedUserStr && isMounted) {
+          const parsed = JSON.parse(storedUserStr);
+          if (parsed && parsed.name) {
+            setUserProfile(prev => {
+              if (prev.name === parsed.name && prev.department === parsed.department && prev.academicTerm === parsed.academicTerm) {
+                return prev;
+              }
+              return { ...prev, ...parsed };
+            });
+          }
+        }
+      } catch (e) {}
+    };
+
+    loadProfileState();
+
+    const unsubscribe = navigation?.addListener?.('focus', () => {
+      loadProfileState();
+    });
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [navigation]);
+
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
         const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
         const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
 
-        const [passRes, recRes, zoneRes, vehRes, bookRes] = await Promise.allSettled([
+        const [passRes, recRes, zoneRes, vehRes, bookRes, profRes] = await Promise.allSettled([
           smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
           smartApiRequest('get', `/zones`),
           smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`)
+          smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
+          smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`)
         ]);
+
+        if (profRes.status === 'fulfilled' && profRes.value.data?.user) {
+          const u = profRes.value.data.user;
+          if (u.name) {
+            setUserProfile(prev => ({ ...prev, ...u }));
+            // Save to local cache atomically
+            await AsyncStorage.setItem('@parknex_user', JSON.stringify({ ...(user || {}), ...u })).catch(() => null);
+          }
+        }
 
         if (passRes.status === 'fulfilled' && passRes.value.data) {
           setDigitalPass(passRes.value.data);
@@ -91,12 +133,6 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           const savedVeh = await AsyncStorage.getItem(userVehiclesKey).catch(() => null);
           if (savedVeh) {
             try { currentVeh = JSON.parse(savedVeh); setVehicles(currentVeh); } catch (e) { currentVeh = []; setVehicles([]); }
-          } else if (isDemoUser) {
-            currentVeh = [
-              { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' },
-              { id: '2', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' }
-            ];
-            setVehicles(currentVeh);
           } else {
             currentVeh = [];
             setVehicles([]);
@@ -109,8 +145,8 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           if (active) {
             setActiveBooking({
               id: String(active.id),
-              slotNumber: active.slotNumber || active.slot?.slotNumber || 'K-30',
-              zoneName: active.zoneName || active.slot?.zone?.name || 'KRISHNA HOSTEL',
+              slotNumber: active.slotNumber || active.slot?.slotNumber || 'Slot',
+              zoneName: active.zoneName || active.slot?.zone?.name || 'Campus Zone',
               plateNumber: active.plateNumber || active.vehicle?.plateNumber || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'NO VEHICLE LINKED'),
               durationHours: active.durationHours || 4,
               bookingTime: active.bookingTime || 'Just Now',
@@ -134,17 +170,6 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             } catch (e) {
               setActiveBooking(null);
             }
-          } else if (isDemoUser) {
-            setActiveBooking({
-              id: '1',
-              slotNumber: 'K-30',
-              zoneName: 'KRISHNA HOSTEL',
-              plateNumber: 'KA-01-AB-1234',
-              durationHours: 4,
-              bookingTime: 'Just Now',
-              bookingDate: new Date().toISOString().split('T')[0],
-              status: 'CONFIRMED'
-            });
           } else {
             setActiveBooking(null);
           }
@@ -155,18 +180,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
     fetchHomeData();
     const interval = setInterval(fetchHomeData, 3000);
 
+    const chName = `student-home-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('student-home-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchHomeData();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchHomeData();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchHomeData();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, [userEmail]);
 
@@ -226,12 +253,54 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [liveTime, setLiveTime] = useState(() => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   const [liveDate, setLiveDate] = useState(() => new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
 
+  const sparkleAnim = useRef(new Animated.Value(1)).current;
+  const clockPulseAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+
+    // Continuous smooth sparkle pulse loop (~1.2s cycle)
+    const sparkleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkleAnim, {
+          toValue: 0.35,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sparkleAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    sparkleLoop.start();
+
+    // Subtle clock indicator pulse loop (~1.5s cycle)
+    const clockLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(clockPulseAnim, {
+          toValue: 0.45,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(clockPulseAnim, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    clockLoop.start();
+
+    return () => {
+      clearInterval(timer);
+      sparkleLoop.stop();
+      clockLoop.stop();
+    };
+  }, [sparkleAnim, clockPulseAnim]);
 
   const topPick = (recommendations && recommendations[0]) || { 
     slotNumber: 'K-04', 
@@ -246,24 +315,45 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         
         {/* WELCOME BACK HEADER */}
         <View style={{ marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A' }}>
-              Welcome Back, {userName} ✨
-            </Text>
-            <Text style={{ fontSize: 12, color: (!user?.department || !user?.academicTerm) ? '#D97706' : '#64748B', fontWeight: '700', marginTop: 3 }}>
-              {(user?.department && user?.academicTerm) ? `${user.department} • ${user.academicTerm}` : '⚠️ Academic Profile Incomplete (Tap Profile)'}
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -0.4 }}>
+                Welcome Back, {userProfile?.name || user?.name || (userEmail.includes('@') ? userEmail.split('@')[0] : 'User')}
+              </Text>
+              <Animated.Text 
+                style={{ 
+                  fontSize: 22, 
+                  marginLeft: 6,
+                  opacity: sparkleAnim,
+                  transform: [
+                    {
+                      scale: sparkleAnim.interpolate({
+                        inputRange: [0.35, 1],
+                        outputRange: [0.85, 1.18],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                ✨
+              </Animated.Text>
+            </View>
+            <Text style={{ fontSize: 12, color: (!userProfile?.department || !userProfile?.academicTerm) ? '#475569' : '#64748B', fontWeight: '700', marginTop: 4 }}>
+              {(userProfile?.department && userProfile?.academicTerm) ? `${userProfile.department} • ${userProfile.academicTerm}` : 'Academic Profile Incomplete (Tap Profile)'}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity 
-              style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
+              style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
               onPress={() => navigation?.navigate('Notifications')}
+              activeOpacity={0.7}
             >
               <Feather name="bell" size={20} color="#2563EB" />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
               onPress={() => setIsChatOpen(true)}
+              activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
             </TouchableOpacity>
@@ -271,8 +361,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         </View>
 
         {/* LIVE CLOCK & DATE PILL */}
-        <View style={{ backgroundColor: 'rgba(37, 99, 235, 0.08)', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderContent: 'center', borderColor: '#BFDBFE', borderWidth: 1 }}>
-          <Ionicons name="time" size={16} color="#2563EB" />
+        <View style={{ backgroundColor: 'rgba(37, 99, 235, 0.08)', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: '#BFDBFE', borderWidth: 1 }}>
+          <Animated.View style={{ opacity: clockPulseAnim }}>
+            <Ionicons name="time" size={16} color="#2563EB" />
+          </Animated.View>
           <Text style={{ fontSize: 12, fontWeight: '800', color: '#1D4ED8' }}>
             LIVE CLOCK: {liveTime} ({liveDate})
           </Text>
@@ -280,32 +372,32 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
         {/* INTERACTIVE NAVIGATION PILL TABS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
-          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setIsChatOpen(true)}>
+          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setIsChatOpen(true)} activeOpacity={0.8}>
             <MaterialCommunityIcons name="robot" size={16} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>AI Assistant</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 24 }}>
+          <TouchableOpacity style={{ backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 24 }} activeOpacity={0.8}>
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>Overview</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Book')}>
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Book')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Book a Slot</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Vehicles')}>
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Vehicles')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>My Vehicles</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Map')}>
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Map')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Campus Map</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Pass')}>
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Pass')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Passes & Billing</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('History')}>
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('History')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Parking History</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -350,6 +442,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
                 setActiveBooking(null);
                 Alert.alert('Exited Successfully! 🚗💨', 'Barrier gate released! Parking slot marked vacant in PostgreSQL database.');
               }}
+              activeOpacity={0.8}
             >
               <Ionicons name="exit-outline" size={18} color="#047857" />
               <Text style={{ color: '#047857', fontWeight: '900', fontSize: 13 }}>
@@ -358,16 +451,19 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 20, borderWidth: 1.5, borderColor: '#CBD5E1', alignItems: 'center', elevation: 2 }}>
-            <Ionicons name="car-outline" size={32} color="#64748B" style={{ marginBottom: 6 }} />
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A', marginBottom: 2 }}>No Active Parking Session</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginBottom: 12, fontWeight: '600' }}>You currently have no active slot reservations. Reserve a slot from the map to park.</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1.5, borderColor: '#E2E8F0', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+            <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="car-outline" size={28} color="#64748B" />
+            </View>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#0F172A', marginBottom: 4 }}>No Active Parking Session</Text>
+            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginBottom: 16, fontWeight: '600', paddingHorizontal: 10, lineHeight: 18 }}>You currently have no active slot reservations. Reserve a slot from the map to park.</Text>
             <TouchableOpacity 
-              style={{ backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              style={{ backgroundColor: '#2563EB', paddingVertical: 12, paddingHorizontal: 22, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 }}
               onPress={() => navigation.navigate('Map')}
+              activeOpacity={0.85}
             >
-              <Ionicons name="map-outline" size={16} color="#FFFFFF" />
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Parking Slot</Text>
+              <Ionicons name="map-outline" size={18} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>Reserve Parking Slot</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -378,87 +474,113 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             <MaterialCommunityIcons name="robot" size={20} color="#2563EB" />
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F172A' }}>AI Recommended Parking Slots</Text>
           </View>
-          <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+          <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#A7F3D0' }}>
             <Text style={{ fontSize: 11, fontWeight: '900', color: '#047857' }}>AI MATCH CONFIDENCE: 96%</Text>
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 10 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 16 }}>
           {/* CARD 1: TOP PICK #1 */}
-          <View style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 2, borderColor: '#2563EB', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+          <TouchableOpacity 
+            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 2, borderColor: '#2563EB', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 }}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Book')}
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#2563EB' }}>🏆 TOP PICK #1</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>96% Match</Text>
             </View>
             <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot C-04 (Central Library)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14 }}>
+            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
               80m from CS Block • 30% vacant • EV Charger available
             </Text>
-            <TouchableOpacity style={{ backgroundColor: '#4F46E5', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }} onPress={() => navigation.navigate('Book')}>
+            <TouchableOpacity 
+              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center', shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
+              onPress={() => navigation.navigate('Book')}
+              activeOpacity={0.8}
+            >
               <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot C-04</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
           {/* CARD 2: RECOMMENDATION #2 */}
-          <View style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+          <TouchableOpacity 
+            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Book')}
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#2 RECOMMENDATION</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>91% Match</Text>
             </View>
             <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot H-08 (Hostel Complex)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14 }}>
+            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
               140m from CS Block • 45% vacant
             </Text>
-            <TouchableOpacity style={{ backgroundColor: '#4F46E5', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }} onPress={() => navigation.navigate('Book')}>
+            <TouchableOpacity 
+              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+              onPress={() => navigation.navigate('Book')}
+              activeOpacity={0.8}
+            >
               <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot H-08</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
           {/* CARD 3: RECOMMENDATION #3 */}
-          <View style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+          <TouchableOpacity 
+            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Book')}
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#3 RECOMMENDATION</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>86% Match</Text>
             </View>
             <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot FB-15 (Faculty Block)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14 }}>
+            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
               200m from CS Block • 85% vacant
             </Text>
-            <TouchableOpacity style={{ backgroundColor: '#4F46E5', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }} onPress={() => navigation.navigate('Book')}>
+            <TouchableOpacity 
+              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+              onPress={() => navigation.navigate('Book')}
+              activeOpacity={0.8}
+            >
               <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot FB-15</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </ScrollView>
 
         {/* QUICK ACTION CARDS WITH FRESH ONBOARDING FALLBACKS */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
           {/* DIGITAL PASS CARD */}
           <TouchableOpacity 
-            style={[styles.card, { flex: 1, borderLeftWidth: 4, borderLeftColor: vehicles.length === 0 ? COLORS.warning : COLORS.primary }]}
+            style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', borderLeftWidth: 4, borderLeftColor: vehicles.length === 0 ? COLORS.warning : COLORS.primary, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}
             onPress={() => vehicles.length === 0 ? setIsAddVehicleOpen(true) : navigation.navigate('Pass')}
+            activeOpacity={0.85}
           >
             <Ionicons name="card" size={24} color={vehicles.length === 0 ? COLORS.warning : COLORS.primary} />
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 8 }}>Digital Pass</Text>
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 8, fontWeight: '600' }}>Digital Pass</Text>
             <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.text, marginTop: 2 }}>
-              {vehicles.length === 0 ? 'Pending Link' : (digitalPass?.passNumber || `PASS-STU-${(userEmail || 'USER').split('@')[0].toUpperCase()}`)}
+              {vehicles.length === 0 ? 'PASS-STU-2026-8812' : (digitalPass?.passNumber || `PASS-STU-2026-8812`)}
             </Text>
-            <Text style={{ fontSize: 10, color: vehicles.length === 0 ? COLORS.warning : COLORS.success, fontWeight: '800', marginTop: 4 }}>
-              {vehicles.length === 0 ? '+ Tap to Add Vehicle' : '● ACTIVE'}
+            <Text style={{ fontSize: 10, color: COLORS.success, fontWeight: '800', marginTop: 4 }}>
+              ● ACTIVE
             </Text>
           </TouchableOpacity>
 
           {/* AI FIND MY VEHICLE */}
           <TouchableOpacity 
-            style={[styles.card, { flex: 1, borderLeftWidth: 4, borderLeftColor: COLORS.warning }]}
+            style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', borderLeftWidth: 4, borderLeftColor: COLORS.warning, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}
             onPress={() => {
               if (activeBooking) setIsFindVehicleOpen(true);
               else navigation.navigate('Book');
             }}
+            activeOpacity={0.85}
           >
-            <Ionicons name="compass" size={24} color={COLORS.warning} />
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 8 }}>Find My Vehicle</Text>
+            <Ionicons name="compass" size={24} color="#D97706" />
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 8, fontWeight: '600' }}>Find My Vehicle</Text>
             <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.text, marginTop: 2 }}>
-              {activeBooking ? `Slot ${activeBooking.slot}` : 'No Active Booking'}
+              {activeBooking ? `Slot ${activeBooking.slotNumber}` : 'No Active Booking'}
             </Text>
             <Text style={{ fontSize: 10, color: COLORS.primary, fontWeight: '800', marginTop: 4 }}>
               {activeBooking ? 'Route Guide →' : 'Book a Slot →'}

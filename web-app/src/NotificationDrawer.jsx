@@ -109,25 +109,40 @@ export default function NotificationDrawer({ isOpen, onClose, userEmail, userRol
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="card animate-fade-in" 
-      style={{ 
-        position: 'absolute', 
-        top: '65px', 
-        right: '1rem', 
-        width: '420px', 
-        maxHeight: '82vh',
-        zIndex: 1000, 
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)', 
-        padding: '0', 
-        borderRadius: '20px',
-        border: '1px solid var(--border)', 
-        background: 'var(--bg-sidebar)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}
-    >
+    <>
+      {/* Semi-transparent Backdrop Overlay */}
+      <div 
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.5)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 99998
+        }}
+      />
+
+      <div 
+        className="card animate-fade-in" 
+        style={{ 
+          position: 'fixed', 
+          top: '75px', 
+          right: '1.5rem', 
+          width: '440px', 
+          maxWidth: 'calc(100vw - 3rem)',
+          maxHeight: 'calc(100vh - 100px)',
+          zIndex: 99999, 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.3)', 
+          padding: '0', 
+          borderRadius: '24px',
+          border: '1.5px solid var(--border)', 
+          backgroundColor: 'var(--bg-card, #0F172A)',
+          color: 'var(--text-main, #F8FAFC)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
       {/* HEADER */}
       <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -279,5 +294,6 @@ export default function NotificationDrawer({ isOpen, onClose, userEmail, userRol
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -132,11 +132,11 @@ function SplashScreen({ navigation }) {
 
 // Home Stack to handle nested navigation from Student Home
 const HomeStackNav = createStackNavigator();
-function HomeStack({ occupancy, navigation }) {
+function HomeStack({ occupancy, navigation, user }) {
   return (
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="StudentHome">
-        {props => <StudentHomeScreen {...props} occupancy={occupancy} parentNavigation={navigation} />}
+        {props => <StudentHomeScreen {...props} occupancy={occupancy} parentNavigation={navigation} user={user} />}
       </HomeStackNav.Screen>
       <HomeStackNav.Screen name="Vehicles" component={StudentVehiclesScreen} />
       <HomeStackNav.Screen name="Pass" component={StudentPassScreen} />
@@ -172,7 +172,7 @@ function StudentTabs({ occupancy, onLogout, user }) {
       })}
     >
       <Tab.Screen name="Home">
-        {props => <HomeStack {...props} occupancy={occupancy} />}
+        {props => <HomeStack {...props} occupancy={occupancy} user={user} />}
       </Tab.Screen>
       <Tab.Screen name="Map" component={StudentMapScreen} />
       <Tab.Screen name="Pass" component={StudentPassScreen} />

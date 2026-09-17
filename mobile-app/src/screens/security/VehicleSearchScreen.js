@@ -1,15 +1,47 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import axios from 'axios';
+import config from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
+const BACKEND_URL = config.BACKEND_URL;
+
 export default function VehicleSearchScreen({ navigation }) {
-  const data = [
-    { plate: 'KA-01-AB-1234', owner: 'Alex Carter', type: 'Student' },
-    { plate: 'MH-12-XY-9090', owner: 'Dr. Smith', type: 'Faculty' },
-    { plate: 'DL-04-CZ-1111', owner: 'Unknown', type: 'Visitor' },
-  ];
+  const [vehicles, setVehicles] = useState([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${BACKEND_URL}/vehicles`);
+      if (Array.isArray(res.data)) {
+        let filtered = res.data;
+        if (query.trim()) {
+          const q = query.trim().toLowerCase();
+          filtered = filtered.filter(v => 
+            (v.plate || v.plateNumber || '').toLowerCase().includes(q) ||
+            (v.owner || v.userEmail || '').toLowerCase().includes(q)
+          );
+        }
+        setVehicles(filtered.map(v => ({
+          plate: v.plate || v.plateNumber || 'N/A',
+          owner: v.owner || v.userEmail?.split('@')[0] || 'Registered User',
+          type: v.type || '4-Wheeler'
+        })));
+      }
+    } catch (e) {
+      setVehicles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    handleSearch();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#F1F5F9' }]}>
@@ -35,10 +67,6 @@ export default function VehicleSearchScreen({ navigation }) {
         
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <Text style={{ fontSize: 24, fontWeight: '900', color: COLORS.text }}>Vehicle Search</Text>
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white }}>
-            <Feather name="filter" size={16} color={COLORS.textMuted} style={{ marginRight: 6 }} />
-            <Text style={{ color: COLORS.textMuted, fontWeight: '600', fontSize: 13 }}>Filters</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Search Bar Container */}
@@ -47,18 +75,21 @@ export default function VehicleSearchScreen({ navigation }) {
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 16, height: 56 }}>
               <Feather name="search" size={20} color={COLORS.textMuted} style={{ marginRight: 12 }} />
               <TextInput 
-                placeholder="Search by plate numb..."
+                placeholder="Search by plate number or owner..."
                 placeholderTextColor={COLORS.textMuted}
+                value={query}
+                onChangeText={setQuery}
+                onSubmitEditing={handleSearch}
                 style={{ flex: 1, fontSize: 16, color: COLORS.text, fontWeight: '500' }}
               />
             </View>
-            <TouchableOpacity style={{ backgroundColor: COLORS.primary, borderRadius: 16, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center', height: 56 }}>
-              <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 16 }}>Search</Text>
+            <TouchableOpacity onPress={handleSearch} style={{ backgroundColor: COLORS.primary, borderRadius: 16, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center', height: 56 }}>
+              {loading ? <ActivityIndicator color={COLORS.white} /> : <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 16 }}>Search</Text>}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Results Table Mock */}
+        {/* Results Table */}
         <View style={{ backgroundColor: COLORS.white, borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: COLORS.border }}>
           
           {/* Table Header */}
@@ -69,16 +100,19 @@ export default function VehicleSearchScreen({ navigation }) {
           </View>
 
           {/* Table Rows */}
-          {data.map((item, index) => (
-            <View key={index} style={{ flexDirection: 'row', padding: 20, borderBottomWidth: index === data.length - 1 ? 0 : 1, borderBottomColor: COLORS.border, alignItems: 'center' }}>
-              <View style={{ flex: 1.2 }}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: COLORS.text }}>{item.plate.split('-')[0]}-{item.plate.split('-')[1]}-</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: COLORS.text }}>{item.plate.split('-')[2]}</Text>
-              </View>
-              <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text }}>{item.owner}</Text>
-              <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.textMuted }}>{item.type}</Text>
+          {vehicles.length === 0 ? (
+            <View style={{ padding: 32, alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, color: COLORS.textMuted, fontWeight: '600' }}>No matching vehicles found.</Text>
             </View>
-          ))}
+          ) : (
+            vehicles.map((item, index) => (
+              <View key={index} style={{ flexDirection: 'row', padding: 20, borderBottomWidth: index === vehicles.length - 1 ? 0 : 1, borderBottomColor: COLORS.border, alignItems: 'center' }}>
+                <Text style={{ flex: 1.2, fontSize: 14, fontWeight: '900', color: COLORS.text }}>{item.plate}</Text>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text }}>{item.owner}</Text>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.textMuted }}>{item.type}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <View style={{ height: 40 }} />

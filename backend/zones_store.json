@@ -43,7 +43,7 @@
     "id": "z6",
     "name": "Hostel Complex",
     "total": 200,
-    "occupied": 110,
+    "occupied": 109,
     "type": "2-Wheeler",
     "status": "Active"
   },
@@ -67,7 +67,7 @@
     "id": "z9",
     "name": "Scad",
     "total": 75,
-    "occupied": 1,
+    "occupied": 0,
     "type": "Mixed",
     "status": "Active"
   }

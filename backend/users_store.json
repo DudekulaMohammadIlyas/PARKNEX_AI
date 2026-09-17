@@ -8,7 +8,7 @@
     "lastLogin": "2026-08-28T13:14:15.298Z"
   },
   {
-    "id": "u_security",
+    "id": "7bd7c0b2-b565-4e80-82a0-39130eacf1ef",
     "email": "security@college.edu",
     "name": "Officer Davis",
     "role": "SECURITY",
@@ -16,9 +16,9 @@
     "lastLogin": "2026-08-28T04:27:33.953Z"
   },
   {
-    "id": "u_student",
+    "id": "c8121970-86d3-4ab4-b771-4a027ec84508",
     "email": "student@college.edu",
-    "name": "Alex Carter",
+    "name": "Student User",
     "role": "STUDENT",
     "passwordHash": "$2b$10$aBeeBRe9OY3Mlsl8xIyUbel5cAEjFSy2eLa5oF4F5vo0vZtiUqJc6",
     "lastLogin": "2026-08-29T02:41:10.877Z",
@@ -53,7 +53,7 @@
     "createdAt": "2026-08-28T03:50:42.742Z"
   },
   {
-    "id": "u_1787889320115",
+    "id": "e36daf42-afe3-4302-ba3d-093606af46fa",
     "email": "mdilyas1024@gmail.com",
     "name": "mdilyas1024",
     "role": "STUDENT",
@@ -135,5 +135,69 @@
     "passwordHash": "$2b$10$f.S2YC.1fbnRqP126WxVr.FqLLox8wj18VJy5nJXa.6TTHJZQVMAy",
     "passwordChangedAt": "2026-08-29T02:20:42.040Z",
     "lastLogin": "2026-08-29T06:25:27.302Z"
+  },
+  {
+    "id": "885f8ace-ba70-4920-8544-9c2719139c95",
+    "email": "harthikreddy14@gmail.com",
+    "password": "$2b$10$xc4C3NP3sK9XTXIHrfLd6ukHGOSfG/eTFLgG2taRbsxva3HN3kY16",
+    "role": "STUDENT",
+    "name": "Harthik",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-863",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-09-07T04:56:15.198Z",
+    "updatedAt": "2026-09-07T04:56:15.198Z"
+  },
+  {
+    "id": "8da49d98-a769-4806-8b7f-6fad6e315342",
+    "email": "teststudent@college.edu",
+    "password": "$2b$10$4Q6YwHUq8pT4tzF/jbqbXO26LeGs01J1fUgSG/5mfAdX8lRxJdajK",
+    "role": "STUDENT",
+    "name": "Test Student",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-608",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-09-17T10:12:13.908Z",
+    "updatedAt": "2026-09-17T10:12:13.908Z"
+  },
+  {
+    "id": "333bdc79-5b14-4be0-bc29-d4eb1af40c16",
+    "email": "butlerdumb@gmail.com",
+    "name": "System Admin",
+    "role": "ADMIN",
+    "studentId": "STU-2026-362",
+    "passwordHash": "$2b$10$tfeLP8oKIiQ6ksTRS6ncN.PustTSh7tmTB50CRHPtgoKthLH8ERba",
+    "phone": "",
+    "department": "",
+    "academicTerm": "Fall 2024 - Spring 2028",
+    "lastLogin": "2026-09-17T13:36:59.609Z",
+    "createdAt": "2026-09-17T13:36:59.609Z"
+  },
+  {
+    "id": "f685b6a1-0b98-4e11-9686-eb011db5ceae",
+    "email": "vamsiyatham1@gmail.com",
+    "password": "$2b$10$hn/lN/Vcz1AG7qJgkE3NWOHcK.H9ZXmzDjQX/xbh.RL6dh/uN0GIC",
+    "role": "STUDENT",
+    "name": "Vamsi Babu",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-859",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-09-17T17:20:54.046Z",
+    "updatedAt": "2026-09-17T17:20:54.046Z"
   }
 ]

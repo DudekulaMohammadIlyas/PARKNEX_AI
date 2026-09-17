@@ -22,43 +22,37 @@ export default function StudentVehiclesScreen() {
     const loadUserAndVehicles = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
         setUser(userObj);
 
-        const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
+        const userEmail = userObj.email || '';
         const storageKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
 
         // 1. Fetch server-side vehicles using smartApiRequest
-        try {
-          const apiRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
-          if (Array.isArray(apiRes.data) && apiRes.data.length > 0) {
-            const mapped = apiRes.data.map(v => ({
-              id: v.id,
-              brand: v.brand,
-              model: v.model || 'Standard',
-              color: v.color || 'White',
-              type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
-              plate: v.plateNumber || v.plate,
-              status: v.status || 'Verified'
-            }));
-            setVehicles(mapped);
-            await AsyncStorage.setItem(storageKey, JSON.stringify(mapped));
-            return;
-          }
-        } catch (e) {}
+        if (userEmail) {
+          try {
+            const apiRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
+            if (Array.isArray(apiRes.data) && apiRes.data.length > 0) {
+              const mapped = apiRes.data.map(v => ({
+                id: v.id,
+                brand: v.brand,
+                model: v.model || 'Standard',
+                color: v.color || 'White',
+                type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
+                plate: v.plateNumber || v.plate,
+                status: v.status || 'Verified'
+              }));
+              setVehicles(mapped);
+              await AsyncStorage.setItem(storageKey, JSON.stringify(mapped));
+              return;
+            }
+          } catch (e) {}
+        }
 
         // 2. Local fallback
-        const saved = await AsyncStorage.getItem(storageKey);
+        const saved = userEmail ? await AsyncStorage.getItem(storageKey) : null;
         if (saved) {
           try { setVehicles(JSON.parse(saved)); } catch (e) { setVehicles([]); }
-        } else if (isDemoUser) {
-          const demo = [
-            { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' },
-            { id: '2', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' }
-          ];
-          setVehicles(demo);
-          await AsyncStorage.setItem(storageKey, JSON.stringify(demo));
         } else {
           setVehicles([]);
         }

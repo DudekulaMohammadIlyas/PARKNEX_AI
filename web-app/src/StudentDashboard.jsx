@@ -168,30 +168,22 @@ export default function StudentDashboard({
   // AI Student Chatbot States
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: '👋 Hi Alex! I am your ParkNex AI Assistant. Ask me "Where should I park?", "Find my car", "Show my pass", or "Which zone is free?".' }
+    { sender: 'ai', text: `👋 Hi ${profile?.name || 'there'}! I am your ParkNex AI Assistant. Ask me "Where should I park?", "Find my car", "Show my pass", or "Which zone is free?".` }
   ]);
   const [chatInput, setChatInput] = useState('');
 
   // User Email Scoping for New User Isolation
-  const userEmail = profile?.email || 'student@college.edu';
-  const isDemoUser = userEmail === 'student@college.edu' || profile?.name === 'Alex Carter';
+  const userEmail = profile?.email || '';
 
   // Vehicles registry state (SCOPED TO LOGGED-IN USER EMAIL)
   const [vehicles, setVehicles] = useState(() => {
+    if (!userEmail) return [];
     const userVehiclesKey = `parknex_vehicles_${userEmail}`;
     const saved = localStorage.getItem(userVehiclesKey);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    if (isDemoUser) {
-      return [
-        { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-01-AB-1234', status: 'Verified' },
-        { id: '2', brand: 'Hyundai', model: 'Creta', color: 'White', type: '4-Wheeler', plate: 'KA-09-ZZ-9999', status: 'Verified' },
-        { id: '3', brand: 'Suzuki', model: 'Access 125', color: 'White', type: '2-Wheeler', plate: 'AP02JT7894', status: 'Verified' },
-        { id: '4', brand: 'Royal Enfield', model: 'Classic 350', color: 'Matte Black', type: '2-Wheeler', plate: 'KA-05-XY-9876', status: 'Verified' }
-      ];
-    }
-    return []; // Newly registered student starts clean with 0 vehicles
+    return []; // Clean state until API or user adds vehicle
   });
 
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
@@ -228,14 +220,14 @@ export default function StudentDashboard({
     if (!vObj) return '';
     return JSON.stringify({
       system: "PARKNEX_AI_GATE_PASS",
-      studentName: profile?.name || 'Student',
-      studentId: 'STU-2026-089',
-      passSerial: digitalPass?.passNumber || `PASS-STU-${(userEmail || 'USER').split('@')[0].toUpperCase()}`,
+      studentName: profile?.name || userEmail || 'Student',
+      studentId: profile?.studentId || 'STU-2026-USER',
+      passSerial: digitalPass?.passNumber || (userEmail ? `PASS-STU-${userEmail.split('@')[0].toUpperCase()}` : 'PASS-PENDING'),
       vehiclePlate: vObj.plate,
       vehicleBrand: vObj.brand,
       vehicleModel: vObj.model || 'Standard',
       vehicleType: vObj.type,
-      color: vObj.color || 'White',
+      color: vObj.color || 'Silver',
       validUntil: passValidityDate
     });
   };
@@ -249,35 +241,24 @@ export default function StudentDashboard({
 
   // PERSISTED History list state (SCOPED TO LOGGED-IN USER EMAIL)
   const [historyList, setHistoryList] = useState(() => {
+    if (!userEmail) return [];
     const userHistoryKey = `parknex_historyList_${userEmail}`;
     const saved = localStorage.getItem(userHistoryKey);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    if (isDemoUser) {
-      return [
-        { id: 'h1', date: getTodayDateStr(), time: `${getCurrentTimeStr()} (4 hrs)`, zone: 'KRISHNA HOSTEL', slot: 'K-30', vehicle: 'KA-01-AB-1234', duration: '4 Hours', status: 'CONFIRMED' },
-        { id: 'h2', date: '2026-08-24', time: '10:00 AM - 02:00 PM', zone: 'Zone A', slot: 'A-08', vehicle: 'KA-01-AB-1234', duration: '4 Hours', status: 'COMPLETED' },
-        { id: 'h3', date: '2026-08-22', time: '08:45 AM - 12:45 PM', zone: 'Zone C', slot: 'C-12', vehicle: 'KA-05-XY-9876', duration: '4 Hours', status: 'COMPLETED' }
-      ];
-    }
-    return []; // Newly registered student starts clean with 0 booking history
+    return []; // Clean initial state
   });
 
   // PERSISTED Statement Receipts State (SCOPED TO LOGGED-IN USER EMAIL)
   const [receiptsList, setReceiptsList] = useState(() => {
+    if (!userEmail) return [];
     const userReceiptsKey = `parknex_receiptsList_${userEmail}`;
     const saved = localStorage.getItem(userReceiptsKey);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    if (isDemoUser) {
-      return [
-        { id: 'INV-2026-08', desc: 'Fall 2026 Semester Parking Pass', amount: '₹0.00', status: 'PAID', date: 'Aug 01, 2026' },
-        { id: 'INV-2026-05', desc: 'Spring 2026 Semester Parking Pass', amount: '₹0.00', status: 'PAID', date: 'Jan 15, 2026' }
-      ];
-    }
-    return []; // Newly registered student starts clean with 0 receipts!
+    return []; // Clean initial state
   });
 
   // Save vehicles to localStorage on change (Scoped by user email)
@@ -329,7 +310,9 @@ export default function StudentDashboard({
 
   const fetchFindVehicle = async () => {
     try {
-      const targetPlate = vehicles[0]?.plate || 'KA-01-AB-1234';
+      if (!vehicles || vehicles.length === 0) return;
+      const targetPlate = vehicles[0]?.plate;
+      if (!targetPlate) return;
       const res = await axios.get(`${BACKEND_URL}/ai/find-vehicle?plateNumber=${targetPlate}`);
       if (res.data && res.data.slotNumber) {
         setVehicleLocation(res.data);
@@ -406,8 +389,9 @@ export default function StudentDashboard({
       fetchBookings();
     }, 3000);
 
+    const chName = `student-dashboard-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('student-dashboard-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchAdminZonesAndSlots();
         fetchBookings();
@@ -423,7 +407,9 @@ export default function StudentDashboard({
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -803,7 +789,7 @@ export default function StudentDashboard({
       doc.setTextColor(148, 163, 184);
       doc.text(`Generated on ${new Date().toLocaleString()} • Digitally Signed & Sealed by ParkNex-AI System`, 14, y);
 
-      const safeName = (profile?.name || 'Alex_Carter').replace(/\s+/g, '_');
+      const safeName = (profile?.name || userEmail.split('@')[0] || 'User').replace(/\s+/g, '_');
       doc.save(`ParkNex_Parking_Statement_${safeName}_2026.pdf`);
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -823,17 +809,50 @@ export default function StudentDashboard({
 
   return (
     <div className="animate-fade-in" style={{ position: 'relative' }}>
+      <style>{`
+        @keyframes sparkleGlow {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+            filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.5));
+          }
+          50% {
+            opacity: 0.35;
+            transform: scale(1.18);
+            filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.9));
+          }
+        }
+        @keyframes clockPulseGlow {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.45;
+          }
+        }
+        .animate-sparkle-glow {
+          display: inline-flex;
+          animation: sparkleGlow 1.2s ease-in-out infinite;
+        }
+        .animate-clock-pulse {
+          display: inline-flex;
+          animation: clockPulseGlow 1.5s ease-in-out infinite;
+        }
+      `}</style>
       
       {/* HEADER PANEL WITH REAL-TIME CALENDAR & CLOCK TICKER */}
       <div className="section-header" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            Welcome Back, {profile?.name || 'Alex Carter'} <Sparkles size={20} color="#fbbf24" />
+          <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
+            Welcome Back, {profile?.name || (userEmail ? userEmail.split('@')[0] : 'User')}{' '}
+            <span className="animate-sparkle-glow">
+              <Sparkles size={22} color="#fbbf24" />
+            </span>
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ color: (!profile?.department || !profile?.academicTerm) ? '#f59e0b' : 'inherit', fontWeight: (!profile?.department || !profile?.academicTerm) ? '800' : 'normal' }}>
-                {(profile?.department && profile?.academicTerm) ? `${profile.department} • ${profile.academicTerm}` : '⚠️ Academic Profile Incomplete (Click Edit Info to enter)'}
+            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span>
+                {(profile?.department && profile?.academicTerm) ? `${profile.department} • ${profile.academicTerm}` : 'Academic Profile Incomplete (Click Edit Profile Info to set)'}
               </span>
               {onEditProfile && (
                 <button onClick={onEditProfile} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' }}>
@@ -841,23 +860,26 @@ export default function StudentDashboard({
                 </button>
               )}
             </p>
-            <span className="badge" style={{ background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: '800', fontSize: '0.8rem', padding: '0.3rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Clock size={14} color="#3730a3" /> Live Clock: {liveClockTime} ({bookingDate})
+            <span className="badge" style={{ background: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: '800', fontSize: '0.82rem', padding: '0.4rem 0.85rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span className="animate-clock-pulse">
+                <Clock size={14} color="#2563eb" />
+              </span>
+              LIVE CLOCK: {liveClockTime} ({bookingDate})
             </span>
           </div>
         </div>
         
         {/* INTERACTIVE HEADER NAVIGATION TABS */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={() => setIsChatOpen(!isChatOpen)} style={{ gap: '0.5rem', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', border: 'none' }}>
+          <button className="btn btn-primary" onClick={() => setIsChatOpen(!isChatOpen)} style={{ gap: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)', border: 'none', borderRadius: '24px', fontWeight: '900' }}>
             <Bot size={18} /> AI Assistant
           </button>
-          <button className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('overview')}>Overview</button>
-          <button className={`btn ${activeTab === 'book' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('book')}>Book a Slot</button>
-          <button className={`btn ${activeTab === 'vehicles' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('vehicles')}>My Vehicles</button>
-          <button className={`btn ${activeTab === 'map' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('map')}>Campus Map</button>
-          <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('billing')}>Passes & Billing</button>
-          <button className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('history')}>Parking History</button>
+          <button className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('overview')}>Overview</button>
+          <button className={`btn ${activeTab === 'book' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('book')}>Book a Slot</button>
+          <button className={`btn ${activeTab === 'vehicles' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('vehicles')}>My Vehicles</button>
+          <button className={`btn ${activeTab === 'map' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('map')}>Campus Map</button>
+          <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('billing')}>Passes & Billing</button>
+          <button className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('history')}>Parking History</button>
         </div>
       </div>
 

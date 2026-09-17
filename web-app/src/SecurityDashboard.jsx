@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Camera, AlertTriangle, Activity, History, Search, Eye, MapPin, CheckCircle, Clock, UserCheck, Ticket, Plus, X, Video, Play, Pause, RefreshCw } from 'lucide-react';
+import { Shield, Camera, AlertTriangle, Activity, History, Search, Eye, MapPin, CheckCircle, Clock, UserCheck, Ticket, Plus, X, Video, Play, Pause, RefreshCw, QrCode, CheckCircle2, CameraOff, RefreshCcw } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
+import { Html5Qrcode } from 'html5-qrcode';
 
 // Animated Live CCTV Video Stream Component with AI Bounding Box Overlays & Clear High-Contrast Typography
 function DynamicCCTVStream({ camId, id, camName, zoneName, targetPlate, status, onIssueTicket, onDeleteCam }) {
@@ -178,29 +179,24 @@ export default function SecurityDashboard({
   onEditProfile, 
   activeTab: propActiveTab = 'overview' 
 }) {
-  const [localActiveTab, setLocalActiveTab] = useState('overview');
-  const activeTab = propActiveTab || localActiveTab;
+  const [activeTab, setActiveTab] = useState(propActiveTab);
+
+  useEffect(() => {
+    setActiveTab(propActiveTab);
+  }, [propActiveTab]);
 
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [activeCam, setActiveCam] = useState('Cam 01');
-  const [licensePlate, setLicensePlate] = useState('KA-01-AB-1234');
-  const [logs, setLogs] = useState([
-    { type: 'entry', text: 'Vehicle KA-01-AB-1234 entered Zone A', time: 'Just now', color: '#6366f1' },
-    { type: 'alert', text: 'Suspicious loitering detected in Zone C', time: '4 mins ago', color: '#ef4444' },
-    { type: 'exit', text: 'Vehicle MH-12-XY-9090 exited Main Gate', time: '12 mins ago', color: '#10b981' }
-  ]);
+  const [licensePlate, setLicensePlate] = useState('');
+  const [logs, setLogs] = useState([]);
 
   // Visitor Management States
-  const [visitors, setVisitors] = useState([
-    { id: '1', name: 'John Mark', phone: '+91 98765 11111', plateNumber: 'DL-01-VX-7777', visitPurpose: 'Guest Lecture in CS Dept', status: 'APPROVED', qrCode: 'VISITOR_QR_7777' }
-  ]);
+  const [visitors, setVisitors] = useState([]);
 
   // Violation Management States
-  const [violations, setViolations] = useState([
-    { id: '1', plateNumber: 'UP-16-XX-8888', type: 'UNAUTHORIZED_ENTRY', description: 'Unregistered plate detected in Zone B', penaltyAmount: 1000, status: 'PENDING' }
-  ]);
+  const [violations, setViolations] = useState([]);
   const [isViolationModalOpen, setIsViolationModalOpen] = useState(false);
-  const [violationPlate, setViolationPlate] = useState('KA-01-AB-1234');
+  const [violationPlate, setViolationPlate] = useState('');
   const [violationType, setViolationType] = useState('WRONG_PARKING');
   const [violationDesc, setViolationDesc] = useState('');
   const [penaltyAmount, setPenaltyAmount] = useState(500);
@@ -211,6 +207,163 @@ export default function SecurityDashboard({
   const [inputPlate, setInputPlate] = useState('');
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+
+  // Security QR Scanner & Vehicle Release State
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [qrTokenInput, setQrTokenInput] = useState('');
+  const [isScanningQR, setIsScanningQR] = useState(false);
+  const [scannedQRDetails, setScannedQRDetails] = useState(null);
+  const [isExecutingRelease, setIsExecutingRelease] = useState(false);
+  const [releaseFeedback, setReleaseFeedback] = useState(null);
+
+  // Web Camera Hardware State
+  const [isCameraActive, setIsCameraActive] = useState(true);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+
+  useEffect(() => {
+    let html5QrcodeScanner = null;
+    let isMounted = true;
+
+    if (isQRModalOpen && isCameraActive) {
+      setIsCameraLoading(true);
+      setCameraError(null);
+
+      const timer = setTimeout(() => {
+        const qrContainer = document.getElementById('webcam-qr-reader');
+        if (!qrContainer || !isMounted) return;
+
+        try {
+          html5QrcodeScanner = new Html5Qrcode('webcam-qr-reader');
+          const config = { fps: 10, qrbox: { width: 220, height: 160 } };
+
+          html5QrcodeScanner.start(
+            { facingMode: 'environment' },
+            config,
+            (decodedText) => {
+              if (!isMounted) return;
+              setQrTokenInput(decodedText);
+              handleScanQRToken(decodedText);
+              if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner.stop().catch(() => {});
+                setIsCameraActive(false);
+              }
+            },
+            () => {}
+          ).then(() => {
+            if (isMounted) setIsCameraLoading(false);
+          }).catch((err) => {
+            if (isMounted) {
+              setIsCameraLoading(false);
+              setCameraError(err?.message || 'Camera permission denied or camera unavailable. Please check browser settings or use manual input below.');
+            }
+          });
+        } catch (e) {
+          if (isMounted) {
+            setIsCameraLoading(false);
+            setCameraError('Could not initialize webcam scanner. You can enter or select a QR token manually below.');
+          }
+        }
+      }, 300);
+
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+        if (html5QrcodeScanner) {
+          try {
+            if (html5QrcodeScanner.isScanning) {
+              html5QrcodeScanner.stop().catch(() => {});
+            }
+          } catch (e) {}
+        }
+      };
+    }
+  }, [isQRModalOpen, isCameraActive]);
+
+  const handleScanQRToken = async (overrideToken = null) => {
+    const targetToken = (overrideToken || qrTokenInput || '').trim();
+    if (!targetToken) {
+      alert('Please enter or scan a valid QR pass code / vehicle plate.');
+      return;
+    }
+
+    setIsScanningQR(true);
+    setScannedQRDetails(null);
+    setReleaseFeedback(null);
+
+    try {
+      const res = await axios.post(`${BACKEND_URL}/security/scan-qr`, {
+        qrData: targetToken,
+        role: 'SECURITY',
+        email: profile?.email || 'security@college.edu'
+      });
+
+      if (res.data?.success) {
+        setScannedQRDetails(res.data);
+      } else {
+        alert(res.data?.error || 'Failed to resolve QR code.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error resolving QR code.');
+    } finally {
+      setIsScanningQR(false);
+    }
+  };
+
+  const handleConfirmVehicleRelease = async () => {
+    if (!scannedQRDetails?.vehicle?.plateNumber) return;
+    setIsExecutingRelease(true);
+    setReleaseFeedback(null);
+
+    const plateNumber = scannedQRDetails.vehicle.plateNumber;
+    const bookingId = scannedQRDetails.booking?.id || null;
+
+    try {
+      const res = await axios.post(`${BACKEND_URL}/security/release-vehicle`, {
+        bookingId,
+        plateNumber,
+        officerEmail: profile?.email || 'security@college.edu',
+        role: 'SECURITY',
+        remarks: 'Released via Web Command Center QR Scanner'
+      });
+
+      if (res.data?.success) {
+        setReleaseFeedback({
+          type: 'success',
+          msg: `✅ Vehicle ${plateNumber} successfully RELEASED! Gate barrier opening.`
+        });
+        setScannedQRDetails(prev => prev ? {
+          ...prev,
+          isEligible: false,
+          status: 'RELEASED',
+          eligibilityReason: `Vehicle ${plateNumber} was RELEASED at ${new Date().toLocaleTimeString()} by ${profile?.email || 'Security Officer'}.`
+        } : null);
+        fetchSecurityLogs();
+        fetchIncidentsFromBackend();
+      }
+    } catch (err) {
+      const errRes = err.response?.data;
+      if (err.response?.status === 409 || errRes?.status === 'ALREADY_RELEASED') {
+        setReleaseFeedback({
+          type: 'duplicate',
+          msg: errRes?.error || `⚠️ Duplicate Release Blocked: Vehicle ${plateNumber} was ALREADY released.`
+        });
+        setScannedQRDetails(prev => prev ? {
+          ...prev,
+          isEligible: false,
+          status: 'ALREADY_RELEASED',
+          eligibilityReason: `Vehicle ${plateNumber} has already been released.`
+        } : null);
+      } else {
+        setReleaseFeedback({
+          type: 'error',
+          msg: errRes?.error || 'Failed to release vehicle. Please try again.'
+        });
+      }
+    } finally {
+      setIsExecutingRelease(false);
+    }
+  };
 
   const fetchVisitors = async () => {
     try {
@@ -252,7 +405,7 @@ export default function SecurityDashboard({
 
   // CCTV Camera Feeds Management State
   const [cameras, setCameras] = useState([
-    { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate', zone: 'Zone A', plate: 'KA-01-AB-1234', status: 'AUTHORIZED', resolution: '1080p • 60 FPS' },
+    { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate', zone: 'Zone A', plate: '', status: 'AUTHORIZED', resolution: '1080p • 60 FPS' },
     { id: 'cam_2', camId: 'Cam 02', name: 'Zone A - CS Academic Block', zone: 'Zone A', plate: 'MH-12-XY-9090', status: 'PARKED', resolution: '1080p • 60 FPS' },
     { id: 'cam_3', camId: 'Cam 03', name: 'Zone B - Central Library', zone: 'Zone B', plate: 'KA-05-XY-9876', status: 'MONITORED', resolution: '1080p • 60 FPS' },
     { id: 'cam_4', camId: 'Cam 04', name: 'North Security Gate Barrier', zone: 'North Block', plate: 'UP-16-XX-8888', status: 'UNAUTHORIZED', resolution: '1080p • 60 FPS' }
@@ -351,28 +504,30 @@ export default function SecurityDashboard({
       fetchSecurityLogs();
     }, 3000);
 
+    const chName = `security-web-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('security-web-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchIncidentsFromBackend();
         fetchVisitors();
         fetchViolations();
         fetchCameras();
         fetchSecurityLogs();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          fetchIncidentsFromBackend();
-          fetchVisitors();
-          fetchViolations();
-          fetchCameras();
-          fetchSecurityLogs();
-        }
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        fetchIncidentsFromBackend();
+        fetchVisitors();
+        fetchViolations();
+        fetchCameras();
+        fetchSecurityLogs();
+      }
+    });
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -389,7 +544,7 @@ export default function SecurityDashboard({
   }, [events]);
 
   const openViolationModal = (presetPlate = '') => {
-    setViolationPlate(presetPlate || licensePlate || 'KA-01-AB-1234');
+    setViolationPlate(presetPlate || licensePlate || '');
     setViolationType('WRONG_PARKING');
     setViolationDesc('');
     setPenaltyAmount(500);
@@ -522,7 +677,10 @@ export default function SecurityDashboard({
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Officer Panel: {profile?.name || 'Officer Davis'}</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" style={{ backgroundColor: '#10B981', borderColor: '#10B981', color: '#FFFFFF' }} onClick={() => { setIsQRModalOpen(true); setScannedQRDetails(null); setReleaseFeedback(null); }}>
+            <QrCode size={18} /> Scan QR / Release Vehicle
+          </button>
           <button className="btn btn-primary" onClick={() => openViolationModal()}>
             <Ticket size={18} /> Issue Violation Ticket
           </button>
@@ -610,7 +768,7 @@ export default function SecurityDashboard({
                   camId={cam.camId} 
                   camName={cam.name} 
                   zoneName={cam.zone}
-                  targetPlate={cam.plate || 'KA-01-AB-1234'} 
+                  targetPlate={cam.plate || ''} 
                   status={cam.status || 'MONITORED'} 
                   onIssueTicket={openViolationModal} 
                   onDeleteCam={handleDeleteCamera}
@@ -695,7 +853,7 @@ export default function SecurityDashboard({
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-              <DynamicCCTVStream camId="Cam 01" camName="Main Campus Entrance Gate" targetPlate="KA-01-AB-1234" status="AUTHORIZED" onIssueTicket={openViolationModal} />
+              <DynamicCCTVStream camId="Cam 01" camName="Main Campus Entrance Gate" targetPlate="" status="AUTHORIZED" onIssueTicket={openViolationModal} />
               <DynamicCCTVStream camId="Cam 02" camName="Zone A - Academic Block" targetPlate="MH-12-XY-9090" status="PARKED" onIssueTicket={openViolationModal} />
               <DynamicCCTVStream camId="Cam 03" camName="Zone B - Library Corridor" targetPlate="KA-05-XY-9876" status="MONITORED" onIssueTicket={openViolationModal} />
               <DynamicCCTVStream camId="Cam 04" camName="North Emergency Gate Barrier" targetPlate="UP-16-XX-8888" status="UNAUTHORIZED" onIssueTicket={openViolationModal} />
@@ -963,6 +1121,210 @@ export default function SecurityDashboard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SECURITY QR SCANNER & VEHICLE RELEASE MODAL */}
+      {isQRModalOpen && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div className="card modal-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', padding: '2rem', borderRadius: '24px', border: '1.5px solid #334155', backgroundColor: '#0F172A', color: '#F8FAFC', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #1E293B', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.6rem', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <QrCode size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#FFFFFF', margin: 0, letterSpacing: '-0.3px' }}>Security QR Vehicle Release Console</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '2px 0 0 0', fontWeight: '600' }}>Scan pass QR code or license plate token to verify & release vehicle</p>
+                </div>
+              </div>
+              <button onClick={() => setIsQRModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Release Feedback Banner */}
+            {releaseFeedback && (
+              <div style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: '14px',
+                marginBottom: '1.25rem',
+                fontSize: '0.88rem',
+                fontWeight: '800',
+                backgroundColor: releaseFeedback.type === 'success' ? 'rgba(16,185,129,0.15)' : releaseFeedback.type === 'duplicate' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                color: releaseFeedback.type === 'success' ? '#34D399' : releaseFeedback.type === 'duplicate' ? '#FBBF24' : '#FCA5A5',
+                border: `1.5px solid ${releaseFeedback.type === 'success' ? '#10B981' : releaseFeedback.type === 'duplicate' ? '#F59E0B' : '#EF4444'}`
+              }}>
+                {releaseFeedback.msg}
+              </div>
+            )}
+
+            {/* Input & Viewfinder Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* Live Web Camera Viewfinder Container */}
+              <div style={{ position: 'relative', minHeight: '220px', backgroundColor: '#020617', borderRadius: '16px', overflow: 'hidden', border: cameraError ? '2px solid #EF4444' : '2px solid #10B981', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                
+                {isCameraActive && !cameraError ? (
+                  <div style={{ width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div id="webcam-qr-reader" style={{ width: '100%', maxWidth: '340px', overflow: 'hidden', borderRadius: '12px' }}></div>
+                    
+                    {isCameraLoading && (
+                      <div style={{ padding: '1.5rem', textAlign: 'center', color: '#38BDF8' }}>
+                        <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800' }}>Initializing Webcam Stream & Requesting Permission...</span>
+                      </div>
+                    )}
+
+                    {!isCameraLoading && (
+                      <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: '6px' }}>
+                        <button 
+                          onClick={() => setIsCameraActive(false)}
+                          style={{ backgroundColor: 'rgba(239,68,68,0.85)', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <CameraOff size={12} /> Stop Camera
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ padding: '2rem 1.5rem', textAlign: 'center', width: '100%' }}>
+                    {cameraError ? (
+                      <div style={{ backgroundColor: 'rgba(239,68,68,0.1)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.3)', marginBottom: '1rem' }}>
+                        <AlertTriangle size={28} color="#EF4444" style={{ margin: '0 auto 6px auto', display: 'block' }} />
+                        <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#FCA5A5', display: 'block' }}>Camera Access Restricted or Unavailable</span>
+                        <span style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '4px', display: 'block' }}>{cameraError}</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <Camera size={36} color="#64748B" style={{ margin: '0 auto 6px auto', display: 'block' }} />
+                        <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94A3B8', display: 'block' }}>Camera Scanner Paused</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => { setCameraError(null); setIsCameraActive(true); }}
+                      style={{ backgroundColor: '#10B981', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}
+                    >
+                      <RefreshCcw size={14} /> Re-open Laptop/Desktop Camera
+                    </button>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Manual QR / Plate Token Input Form */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Scan or type QR Code / License Plate (e.g. KA-01-AB-1234)" 
+                  value={qrTokenInput}
+                  onChange={e => setQrTokenInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleScanQRToken(); }}
+                  style={{ flex: 1, padding: '0.85rem 1.1rem', backgroundColor: '#1E293B', border: '1.5px solid #334155', borderRadius: '14px', color: '#FFFFFF', fontSize: '0.92rem', fontWeight: '800', outline: 'none' }}
+                />
+                <button 
+                  onClick={() => handleScanQRToken()}
+                  disabled={isScanningQR}
+                  className="btn btn-primary" 
+                  style={{ backgroundColor: '#10B981', borderColor: '#10B981', padding: '0 1.25rem', whiteSpace: 'nowrap' }}
+                >
+                  {isScanningQR ? 'Scanning...' : 'Verify QR'}
+                </button>
+              </div>
+
+              {/* Quick Sample Presets */}
+              {logs.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: '800' }}>Recent Logs:</span>
+                  {logs.slice(0, 3).map(log => {
+                    const token = log.entityId || log.licensePlate;
+                    if (!token) return null;
+                    return (
+                      <button 
+                        key={log.id}
+                        onClick={() => { setQrTokenInput(token); handleScanQRToken(token); }}
+                        style={{ backgroundColor: '#1E293B', border: '1px solid #334155', color: '#38BDF8', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                      >
+                        {token}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Scanned Verification Result Card */}
+              {scannedQRDetails && (
+                <div style={{ backgroundColor: '#1E293B', padding: '1.25rem', borderRadius: '18px', border: scannedQRDetails.isEligible ? '1.5px solid #10B981' : '1.5px solid #F59E0B', marginTop: '0.5rem' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.75rem' }}>
+                    <div>
+                      <span style={{ fontSize: '0.72rem', fontWeight: '900', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VEHICLE IDENTIFICATION</span>
+                      <h4 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#FFFFFF', margin: '2px 0 0 0' }}>{scannedQRDetails.vehicle?.plateNumber}</h4>
+                      <p style={{ fontSize: '0.8rem', color: '#38BDF8', margin: '2px 0 0 0', fontWeight: '700' }}>{scannedQRDetails.vehicle?.brand} {scannedQRDetails.vehicle?.model} ({scannedQRDetails.vehicle?.type})</p>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.75rem',
+                        fontWeight: '900',
+                        backgroundColor: scannedQRDetails.isEligible ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
+                        color: scannedQRDetails.isEligible ? '#34D399' : '#FCA5A5',
+                        border: `1px solid ${scannedQRDetails.isEligible ? '#10B981' : '#EF4444'}`
+                      }}>
+                        {scannedQRDetails.isEligible ? 'ELIGIBLE FOR RELEASE' : scannedQRDetails.status || 'INELIGIBLE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                    <div>
+                      <span style={{ color: '#94A3B8', fontSize: '0.75rem', fontWeight: '700' }}>VEHICLE OWNER</span>
+                      <p style={{ color: '#FFFFFF', fontWeight: '800', margin: '2px 0 0 0' }}>{scannedQRDetails.owner?.name}</p>
+                      <span style={{ color: '#64748B', fontSize: '0.75rem' }}>{scannedQRDetails.owner?.email}</span>
+                    </div>
+
+                    <div>
+                      <span style={{ color: '#94A3B8', fontSize: '0.75rem', fontWeight: '700' }}>PARKING LOCATION</span>
+                      <p style={{ color: '#FFFFFF', fontWeight: '800', margin: '2px 0 0 0' }}>{scannedQRDetails.booking?.zoneName || 'Main Campus'} (Slot {scannedQRDetails.booking?.slotNumber || 'K-30'})</p>
+                      <span style={{ color: '#64748B', fontSize: '0.75rem' }}>Session: {scannedQRDetails.booking?.bookingTime || 'Active'}</span>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: '0.8rem', color: scannedQRDetails.isEligible ? '#A7F3D0' : '#FDE68A', margin: '0 0 1.25rem 0', fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.3)', padding: '0.6rem 0.9rem', borderRadius: '10px' }}>
+                    📋 {scannedQRDetails.eligibilityReason}
+                  </p>
+
+                  {/* Primary Action Button */}
+                  <button 
+                    onClick={handleConfirmVehicleRelease}
+                    disabled={!scannedQRDetails.isEligible || isExecutingRelease}
+                    className="btn btn-primary"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '0.9rem',
+                      fontSize: '1rem',
+                      fontWeight: '900',
+                      backgroundColor: scannedQRDetails.isEligible ? '#10B981' : '#334155',
+                      borderColor: scannedQRDetails.isEligible ? '#10B981' : '#334155',
+                      cursor: scannedQRDetails.isEligible ? 'pointer' : 'not-allowed',
+                      boxShadow: scannedQRDetails.isEligible ? '0 10px 20px rgba(16,185,129,0.3)' : 'none'
+                    }}
+                  >
+                    {isExecutingRelease ? 'Processing Release...' : scannedQRDetails.isEligible ? '🚗 Confirm & Release Barrier Gate' : 'Vehicle Not Eligible for Release'}
+                  </button>
+
+                </div>
+              )}
+
+            </div>
+
           </div>
         </div>
       )}

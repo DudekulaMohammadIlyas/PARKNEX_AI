@@ -72,18 +72,20 @@ export default function StudentBookScreen({ navigation }) {
     fetchZonesApi();
     const interval = setInterval(fetchZonesApi, 5000);
 
+    const chName = `student-book-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('student-book-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchZonesApi();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchZonesApi();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchZonesApi();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -94,53 +96,49 @@ export default function StudentBookScreen({ navigation }) {
         const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
         setUser(userObj);
 
-        const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
+        const userEmail = userObj.email || '';
 
-        // Fetch vehicles from server using smartApiRequest
-        try {
-          const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
-          if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
-            const mapped = vehRes.data.map(v => ({
-              id: v.id,
-              brand: v.brand,
-              model: v.model || 'Standard',
-              color: v.color || 'White',
-              type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
-              plate: v.plateNumber || v.plate,
-              status: v.status || 'Verified'
-            }));
-            setVehicles(mapped);
-            setSelectedVehicle(mapped[0]);
-          } else {
-            const savedVeh = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
-            if (savedVeh) {
-              const parsedVeh = JSON.parse(savedVeh);
-              setVehicles(parsedVeh);
-              if (parsedVeh.length > 0) setSelectedVehicle(parsedVeh[0]);
-            } else if (isDemoUser) {
-              const demoVeh = [
-                { brand: 'Honda', model: 'Civic', plate: 'KA-01-AB-1234' },
-                { brand: 'Royal Enfield', model: 'Classic 350', plate: 'KA-05-XY-9876' }
-              ];
-              setVehicles(demoVeh);
-              setSelectedVehicle(demoVeh[0]);
+        if (userEmail) {
+          // Fetch vehicles from server using smartApiRequest
+          try {
+            const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
+            if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
+              const mapped = vehRes.data.map(v => ({
+                id: v.id,
+                brand: v.brand,
+                model: v.model || 'Standard',
+                color: v.color || 'White',
+                type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
+                plate: v.plateNumber || v.plate,
+                status: v.status || 'Verified'
+              }));
+              setVehicles(mapped);
+              setSelectedVehicle(mapped[0]);
             } else {
-              setVehicles([]);
-              setSelectedVehicle(null);
+              const savedVeh = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
+              if (savedVeh) {
+                const parsedVeh = JSON.parse(savedVeh);
+                setVehicles(parsedVeh);
+                if (parsedVeh.length > 0) setSelectedVehicle(parsedVeh[0]);
+              } else {
+                setVehicles([]);
+                setSelectedVehicle(null);
+              }
             }
+          } catch (e) {
+            setVehicles([]);
           }
-        } catch (e) {
-          setVehicles([]);
-        }
 
-        const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail.toLowerCase()}`);
-        if (savedHist) {
-          try { setHistoryList(JSON.parse(savedHist)); } catch (e) {}
-        } else if (isDemoUser) {
-          setHistoryList([
-            { id: 'h1', date: getTodayDateStr(), time: `${getCurrentTimeStr()} (4 hrs)`, zone: 'KRISHNA HOSTEL', slot: 'K-30', vehicle: 'KA-01-AB-1234', duration: '4 Hours', status: 'CONFIRMED' }
-          ]);
+          const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail.toLowerCase()}`);
+          if (savedHist) {
+            try { setHistoryList(JSON.parse(savedHist)); } catch (e) {}
+          } else {
+            setHistoryList([]);
+          }
+        } else {
+          setVehicles([]);
+          setSelectedVehicle(null);
+          setHistoryList([]);
         }
       } catch (e) {}
     };

@@ -1,5 +1,208 @@
 [
   {
+    "id": "1789668927998",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789667932636",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP10LK2525 RELEASED via QR Scan by Officer officer@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789667838558",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789665654241",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Vamsi Babu (vamsiyatham1@gmail.com) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789665321661",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789665293393",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789664179568",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789663541095",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789662703360",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789652241307",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789652219614",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (butlerdumb@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789652139274",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789651903265",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789644225325",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP-CS-0234 RELEASED via QR Scan by Officer officer@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789644178837",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789644107958",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789641224408",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789641194072",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789640853312",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789640050414",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789640006210",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789639958188",
+    "type": "USER",
+    "text": "🔑 User Login: mdilyas1024 (mdilyas1024@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789639951756",
+    "type": "USER",
+    "text": "🔑 User Login: Test Student (teststudent@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1789639934081",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Test Student (teststudent@college.edu) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789639281443",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1789639101885",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1788757467223",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1788757244653",
+    "type": "EXIT",
+    "text": "🚗 Vehicle TN-01-KJ-9852 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1788756975615",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Harthik (harthikreddy14@gmail.com) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
     "id": "1788677454975",
     "type": "ALERT",
     "text": "🚨 EMERGENCY TRIGGERED: FIRE at Zone B Library Block",

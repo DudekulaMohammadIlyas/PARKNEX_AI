@@ -1,15 +1,47 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import axios from 'axios';
+import config from '../../../config';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
+const BACKEND_URL = config.BACKEND_URL;
+
 export default function SecurityLogsScreen({ navigation }) {
-  const logs = [
-    { time: '10:42 AM', event: 'Entry Denied', plate: 'UNKNOWN', type: 'danger' },
-    { time: '10:30 AM', event: 'Vehicle Exit', plate: 'MH-12-XY-9090', type: 'neutral' },
-    { time: '09:42 AM', event: 'Vehicle Entry', plate: 'KA-01-AB-1234', type: 'success' },
-  ];
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await axios.get(`${BACKEND_URL}/security/logs`);
+        if (Array.isArray(res.data)) {
+          setLogs(res.data.map(l => ({
+            time: l.createdAt ? new Date(l.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+            event: l.action || 'Security Action',
+            plate: l.entityId || l.licensePlate || 'SYSTEM',
+            type: (l.action || '').includes('DENIED') ? 'danger' : 'success',
+            text: l.text || l.details || ''
+          })));
+        }
+      } catch (e) {
+        setLogs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#F1F5F9' }]}>
@@ -20,32 +52,11 @@ export default function SecurityLogsScreen({ navigation }) {
           <Feather name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5, flex: 1 }}>ParkNex AI</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <TouchableOpacity style={{ position: 'relative' }}>
-            <Feather name="bell" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
-          <View style={{ width: 1, height: 24, backgroundColor: COLORS.border }} />
-          <TouchableOpacity onPress={() => navigation.navigate('OfficerProfile')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(37, 99, 235, 0.1)', justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 16 }}>S</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
-        
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-          <Text style={{ fontSize: 24, fontWeight: '900', color: COLORS.text, width: '40%' }}>Security Logs</Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white }}>
-              <Feather name="calendar" size={14} color={COLORS.textMuted} style={{ marginRight: 6 }} />
-              <Text style={{ color: COLORS.text, fontWeight: '600', fontSize: 13 }}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white }}>
-              <Feather name="filter" size={14} color={COLORS.textMuted} style={{ marginRight: 6 }} />
-              <Text style={{ color: COLORS.text, fontWeight: '600', fontSize: 13 }}>All Events</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: COLORS.text, marginBottom: 8 }}>Security Logs</Text>
+        <Text style={{ fontSize: 16, color: COLORS.textMuted, marginBottom: 32 }}>Review all entry and exit events across campus</Text>
 
         {/* Logs Table Mock */}
         <View style={{ backgroundColor: COLORS.white, borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: COLORS.border }}>

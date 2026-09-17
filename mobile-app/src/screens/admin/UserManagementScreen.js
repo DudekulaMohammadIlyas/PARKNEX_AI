@@ -10,18 +10,8 @@ import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
-const defaultUsersList = [
-  { id: 'u_bhanu', name: 'bhanu', email: 'hemasaisiddarthahemasai@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'B' },
-  { id: 'u_raghu', name: 'mraghavendra6305', email: 'mraghavendra6305@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'M' },
-  { id: 'u_ilyas', name: 'mdilyas1024', email: 'mdilyas1024@gmail.com', role: 'STUDENT', status: 'ACTIVE', initial: 'M' },
-  { id: '1', name: 'Alex Carter', email: 'student@college.edu', role: 'STUDENT', status: 'ACTIVE', initial: 'A' },
-  { id: '2', name: 'Dr. Smith', email: 'faculty@college.edu', role: 'FACULTY', status: 'ACTIVE', initial: 'D' },
-  { id: '3', name: 'Officer Davis', email: 'security@college.edu', role: 'SECURITY', status: 'ACTIVE', initial: 'O' },
-  { id: '4', name: 'System Admin', email: 'admin@college.edu', role: 'ADMIN', status: 'ACTIVE', initial: 'S' }
-];
-
 export default function UserManagementScreen({ navigation }) {
-  const [users, setUsers] = useState(defaultUsersList);
+  const [users, setUsers] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
@@ -36,13 +26,13 @@ export default function UserManagementScreen({ navigation }) {
 
   const fetchUsersFromApi = async () => {
     try {
-      let combined = [...defaultUsersList];
+      let combined = [];
 
       const savedMem = await AsyncStorage.getItem('@parknex_registered_users').catch(() => null);
       if (savedMem) {
         try {
           const parsed = JSON.parse(savedMem);
-          if (Array.isArray(parsed)) combined = [...parsed, ...combined];
+          if (Array.isArray(parsed)) combined = [...parsed];
         } catch (e) {}
       }
 
@@ -78,18 +68,20 @@ export default function UserManagementScreen({ navigation }) {
     fetchUsersFromApi();
     const interval = setInterval(fetchUsersFromApi, 3000);
 
+    const chName = `mobile-users-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('mobile-users-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchUsersFromApi();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchUsersFromApi();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchUsersFromApi();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 

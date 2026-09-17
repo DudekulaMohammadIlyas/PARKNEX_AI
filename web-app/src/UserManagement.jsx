@@ -40,14 +40,7 @@ export default function UserManagement() {
         })));
       }
     } catch (err) {
-      console.warn("Backend users fetch failed, fallback mock:", err.message);
-      if (users.length === 0) {
-        setUsers([
-          { id: 'STU-123', name: 'Alex Carter', email: 'alex@college.edu', role: 'Student', status: 'Active', initial: 'A' },
-          { id: 'FAC-456', name: 'Dr. Smith', email: 'smith@college.edu', role: 'Faculty', status: 'Active', initial: 'D' },
-          { id: 'SEC-789', name: 'Officer Davis', email: 'security@college.edu', role: 'Security', status: 'Active', initial: 'O' }
-        ]);
-      }
+      setUsers([]);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -57,18 +50,20 @@ export default function UserManagement() {
     fetchUsers(true);
     const interval = setInterval(() => fetchUsers(false), 3000);
 
+    const chName = `web-users-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('web-users-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchUsers(false);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchUsers(false);
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchUsers(false);
+    });
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, [searchQuery, selectedRoleFilter]);
 

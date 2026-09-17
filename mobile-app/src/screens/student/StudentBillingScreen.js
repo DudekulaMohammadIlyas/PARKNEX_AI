@@ -20,22 +20,18 @@ export default function StudentBillingScreen({ onLogout }) {
     const loadBillingData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
         setUser(userObj);
 
-        const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
+        const userEmail = userObj.email || '';
 
-        const savedReceipts = await AsyncStorage.getItem(`@parknex_receipts_${userEmail}`);
-        if (savedReceipts) {
-          try { setReceiptsList(JSON.parse(savedReceipts)); } catch (e) {}
-        } else if (isDemoUser) {
-          const demo = [
-            { id: 'REC-2026-901', date: 'Jan 05, 2026', desc: 'Annual Campus Parking Permit (Subsidized)', amount: '₹0 (Subsidized)', status: 'PAID' },
-            { id: 'REC-2025-442', date: 'Aug 10, 2025', desc: 'Semester 1 Gate Access Fee', amount: '₹500', status: 'PAID' }
-          ];
-          setReceiptsList(demo);
-          await AsyncStorage.setItem(`@parknex_receipts_${userEmail}`, JSON.stringify(demo));
+        if (userEmail) {
+          const savedReceipts = await AsyncStorage.getItem(`@parknex_receipts_${userEmail}`);
+          if (savedReceipts) {
+            try { setReceiptsList(JSON.parse(savedReceipts)); } catch (e) {}
+          } else {
+            setReceiptsList([]);
+          }
         } else {
           setReceiptsList([]);
         }

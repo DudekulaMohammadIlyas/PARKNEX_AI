@@ -46,18 +46,20 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
     fetchAdminData();
     const interval = setInterval(fetchAdminData, 3000);
 
+    const chName = `admin-dashboard-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('admin-dashboard-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchAdminData();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchAdminData();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchAdminData();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 

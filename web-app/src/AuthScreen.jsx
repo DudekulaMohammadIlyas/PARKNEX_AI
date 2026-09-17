@@ -246,7 +246,7 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
                   onChange={e => setName(e.target.value)}
                   className="search-input"
                   style={{ paddingLeft: '1rem' }}
-                  placeholder="e.g. Alex Carter"
+                  placeholder="Enter full name"
                 />
               </div>
             )}

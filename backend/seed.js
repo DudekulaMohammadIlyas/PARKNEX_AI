@@ -48,7 +48,7 @@ async function main() {
     { 
       email: 'student@college.edu', 
       role: 'STUDENT', 
-      name: 'Alex Carter', 
+      name: 'Student User', 
       phone: '+91 98765 43210', 
       password: defaultPassword, 
       studentId: 'STU-2026-089',

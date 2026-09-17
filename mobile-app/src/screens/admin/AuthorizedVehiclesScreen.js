@@ -10,11 +10,7 @@ import { COLORS } from '../../theme/colors';
 const BACKEND_URL = config.BACKEND_URL;
 
 export default function AuthorizedVehiclesScreen({ navigation }) {
-  const [vehicles, setVehicles] = useState([
-    { plate: 'KA-09-ZZ-9999', owner: 'Student', type: '4-Wheeler', brand: 'Honda Civic' },
-    { plate: 'AP-CS-0234', owner: 'Alex Carter', type: '4-Wheeler', brand: 'Toyota Camry' },
-    { plate: 'KA-01-AB-1234', owner: 'System Admin', type: '4-Wheeler', brand: 'Honda City' },
-  ]);
+  const [vehicles, setVehicles] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -41,18 +37,20 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
     fetchVehiclesFromApi();
     const interval = setInterval(fetchVehiclesFromApi, 3000);
 
+    const chName = `authorized-vehicles-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('authorized-vehicles-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchVehiclesFromApi();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchVehiclesFromApi();
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchVehiclesFromApi();
+    });
 
     return () => {
       clearInterval(interval);
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -187,7 +185,7 @@ export default function AuthorizedVehiclesScreen({ navigation }) {
               <View>
                 <Text style={{ fontSize: 13, color: COLORS.textMuted, fontWeight: '700', marginBottom: 8 }}>Owner Name</Text>
                 <TextInput 
-                  placeholder="e.g. Alex Carter"
+                  placeholder="e.g. Owner Name"
                   value={newOwner}
                   onChangeText={setNewOwner}
                   style={{ width: '100%', padding: 12, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, fontSize: 15 }}

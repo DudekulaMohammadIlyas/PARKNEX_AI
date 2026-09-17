@@ -4,7 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
-export default function AccessGrantedScreen({ navigation }) {
+export default function AccessGrantedScreen({ navigation, route }) {
+  const plate = route?.params?.plate || route?.params?.licensePlate || 'N/A';
+  const owner = route?.params?.owner || route?.params?.user || 'Authenticated User';
+  const slot = route?.params?.slot || route?.params?.slotNumber || 'Unassigned Slot';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
@@ -24,18 +28,18 @@ export default function AccessGrantedScreen({ navigation }) {
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Plate Number</Text>
-            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>KA-01-AB-1234</Text>
+            <Text style={{ fontSize: 16, color: COLORS.text, fontWeight: '800' }}>{plate}</Text>
           </View>
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Owner</Text>
-            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '800' }}>Alex Carter (Student)</Text>
+            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '800' }}>{owner}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16 }}>
             <Text style={{ fontSize: 15, color: COLORS.textMuted, fontWeight: '600' }}>Assigned Slot</Text>
             <View style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ fontSize: 13, color: COLORS.primary, fontWeight: '800' }}>Zone A - 14</Text>
+              <Text style={{ fontSize: 13, color: COLORS.primary, fontWeight: '800' }}>{slot}</Text>
             </View>
           </View>
         </View>

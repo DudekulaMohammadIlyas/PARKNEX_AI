@@ -655,7 +655,7 @@ app.get('/api/auth/me', async (req, res) => {
 let usersMemoryStore = loadJSONStore(USERS_FILE, [
   { id: 'u_admin', email: 'admin@college.edu', name: 'System Admin', role: 'ADMIN', passwordHash: '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe' },
   { id: 'u_security', email: 'security@college.edu', name: 'Officer Davis', role: 'SECURITY', passwordHash: '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe' },
-  { id: 'u_student', email: 'student@college.edu', name: 'Alex Carter', role: 'STUDENT', passwordHash: '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe' }
+  { id: 'u_student', email: 'student@college.edu', name: 'Student User', role: 'STUDENT', passwordHash: '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe' }
 ]);
 
 async function ensureUserRecord(email, extraData = {}) {
@@ -1070,6 +1070,108 @@ async function deleteUserCascade(userId, userEmail) {
   }
 }
 
+// ================= USER PROFILE ENDPOINTS (REALTIME PROFILE NAME SYNC) ================= //
+
+app.get('/api/users/profile', async (req, res) => {
+  try {
+    const email = req.query.email || req.user?.email || 'student@college.edu';
+    const normEmail = email.toLowerCase().trim();
+
+    usersMemoryStore = loadJSONStore(USERS_FILE, usersMemoryStore);
+    let memUser = usersMemoryStore.find(u => u.email === normEmail);
+
+    let dbUser = await prisma.user.findUnique({ where: { email: normEmail } }).catch(() => null);
+
+    if (!dbUser && !memUser) {
+      dbUser = await ensureUserRecord(normEmail);
+      memUser = usersMemoryStore.find(u => u.email === normEmail);
+    }
+
+    const name = memUser?.name || dbUser?.name || normEmail.split('@')[0];
+    const phone = memUser?.phone || dbUser?.phone || '';
+    const department = memUser?.department || dbUser?.designation || '';
+    const academicTerm = memUser?.academicTerm || 'Fall 2024 - Spring 2028';
+    const role = memUser?.role || dbUser?.role || 'STUDENT';
+    const studentId = memUser?.studentId || dbUser?.studentId || `STU-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+    return res.json({
+      success: true,
+      user: {
+        id: dbUser?.id || memUser?.id || `u_${Date.now()}`,
+        email: normEmail,
+        name,
+        phone,
+        department,
+        academicTerm,
+        role,
+        studentId
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/users/profile', async (req, res) => {
+  try {
+    const { email, name, phone, department, academicTerm } = req.body;
+    const targetEmail = email || req.user?.email || 'student@college.edu';
+    const normEmail = targetEmail.toLowerCase().trim();
+
+    usersMemoryStore = loadJSONStore(USERS_FILE, usersMemoryStore);
+    let memIdx = usersMemoryStore.findIndex(u => u.email === normEmail);
+
+    const updatedData = {
+      name: name ? name.trim() : undefined,
+      phone: phone !== undefined ? phone : undefined,
+      department: department !== undefined ? department : undefined,
+      academicTerm: academicTerm !== undefined ? academicTerm : undefined
+    };
+
+    if (memIdx >= 0) {
+      if (name) usersMemoryStore[memIdx].name = name.trim();
+      if (phone !== undefined) usersMemoryStore[memIdx].phone = phone;
+      if (department !== undefined) usersMemoryStore[memIdx].department = department;
+      if (academicTerm !== undefined) usersMemoryStore[memIdx].academicTerm = academicTerm;
+      saveJSONStore(USERS_FILE, usersMemoryStore);
+    }
+
+    let dbUser = await prisma.user.findUnique({ where: { email: normEmail } }).catch(() => null);
+    if (dbUser) {
+      dbUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          name: name ? name.trim() : undefined,
+          phone: phone !== undefined ? phone : undefined,
+          designation: department !== undefined ? department : undefined
+        }
+      }).catch(() => dbUser);
+    } else {
+      dbUser = await ensureUserRecord(normEmail, updatedData);
+    }
+
+    const finalName = name ? name.trim() : (memIdx >= 0 ? usersMemoryStore[memIdx].name : (dbUser?.name || normEmail.split('@')[0]));
+
+    addSecurityLogEntry('USER', `✏️ Profile Updated: ${finalName} (${normEmail})`, '#10B981');
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: dbUser?.id || (memIdx >= 0 ? usersMemoryStore[memIdx].id : `u_${Date.now()}`),
+        email: normEmail,
+        name: finalName,
+        phone: phone !== undefined ? phone : (memIdx >= 0 ? usersMemoryStore[memIdx].phone : dbUser?.phone || ''),
+        department: department !== undefined ? department : (memIdx >= 0 ? usersMemoryStore[memIdx].department : dbUser?.designation || ''),
+        academicTerm: academicTerm !== undefined ? academicTerm : (memIdx >= 0 ? usersMemoryStore[memIdx].academicTerm : 'Fall 2024 - Spring 2028'),
+        role: memIdx >= 0 ? usersMemoryStore[memIdx].role : (dbUser?.role || 'STUDENT')
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.delete('/api/users/profile', async (req, res) => {
   const { email } = req.query;
   const targetEmail = email || req.user?.email;
@@ -1474,12 +1576,12 @@ app.post('/api/bookings', async (req, res) => {
     let user = req.user?.id ? await prisma.user.findUnique({ where: { id: req.user.id } }) : await prisma.user.findFirst();
     if (!user) return res.status(400).json({ error: 'User not found' });
 
-    let vehicle = await prisma.vehicle.findFirst({ where: { plateNumber: plateNumber || 'KA-01-AB-1234' } });
-    if (!vehicle) {
+    let vehicle = plateNumber ? await prisma.vehicle.findFirst({ where: { plateNumber } }) : await prisma.vehicle.findFirst({ where: { userId: user.id } });
+    if (!vehicle && plateNumber) {
       vehicle = await prisma.vehicle.create({
         data: {
-          brand: 'Honda',
-          plateNumber: plateNumber || 'KA-01-AB-1234',
+          brand: 'Standard',
+          plateNumber: plateNumber,
           userId: user.id,
           status: 'Verified'
         }
@@ -2076,7 +2178,7 @@ async function evaluateScheduledNotifications() {
       }
     });
 
-    // B. EVALUATE ZONE OCCUPANCY & AVAILABILITY ALERTS
+    // B. EVALUATE ZONE OCCUPANCY & AVAILABILITY ALERTS (DEDUPLICATED STATE TRANSITIONS)
     const dbZones = await prisma.zone.findMany().catch(() => []);
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
     const zones = dbZones.length > 0 ? dbZones : fileZones;
@@ -2085,27 +2187,42 @@ async function evaluateScheduledNotifications() {
       const total = Number(z.total || 100);
       const occupied = Number(z.occupied || 0);
       const pct = Math.round((occupied / (total || 1)) * 100);
+      const fullKey = `zone_full_${z.id}_state`;
+      const highKey = `zone_high_${z.id}_state`;
+
+      sentRemindersStore = loadJSONStore(SENT_REMINDERS_FILE, {});
 
       if (pct >= 100) {
-        createNotification({
-          targetRole: 'ALL',
-          category: 'PARKING',
-          priority: 'HIGH',
-          title: `🚫 Zone Full: ${z.name}`,
-          message: `${z.name} is currently 100% full (${occupied}/${total} slots occupied). AI recommends checking alternative zones.`,
-          relatedEntity: z.id,
-          reminderKey: `zone_full_${z.id}_${now.getHours()}`
-        });
+        if (!sentRemindersStore[fullKey]) {
+          createNotification({
+            targetRole: 'ALL',
+            category: 'PARKING',
+            priority: 'HIGH',
+            title: `🚫 Zone Full: ${z.name}`,
+            message: `${z.name} is currently 100% full (${occupied}/${total} slots occupied). AI recommends checking alternative zones.`,
+            relatedEntity: z.id,
+            reminderKey: fullKey
+          });
+        }
       } else if (pct >= 90) {
-        createNotification({
-          targetRole: 'ALL',
-          category: 'PARKING',
-          priority: 'NORMAL',
-          title: `⚠️ High Occupancy Alert: ${z.name}`,
-          message: `${z.name} is currently ${pct}% occupied (${occupied}/${total} slots occupied).`,
-          relatedEntity: z.id,
-          reminderKey: `zone_high_${z.id}_${now.getHours()}`
-        });
+        if (!sentRemindersStore[highKey]) {
+          createNotification({
+            targetRole: 'ALL',
+            category: 'PARKING',
+            priority: 'NORMAL',
+            title: `⚠️ High Occupancy Alert: ${z.name}`,
+            message: `${z.name} is currently ${pct}% occupied (${occupied}/${total} slots occupied).`,
+            relatedEntity: z.id,
+            reminderKey: highKey
+          });
+        }
+        delete sentRemindersStore[fullKey];
+        saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
+      } else {
+        // Reset notification state keys when zone occupancy drops below threshold
+        delete sentRemindersStore[fullKey];
+        delete sentRemindersStore[highKey];
+        saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
       }
     });
 
@@ -2122,9 +2239,9 @@ app.get('/api/notifications', async (req, res) => {
   const userRole = (role || req.user?.role || 'STUDENT').toUpperCase();
 
   try {
+    // Unlimited notification fetch (no artificial take cap)
     const dbNotifs = await prisma.notification.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 100
+      orderBy: { createdAt: 'desc' }
     }).catch(() => []);
 
     const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, initialNotificationsStore);
@@ -2310,6 +2427,245 @@ app.put('/api/bookings/:id/extend', async (req, res) => {
   });
 
   res.json({ success: true, message: `Parking session extended by ${addHrs} hour(s).`, booking: updatedBooking });
+});
+
+// ================= SECURITY QR SCANNER & ATOMIC VEHICLE RELEASE ENDPOINTS ================= //
+
+app.post('/api/security/scan-qr', async (req, res) => {
+  const { qrData, role, email } = req.body;
+  const effectiveUser = req.user;
+  const userRole = (effectiveUser?.role || role || '').toUpperCase();
+  const officerEmail = effectiveUser?.email || email || 'security@college.edu';
+
+  if (!effectiveUser && !role) {
+    return res.status(401).json({ success: false, error: 'Authentication required. Please sign in to access Security Scanner.' });
+  }
+
+  if (userRole !== 'SECURITY' && userRole !== 'ADMIN' && userRole !== 'CAMPUS_ADMIN') {
+    return res.status(403).json({ success: false, error: 'Forbidden: Only Security personnel or Administrators can scan vehicle QR codes.' });
+  }
+
+  if (!qrData) {
+    return res.status(400).json({ success: false, error: 'QR data is required.' });
+  }
+
+  try {
+    let parsedData = {};
+    if (typeof qrData === 'object') {
+      parsedData = qrData;
+    } else if (typeof qrData === 'string') {
+      try {
+        parsedData = JSON.parse(qrData);
+      } catch (e) {
+        parsedData = { rawString: qrData };
+      }
+    }
+
+    const plateNumber = (parsedData.vehiclePlate || parsedData.plateNumber || parsedData.plate || parsedData.rawString || '').trim().toUpperCase();
+    const passNumber = (parsedData.passSerial || parsedData.passNumber || '').trim().toUpperCase();
+    const studentId = (parsedData.studentId || '').trim();
+    const bookingId = (parsedData.bookingId || '').trim();
+
+    if (!plateNumber && !passNumber && !bookingId && !parsedData.rawString) {
+      return res.status(400).json({ success: false, isEligible: false, status: 'INVALID_QR', error: 'Unrecognized QR code format.' });
+    }
+
+    // Lookup booking from file store & DB
+    const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+    let targetBooking = null;
+
+    if (bookingId) {
+      targetBooking = fileBookings.find(b => String(b.id) === String(bookingId));
+    }
+    if (!targetBooking && plateNumber) {
+      targetBooking = fileBookings.find(b => (b.plateNumber || b.vehicle || '').toUpperCase() === plateNumber && (b.status === 'CONFIRMED' || b.status === 'PARKED'));
+      if (!targetBooking) {
+        targetBooking = fileBookings.find(b => (b.plateNumber || b.vehicle || '').toUpperCase() === plateNumber);
+      }
+    }
+
+    // Lookup vehicle
+    const fileVehicles = loadJSONStore(VEHICLES_FILE, []);
+    let targetVehicle = fileVehicles.find(v => (v.plateNumber || v.plate || '').toUpperCase() === plateNumber);
+
+    // Lookup owner user
+    const fileUsers = loadJSONStore(USERS_FILE, []);
+    const ownerEmail = targetBooking?.userEmail || targetVehicle?.userEmail || parsedData.studentEmail || 'student@college.edu';
+    const ownerUser = fileUsers.find(u => u.email?.toLowerCase() === ownerEmail.toLowerCase()) || { name: parsedData.studentName || 'Student User', email: ownerEmail, role: 'STUDENT' };
+
+    // Determine status & release eligibility
+    let isEligible = false;
+    let status = 'NO_ACTIVE_BOOKING';
+    let eligibilityReason = 'No active parking booking found for this QR code.';
+
+    if (targetBooking) {
+      if (targetBooking.status === 'RELEASED' || targetBooking.status === 'EXITED') {
+        isEligible = false;
+        status = 'ALREADY_RELEASED';
+        eligibilityReason = `Vehicle ${plateNumber || 'scanned'} has ALREADY been released at ${targetBooking.releasedAt || 'earlier session'}.`;
+      } else {
+        isEligible = true;
+        status = targetBooking.status || 'CONFIRMED';
+        eligibilityReason = `Active session verified in ${targetBooking.zoneName || 'Zone A'} (Slot ${targetBooking.slotNumber || 'K-30'}). Eligible for release.`;
+      }
+    } else if (plateNumber) {
+      isEligible = true;
+      status = 'REGISTERED_VEHICLE';
+      eligibilityReason = `Registered campus vehicle ${plateNumber} verified. Eligible for gate exit release.`;
+    }
+
+    res.json({
+      success: true,
+      isEligible,
+      status,
+      eligibilityReason,
+      scannedAt: new Date().toISOString(),
+      officerEmail,
+      vehicle: {
+        plateNumber: plateNumber || targetVehicle?.plate || targetVehicle?.plateNumber || 'N/A',
+        brand: targetVehicle?.brand || 'Standard',
+        model: targetVehicle?.model || 'Vehicle',
+        type: targetVehicle?.type || '4-Wheeler'
+      },
+      owner: {
+        name: ownerUser.name || 'Student User',
+        email: ownerUser.email,
+        role: ownerUser.role || 'STUDENT'
+      },
+      booking: targetBooking ? {
+        id: String(targetBooking.id),
+        slotNumber: targetBooking.slotNumber || 'K-30',
+        zoneName: targetBooking.zoneName || 'Zone A',
+        status: targetBooking.status,
+        bookingTime: targetBooking.bookingTime || 'Just now',
+        releasedAt: targetBooking.releasedAt || null,
+        releasedBy: targetBooking.releasedBy || null
+      } : null,
+      pass: passNumber ? {
+        passNumber,
+        status: 'ACTIVE'
+      } : null
+    });
+  } catch (error) {
+    handleDatabaseError(res, error, 'scan QR code');
+  }
+});
+
+app.post('/api/security/release-vehicle', async (req, res) => {
+  const { bookingId, plateNumber, officerEmail, remarks, role } = req.body;
+  const effectiveUser = req.user;
+  const userRole = (effectiveUser?.role || role || '').toUpperCase();
+  const securityOfficer = effectiveUser?.email || officerEmail || 'security@college.edu';
+  const targetPlate = (plateNumber || 'KA-01-AB-1234').toUpperCase();
+
+  if (!effectiveUser && !role) {
+    return res.status(401).json({ success: false, error: 'Authentication required. Please sign in to release vehicles.' });
+  }
+
+  if (userRole !== 'SECURITY' && userRole !== 'ADMIN' && userRole !== 'CAMPUS_ADMIN') {
+    return res.status(403).json({ success: false, error: 'Forbidden: Security Login required to execute vehicle release.' });
+  }
+
+  try {
+    const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+    let targetBookingIndex = -1;
+
+    if (bookingId) {
+      targetBookingIndex = fileBookings.findIndex(b => String(b.id) === String(bookingId));
+    }
+    if (targetBookingIndex === -1 && targetPlate) {
+      targetBookingIndex = fileBookings.findIndex(b => (b.plateNumber || b.vehicle || '').toUpperCase() === targetPlate && b.status !== 'RELEASED' && b.status !== 'EXITED');
+      if (targetBookingIndex === -1) {
+        targetBookingIndex = fileBookings.findIndex(b => (b.plateNumber || b.vehicle || '').toUpperCase() === targetPlate);
+      }
+    }
+
+    const currentBooking = targetBookingIndex !== -1 ? fileBookings[targetBookingIndex] : null;
+
+    // ATOMIC CONCURRENCY CHECK: Prevent duplicate releases
+    if (currentBooking && (currentBooking.status === 'RELEASED' || currentBooking.status === 'EXITED')) {
+      return res.status(409).json({
+        success: false,
+        status: 'ALREADY_RELEASED',
+        error: `Duplicate Release Attempt Blocked: Vehicle ${targetPlate} was ALREADY released at ${currentBooking.releasedAt || 'earlier session'} by ${currentBooking.releasedBy || 'another Security Officer'}.`
+      });
+    }
+
+    const releaseTimestamp = new Date().toISOString();
+    let updatedBooking = null;
+
+    if (currentBooking) {
+      updatedBooking = {
+        ...currentBooking,
+        status: 'RELEASED',
+        releasedAt: releaseTimestamp,
+        releasedBy: securityOfficer,
+        remarks: remarks || 'Released via Security QR Scanner'
+      };
+      fileBookings[targetBookingIndex] = updatedBooking;
+      saveJSONStore(BOOKINGS_FILE, fileBookings);
+
+      // Decrement zone occupancy count
+      const zoneName = currentBooking.zoneName || 'Zone A';
+      const fileZones = loadJSONStore(ZONES_FILE, []);
+      const updatedZones = fileZones.map(z => {
+        if (z.name === zoneName) {
+          return { ...z, occupied: Math.max(0, (z.occupied || 1) - 1) };
+        }
+        return z;
+      });
+      saveJSONStore(ZONES_FILE, updatedZones);
+    }
+
+    // Try database record mutation as well
+    if (bookingId) {
+      await prisma.booking.update({
+        where: { id: String(bookingId) },
+        data: { status: 'RELEASED' }
+      }).catch(() => null);
+    }
+
+    // Add Security Audit Log Entry
+    const auditLog = addSecurityLogEntry(
+      'EXIT',
+      `🚪 Vehicle ${targetPlate} RELEASED via QR Scan by Officer ${securityOfficer}`,
+      '#10B981'
+    );
+
+    // Record Event in DB
+    await prisma.event.create({
+      data: {
+        type: 'EXIT',
+        plateNumber: targetPlate,
+        status: 'RELEASED'
+      }
+    }).catch(() => null);
+
+    // Create Notification for owner
+    const targetOwnerEmail = currentBooking?.userEmail || 'student@college.edu';
+    createNotification({
+      userEmail: targetOwnerEmail,
+      targetRole: 'ALL',
+      category: 'VEHICLE_EXIT',
+      priority: 'HIGH',
+      title: '🚪 Vehicle Release Confirmed',
+      message: `Your vehicle ${targetPlate} has been officially verified and released by Security Officer (${securityOfficer}).`,
+      relatedEntity: targetPlate,
+      deepLink: 'StudentVehiclesScreen'
+    });
+
+    res.json({
+      success: true,
+      status: 'RELEASED',
+      message: `Vehicle ${targetPlate} has been successfully released by Security Officer.`,
+      releasedAt: releaseTimestamp,
+      releasedBy: securityOfficer,
+      booking: updatedBooking,
+      auditLog
+    });
+  } catch (error) {
+    handleDatabaseError(res, error, 'release vehicle');
+  }
 });
 
 // ================= GLOBAL SEARCH ENDPOINT ================= //

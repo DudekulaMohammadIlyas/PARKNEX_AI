@@ -74,18 +74,20 @@ export default function ManageSlots({ occupancy, refreshData }) {
     fetchZonesFromBackend(true);
     const interval = setInterval(() => fetchZonesFromBackend(false), 3000);
 
+    const chName = `web-zones-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('web-zones-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         fetchZonesFromBackend(false);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') fetchZonesFromBackend(false);
       });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchZonesFromBackend(false);
+    });
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 

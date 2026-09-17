@@ -20,23 +20,18 @@ export default function StudentHistoryScreen() {
     const loadHistory = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
         setUser(userObj);
 
-        const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail === 'student@college.edu' || userObj.name === 'Alex Carter';
+        const userEmail = userObj.email || '';
 
-        const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail}`);
-        if (savedHist) {
-          try { setHistoryData(JSON.parse(savedHist)); } catch (e) {}
-        } else if (isDemoUser) {
-          const demo = [
-            { id: '1', date: '2026-08-25', time: '09:15 AM - 01:30 PM', zone: 'KRISHNA HOSTEL', slot: 'Slot K-30', vehicle: 'KA-01-AB-1234', duration: '4h 15m', status: 'CONFIRMED' },
-            { id: '2', date: '2026-08-24', time: '10:15 AM - 12:00 PM', zone: 'CS Academic Block', slot: 'Slot A-12', vehicle: 'KA-01-AB-1234', duration: '1h 45m', status: 'EXITED' },
-            { id: '3', date: '2026-08-20', time: '08:30 AM - 05:00 PM', zone: 'Central Library', slot: 'Slot B-05', vehicle: 'KA-05-XY-9876', duration: '8h 30m', status: 'EXITED' }
-          ];
-          setHistoryData(demo);
-          await AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(demo));
+        if (userEmail) {
+          const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail}`);
+          if (savedHist) {
+            try { setHistoryData(JSON.parse(savedHist)); } catch (e) {}
+          } else {
+            setHistoryData([]);
+          }
         } else {
           setHistoryData([]);
         }
@@ -72,17 +67,19 @@ export default function StudentHistoryScreen() {
 
     loadHistory();
 
+    const chName = `student-history-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('student-history-realtime')
+      .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         loadHistory();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') loadHistory();
       });
 
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') loadHistory();
+    });
+
     return () => {
-      if (supabase.removeChannel) supabase.removeChannel(channel);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
 

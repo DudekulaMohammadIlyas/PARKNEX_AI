@@ -56,16 +56,9 @@ export default function StudentMapScreen() {
           setAllBookings(allBookRes.value.data);
         }
 
-        const isDemoUser = userEmail === 'student@college.edu';
-        if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0) {
+        if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.data.length > 0) {
           setVehicles(vehRes.value.data);
           setSelectedVehiclePlate(vehRes.value.data[0].plateNumber || vehRes.value.data[0].plate || '');
-        } else if (isDemoUser) {
-          setVehicles([
-            { plate: 'KA-09-ZZ-9999', brand: 'Honda Civic' },
-            { plate: 'AP02JT7894', brand: 'Yamaha R15' }
-          ]);
-          setSelectedVehiclePlate('KA-09-ZZ-9999');
         } else {
           setVehicles([]);
           setSelectedVehiclePlate('');

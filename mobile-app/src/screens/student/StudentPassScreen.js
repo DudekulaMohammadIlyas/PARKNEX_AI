@@ -24,59 +24,58 @@ export default function StudentPassScreen({ navigation }) {
     const loadPassData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', name: 'Student' };
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
         setUser(userObj);
 
-        const userEmail = userObj.email || 'student@college.edu';
-        const isDemoUser = userEmail.toLowerCase() === 'student@college.edu';
+        const userEmail = userObj.email || '';
 
-        const savedStart = await AsyncStorage.getItem(`@parknex_start_${userEmail}`);
-        const savedValid = await AsyncStorage.getItem(`@parknex_valid_${userEmail}`);
-        const savedDays = await AsyncStorage.getItem(`@parknex_days_${userEmail}`);
+        if (userEmail) {
+          const savedStart = await AsyncStorage.getItem(`@parknex_start_${userEmail}`);
+          const savedValid = await AsyncStorage.getItem(`@parknex_valid_${userEmail}`);
+          const savedDays = await AsyncStorage.getItem(`@parknex_days_${userEmail}`);
 
-        if (savedStart) setPassStartDate(savedStart);
-        if (savedValid) setPassValidityDate(savedValid);
-        if (savedDays) {
-          setPassPlanDays(savedDays);
-          setCountdownDays(Number(savedDays));
+          if (savedStart) setPassStartDate(savedStart);
+          if (savedValid) setPassValidityDate(savedValid);
+          if (savedDays) {
+            setPassPlanDays(savedDays);
+            setCountdownDays(Number(savedDays));
+          }
         }
 
         // Fetch vehicles from server using smartApiRequest
-        try {
-          const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
-          if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
-            const mapped = vehRes.data.map(v => ({
-              id: v.id,
-              brand: v.brand,
-              model: v.model || 'Standard',
-              color: v.color || 'White',
-              type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
-              plate: v.plateNumber || v.plate,
-              status: v.status || 'Verified'
-            }));
-            setVehicles(mapped);
-            setSelectedVehiclePlate(mapped[0].plate);
-            await AsyncStorage.setItem(`@parknex_vehicles_${userEmail.toLowerCase()}`, JSON.stringify(mapped));
-          } else {
-            const savedVehicles = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
-            if (savedVehicles) {
-              const parsed = JSON.parse(savedVehicles);
-              setVehicles(parsed);
-              if (parsed.length > 0) setSelectedVehiclePlate(parsed[0].plate);
-            } else if (isDemoUser) {
-              const demo = [
-                { id: '1', brand: 'Honda', model: 'Civic', color: 'Pearl White', type: '4-Wheeler', plate: 'KA-09-ZZ-9999', status: 'Verified' },
-                { id: '2', brand: 'Yamaha', model: 'R15', color: 'Racing Blue', type: '2-Wheeler', plate: 'AP02JT7894', status: 'Verified' }
-              ];
-              setVehicles(demo);
-              setSelectedVehiclePlate('KA-09-ZZ-9999');
+        if (userEmail) {
+          try {
+            const vehRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
+            if (Array.isArray(vehRes.data) && vehRes.data.length > 0) {
+              const mapped = vehRes.data.map(v => ({
+                id: v.id,
+                brand: v.brand,
+                model: v.model || 'Standard',
+                color: v.color || 'White',
+                type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : v.type === 'ELECTRIC_VEHICLE' ? 'EV' : '4-Wheeler',
+                plate: v.plateNumber || v.plate,
+                status: v.status || 'Verified'
+              }));
+              setVehicles(mapped);
+              setSelectedVehiclePlate(mapped[0].plate);
+              await AsyncStorage.setItem(`@parknex_vehicles_${userEmail.toLowerCase()}`, JSON.stringify(mapped));
             } else {
-              setVehicles([]);
-              setSelectedVehiclePlate('');
+              const savedVehicles = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`);
+              if (savedVehicles) {
+                const parsed = JSON.parse(savedVehicles);
+                setVehicles(parsed);
+                if (parsed.length > 0) setSelectedVehiclePlate(parsed[0].plate);
+              } else {
+                setVehicles([]);
+                setSelectedVehiclePlate('');
+              }
             }
+          } catch (e) {
+            setVehicles([]);
           }
-        } catch (e) {
+        } else {
           setVehicles([]);
+          setSelectedVehiclePlate('');
         }
 
         const passRes = await smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`).catch(() => null);

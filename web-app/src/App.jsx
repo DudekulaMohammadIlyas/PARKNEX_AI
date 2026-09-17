@@ -123,13 +123,11 @@ function App() {
 
     // Restore updated profile from localStorage cache first
     const cachedProfile = localStorage.getItem(`parknex_user_profile_${userDetails.email || formattedRole}`);
-    let initialName = userDetails.name || (formattedRole === 'ADMIN' ? 'System Admin' : formattedRole === 'SECURITY' ? 'Officer Davis' : 'Student');
+    let initialName = userDetails.name || (userDetails.email ? userDetails.email.split('@')[0] : 'User');
     let initialPhone = userDetails.phone || '';
-    let initialEmail = userDetails.email || `${formattedRole.toLowerCase()}@college.edu`;
-
-    const isDemo = initialEmail === 'student@college.edu' || initialEmail === 'admin@college.edu' || initialEmail === 'security@college.edu';
-    let initialDept = userDetails.department || (isDemo ? 'Computer Science & Engineering' : '');
-    let initialTerm = userDetails.academicTerm || (isDemo ? 'Fall 2024 - Spring 2028' : '');
+    let initialEmail = userDetails.email || '';
+    let initialDept = userDetails.department || '';
+    let initialTerm = userDetails.academicTerm || '';
 
     if (cachedProfile) {
       try {
@@ -271,6 +269,17 @@ function App() {
     setIsProfileModalOpen(false);
 
     localStorage.setItem(`parknex_user_profile_${profileForm.email || role}`, JSON.stringify(updatedProfile));
+
+    try {
+      const storedUserStr = localStorage.getItem('parknex_user');
+      let storedUser = {};
+      try { storedUser = storedUserStr ? JSON.parse(storedUserStr) : {}; } catch (e) {}
+      storedUser.name = profileForm.name;
+      storedUser.phone = profileForm.phone;
+      storedUser.department = profileForm.department;
+      storedUser.academicTerm = profileForm.academicTerm;
+      localStorage.setItem('parknex_user', JSON.stringify(storedUser));
+    } catch (e) {}
 
     try {
       await axios.put(`${BACKEND_URL}/users/profile`, {
