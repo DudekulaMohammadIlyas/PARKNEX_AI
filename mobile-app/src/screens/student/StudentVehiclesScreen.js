@@ -3,6 +3,7 @@ import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Moda
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config, { smartApiRequest } from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -19,11 +20,12 @@ export default function StudentVehiclesScreen() {
   const [addType, setAddType] = useState('4-Wheeler');
 
   useEffect(() => {
+    let isMounted = true;
     const loadUserAndVehicles = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
         const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
-        setUser(userObj);
+        if (isMounted) setUser(userObj);
 
         const userEmail = userObj.email || '';
         const storageKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
@@ -32,7 +34,7 @@ export default function StudentVehiclesScreen() {
         if (userEmail) {
           try {
             const apiRes = await smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`);
-            if (Array.isArray(apiRes.data) && apiRes.data.length > 0) {
+            if (Array.isArray(apiRes.data) && apiRes.data.length > 0 && isMounted) {
               const mapped = apiRes.data.map(v => ({
                 id: v.id,
                 brand: v.brand,
@@ -51,17 +53,35 @@ export default function StudentVehiclesScreen() {
 
         // 2. Local fallback
         const saved = userEmail ? await AsyncStorage.getItem(storageKey) : null;
-        if (saved) {
+        if (saved && isMounted) {
           try { setVehicles(JSON.parse(saved)); } catch (e) { setVehicles([]); }
-        } else {
+        } else if (isMounted) {
           setVehicles([]);
         }
       } catch (err) {
-        setVehicles([]);
+        if (isMounted) setVehicles([]);
       }
     };
 
     loadUserAndVehicles();
+    const interval = setInterval(loadUserAndVehicles, 3000);
+
+    const chName = `student-vehicles-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        loadUserAndVehicles();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') loadUserAndVehicles();
+    });
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const saveVehiclesLocally = async (newVehList) => {
@@ -119,6 +139,11 @@ export default function StudentVehiclesScreen() {
           text: 'Remove', 
           style: 'destructive',
           onPress: async () => {
+            const targetVeh = vehicles.find(v => v.plate === plateToDelete);
+            const targetId = targetVeh?.id || plateToDelete;
+            try {
+              await smartApiRequest('delete', `/vehicles/${targetId}`);
+            } catch (e) {}
             const updated = vehicles.filter(v => v.plate !== plateToDelete);
             await saveVehiclesLocally(updated);
             Alert.alert('Removed', 'Vehicle removed from your registered list.');

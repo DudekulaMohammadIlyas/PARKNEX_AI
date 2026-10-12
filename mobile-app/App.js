@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Services & Config
-import config from './config';
+import config, { smartApiRequest } from './config';
 import { supabase } from './supabaseClient';
 import * as NotificationService from './notificationService';
 import { globalStyles as styles } from './src/theme/styles';
@@ -29,6 +29,8 @@ import SlotOccupiedAlertScreen from './src/screens/student/SlotOccupiedAlertScre
 import ExitSuccessScreen from './src/screens/student/ExitSuccessScreen';
 import StudentHistoryScreen from './src/screens/student/StudentHistoryScreen';
 import StudentProfileScreen from './src/screens/student/StudentProfileScreen';
+import StudentBillingScreen from './src/screens/student/StudentBillingScreen';
+import AIChatScreen from './src/screens/student/AIChatScreen';
 
 import SecurityDashboard from './src/screens/security/SecurityDashboard';
 import ScanScreen from './src/screens/security/ScanScreen';
@@ -69,11 +71,11 @@ axios.interceptors.request.use(async (reqConfig) => {
 
 // Security Stack
 const SecurityStackNav = createStackNavigator();
-function SecurityStack({ onLogout }) {
+function SecurityStack({ onLogout, user }) {
   return (
     <SecurityStackNav.Navigator screenOptions={{ headerShown: false }}>
       <SecurityStackNav.Screen name="SecurityHome">
-        {props => <SecurityDashboard {...props} onLogout={onLogout} />}
+        {props => <SecurityDashboard {...props} onLogout={onLogout} user={user} />}
       </SecurityStackNav.Screen>
       <SecurityStackNav.Screen name="Scan" component={ScanScreen} />
       <SecurityStackNav.Screen name="Processing" component={ProcessingScreen} />
@@ -81,21 +83,25 @@ function SecurityStack({ onLogout }) {
       <SecurityStackNav.Screen name="ExitScan" component={ExitScanScreen} />
       <SecurityStackNav.Screen name="ExitCleared" component={ExitClearedScreen} />
       <SecurityStackNav.Screen name="OfficerProfile">
-        {props => <OfficerProfileScreen {...props} onLogout={onLogout} />}
+        {props => <OfficerProfileScreen {...props} onLogout={onLogout} user={user} />}
       </SecurityStackNav.Screen>
       <SecurityStackNav.Screen name="VehicleSearch" component={VehicleSearchScreen} />
       <SecurityStackNav.Screen name="SecurityLogs" component={SecurityLogsScreen} />
+      <SecurityStackNav.Screen name="Notifications">
+        {props => <NotificationsScreen {...props} user={user} userRole="SECURITY" />}
+      </SecurityStackNav.Screen>
+      <SecurityStackNav.Screen name="AIChat" component={AIChatScreen} />
     </SecurityStackNav.Navigator>
   );
 }
 
 // Admin Stack
 const AdminStackNav = createStackNavigator();
-function AdminStack({ onLogout, occupancy, events }) {
+function AdminStack({ onLogout, occupancy, events, user }) {
   return (
     <AdminStackNav.Navigator screenOptions={{ headerShown: false }}>
       <AdminStackNav.Screen name="AdminHome">
-        {props => <AdminDashboard {...props} occupancy={occupancy} events={events} onLogout={onLogout} />}
+        {props => <AdminDashboard {...props} occupancy={occupancy} events={events} onLogout={onLogout} user={user} />}
       </AdminStackNav.Screen>
       <AdminStackNav.Screen name="UserManagement" component={UserManagementScreen} />
       <AdminStackNav.Screen name="AuthorizedVehicles" component={AuthorizedVehiclesScreen} />
@@ -107,8 +113,12 @@ function AdminStack({ onLogout, occupancy, events }) {
       <AdminStackNav.Screen name="SystemActivity" component={SystemActivityScreen} />
       <AdminStackNav.Screen name="Analytics" component={AnalyticsScreen} />
       <AdminStackNav.Screen name="AdminProfile">
-        {props => <AdminProfileScreen {...props} onLogout={onLogout} />}
+        {props => <AdminProfileScreen {...props} onLogout={onLogout} user={user} />}
       </AdminStackNav.Screen>
+      <AdminStackNav.Screen name="Notifications">
+        {props => <NotificationsScreen {...props} user={user} userRole="ADMIN" />}
+      </AdminStackNav.Screen>
+      <AdminStackNav.Screen name="AIChat" component={AIChatScreen} />
     </AdminStackNav.Navigator>
   );
 }
@@ -140,11 +150,15 @@ function HomeStack({ occupancy, navigation, user }) {
       </HomeStackNav.Screen>
       <HomeStackNav.Screen name="Vehicles" component={StudentVehiclesScreen} />
       <HomeStackNav.Screen name="Pass" component={StudentPassScreen} />
+      <HomeStackNav.Screen name="Billing" component={StudentBillingScreen} />
       <HomeStackNav.Screen name="LiveStatus" component={LiveStatusScreen} />
-      <HomeStackNav.Screen name="Notifications" component={NotificationsScreen} />
+      <HomeStackNav.Screen name="Notifications">
+        {props => <NotificationsScreen {...props} user={user} userRole="STUDENT" />}
+      </HomeStackNav.Screen>
       <HomeStackNav.Screen name="SlotOccupied" component={SlotOccupiedAlertScreen} />
       <HomeStackNav.Screen name="ExitSuccess" component={ExitSuccessScreen} />
       <HomeStackNav.Screen name="History" component={StudentHistoryScreen} />
+      <HomeStackNav.Screen name="AIChat" component={AIChatScreen} />
     </HomeStackNav.Navigator>
   );
 }
@@ -207,7 +221,7 @@ function SecurityTabs({ onLogout, user }) {
       })}
     >
       <SecurityTab.Screen name="Home">
-        {props => <SecurityStack {...props} onLogout={onLogout} />}
+        {props => <SecurityStack {...props} onLogout={onLogout} user={user} />}
       </SecurityTab.Screen>
       <SecurityTab.Screen name="CCTV">
         {props => <SecurityDashboard {...props} onLogout={onLogout} initialTab="cctv" />}
@@ -248,7 +262,7 @@ function AdminTabs({ occupancy, events, onLogout, user }) {
       })}
     >
       <AdminTab.Screen name="Home">
-        {props => <AdminStack {...props} occupancy={occupancy} events={events} onLogout={onLogout} />}
+        {props => <AdminStack {...props} occupancy={occupancy} events={events} onLogout={onLogout} user={user} />}
       </AdminTab.Screen>
       <AdminTab.Screen name="Zones" component={ManageZonesScreen} />
       <AdminTab.Screen name="Users" component={UserManagementScreen} />
@@ -292,19 +306,34 @@ function MainApp() {
     const fetchData = async () => {
       try {
         const [occ, ev] = await Promise.all([
-          axios.get(`${BACKEND_URL}/occupancy`),
-          axios.get(`${BACKEND_URL}/events`)
+          smartApiRequest('get', '/occupancy'),
+          smartApiRequest('get', '/events')
         ]);
-        setOccupancy(occ.data);
-        setEvents(ev.data);
+        if (occ?.data) setOccupancy(occ.data);
+        if (ev?.data) setEvents(ev.data);
       } catch (e) {
         console.warn('Data fetch warning:', e.message);
       }
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchData, 4000);
+
+    const chName = `mobile-main-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchData();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchData();
+    });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const handleLoginSuccess = async (userData, token) => {

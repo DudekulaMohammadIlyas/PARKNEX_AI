@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -71,6 +71,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [editName, setEditName] = useState('Officer Davis');
   const [editRank, setEditRank] = useState('Head Security Officer');
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const pushSecurityLog = async (type, text, color = '#6366F1') => {
     const newEntry = {
@@ -88,11 +89,12 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
 
   const fetchSecurityData = async () => {
     try {
-      const [vRes, cRes, visRes, logRes] = await Promise.allSettled([
-        axios.get(`${BACKEND_URL}/violations`),
-        axios.get(`${BACKEND_URL}/cameras`),
-        axios.get(`${BACKEND_URL}/visitors`),
-        axios.get(`${BACKEND_URL}/security-logs`)
+      const [vRes, cRes, visRes, logRes, nRes] = await Promise.allSettled([
+        smartApiRequest('get', '/violations'),
+        smartApiRequest('get', '/cameras'),
+        smartApiRequest('get', '/visitors'),
+        smartApiRequest('get', '/security-logs'),
+        smartApiRequest('get', `/notifications?role=SECURITY&email=${encodeURIComponent(officerProfile.email || 'security@college.edu')}`)
       ]);
 
       if (vRes.status === 'fulfilled' && Array.isArray(vRes.value.data) && vRes.value.data.length > 0) {
@@ -107,11 +109,20 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
       if (logRes.status === 'fulfilled' && Array.isArray(logRes.value.data) && logRes.value.data.length > 0) {
         setSecurityLogs(logRes.value.data);
       }
+      if (nRes.status === 'fulfilled' && nRes.value.data) {
+        setUnreadNotifCount(nRes.value.data.unreadCount || 0);
+      }
     } catch (e) {}
   };
 
   useEffect(() => {
     fetchSecurityData();
+    const interval = setInterval(fetchSecurityData, 3000);
+
+    const unsubscribe = navigation?.addListener?.('focus', () => {
+      fetchSecurityData();
+    });
+
     const chName = `security-realtime-sync-${Date.now()}`;
     const channel = supabase
       .channel(chName)
@@ -125,9 +136,10 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
 
     return () => {
       clearInterval(interval);
+      if (unsubscribe) unsubscribe();
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [navigation]);
 
   const handleAddCameraMobile = async () => {
     if (!newCamName.trim()) {
@@ -296,24 +308,67 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
-              onPress={onLogout}
-            >
-              <Ionicons name="log-out" size={20} color="#F87171" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#1E293B', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#334155', position: 'relative' }} 
+                onPress={() => navigation?.navigate('Notifications', { userEmail: officerProfile.email || 'security@college.edu', userRole: 'SECURITY' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="notifications" size={20} color="#38BDF8" />
+                {unreadNotifCount > 0 && (
+                  <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', borderRadius: 9, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>{unreadNotifCount > 9 ? '9+' : unreadNotifCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#2563EB', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#3B82F6' }} 
+                onPress={() => navigation?.navigate('AIChat', { userRole: 'SECURITY', userName: officerProfile.name })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
+                onPress={onLogout}
+              >
+                <Ionicons name="log-out" size={20} color="#F87171" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         {/* TOP SEGMENTED TAB NAVIGATION BAR */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 18 }}>
           {[
+            { key: 'aichat', label: '🤖 AI Assistant' },
             { key: 'overview', label: '🛡️ Overview' },
             { key: 'cctv', label: '📹 CCTV Grid' },
             { key: 'visitors', label: '👤 Visitors' },
             { key: 'violations', label: '🎟️ Violations' },
             { key: 'settings', label: '⚙️ Settings' }
           ].map(t => {
+            if (t.key === 'aichat') {
+              return (
+                <TouchableOpacity
+                  key={t.key}
+                  onPress={() => navigation?.navigate('AIChat', { userRole: 'SECURITY', userName: officerProfile.name })}
+                  style={{
+                    backgroundColor: '#8B5CF6',
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 14,
+                    shadowColor: '#8B5CF6',
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 3
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>{t.label}</Text>
+                </TouchableOpacity>
+              );
+            }
             const isSel = activeTab === t.key;
             return (
               <TouchableOpacity
@@ -928,6 +983,34 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
           </View>
         </View>
       </Modal>
+
+      {/* FLOATING ACTION BUTTON (FAB) FOR AI ASSISTANT */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 20,
+          backgroundColor: '#4F46E5',
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 18,
+          borderRadius: 28,
+          shadowColor: '#4F46E5',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.4,
+          shadowRadius: 10,
+          elevation: 8,
+          gap: 8,
+          borderWidth: 1.5,
+          borderColor: '#818CF8'
+        }}
+        onPress={() => navigation?.navigate('AIChat', { userRole: 'SECURITY', userName: officerProfile.name })}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
+        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13, letterSpacing: 0.2 }}>Ask AI</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

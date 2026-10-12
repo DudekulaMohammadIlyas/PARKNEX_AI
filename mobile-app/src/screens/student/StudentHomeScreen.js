@@ -50,6 +50,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [newPlate, setNewPlate] = useState('');
   const [newType, setNewType] = useState('4-Wheeler');
 
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toastAlert, setToastAlert] = useState(null);
+  const seenToastIdsRef = useRef(new Set());
+
   // Focus listener to continuously keep userProfile synced without screen flickering
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +78,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
     const unsubscribe = navigation?.addListener?.('focus', () => {
       loadProfileState();
+      fetchHomeData();
     });
 
     return () => {
@@ -88,13 +93,14 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
         const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
 
-        const [passRes, recRes, zoneRes, vehRes, bookRes, profRes] = await Promise.allSettled([
+        const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes] = await Promise.allSettled([
           smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
           smartApiRequest('get', `/zones`),
           smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`)
+          smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`),
+          smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`)
         ]);
 
         if (profRes.status === 'fulfilled' && profRes.value.data?.user) {
@@ -114,6 +120,31 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         }
         if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
           setCampusZones(zoneRes.value.data);
+        }
+
+        // Process notifications for unread count badge & real-time toast alert
+        if (notifsRes.status === 'fulfilled' && notifsRes.value.data) {
+          const notifList = notifsRes.value.data.notifications || [];
+          const unread = notifList.filter(n => !n.isRead).length;
+          setUnreadCount(unread);
+
+          const nowMs = Date.now();
+          const freshAlerts = notifList.filter(n => {
+            if (n.isRead) return false;
+            if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH') return false;
+            if (seenToastIdsRef.current.has(n.id)) return false;
+            const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+            return (nowMs - createdMs) < 180000;
+          });
+
+          if (freshAlerts.length > 0) {
+            const newAlert = freshAlerts[0];
+            seenToastIdsRef.current.add(newAlert.id);
+            setToastAlert(newAlert);
+            setTimeout(() => {
+              setToastAlert(curr => curr?.id === newAlert.id ? null : curr);
+            }, 6500);
+          }
         }
 
         // Fetch vehicles from API & AsyncStorage
@@ -311,6 +342,56 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+      {/* REAL-TIME CRITICAL TOAST ALERT POPUP BANNER */}
+      {toastAlert && (
+        <View style={{
+          position: 'absolute',
+          top: 10,
+          left: 16,
+          right: 16,
+          zIndex: 9999,
+          backgroundColor: toastAlert.priority === 'CRITICAL' ? '#7F1D1D' : '#1E1B4B',
+          borderLeftWidth: 6,
+          borderLeftColor: toastAlert.priority === 'CRITICAL' ? '#EF4444' : '#F59E0B',
+          borderRadius: 14,
+          padding: 14,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.35,
+          shadowRadius: 10,
+          elevation: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <TouchableOpacity 
+            style={{ flex: 1, marginRight: 8 }}
+            onPress={() => {
+              navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: 'STUDENT' });
+              setToastAlert(null);
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '900', color: toastAlert.priority === 'CRITICAL' ? '#FCA5A5' : '#FDE047', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+              {toastAlert.priority} ALERT • {toastAlert.category || 'SYSTEM'}
+            </Text>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#FFFFFF', marginTop: 2 }}>{toastAlert.title}</Text>
+            <Text style={{ fontSize: 11, color: '#E2E8F0', marginTop: 2 }} numberOfLines={2}>{toastAlert.message}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={async () => {
+              if (toastAlert?.id) {
+                seenToastIdsRef.current.add(toastAlert.id);
+                smartApiRequest('put', `/notifications/${toastAlert.id}/read`).catch(() => null);
+              }
+              setToastAlert(null);
+            }}
+            style={{ padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20 }}
+          >
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         
         {/* WELCOME BACK HEADER */}
@@ -344,15 +425,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity 
-              style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
-              onPress={() => navigation?.navigate('Notifications')}
+              style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE', position: 'relative' }}
+              onPress={() => navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: 'STUDENT' })}
               activeOpacity={0.7}
             >
               <Feather name="bell" size={20} color="#2563EB" />
+              {unreadCount > 0 && (
+                <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: '#FFFFFF' }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity 
               style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
-              onPress={() => setIsChatOpen(true)}
+              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })}
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
@@ -372,7 +458,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
         {/* INTERACTIVE NAVIGATION PILL TABS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
-          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setIsChatOpen(true)} activeOpacity={0.8}>
+          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })} activeOpacity={0.8}>
             <MaterialCommunityIcons name="robot" size={16} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>AI Assistant</Text>
           </TouchableOpacity>
@@ -394,6 +480,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           </TouchableOpacity>
 
           <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Pass')} activeOpacity={0.8}>
+            <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Digital Pass</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('Billing')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Passes & Billing</Text>
           </TouchableOpacity>
 
@@ -751,6 +841,34 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           </View>
         </View>
       </Modal>
+
+      {/* FLOATING ACTION BUTTON (FAB) FOR AI ASSISTANT */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 20,
+          backgroundColor: '#4F46E5',
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 18,
+          borderRadius: 28,
+          shadowColor: '#4F46E5',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.4,
+          shadowRadius: 10,
+          elevation: 8,
+          gap: 8,
+          borderWidth: 1.5,
+          borderColor: '#818CF8'
+        }}
+        onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
+        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13, letterSpacing: 0.2 }}>Ask AI</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

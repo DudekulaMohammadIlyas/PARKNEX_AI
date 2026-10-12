@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal } 
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -17,29 +17,26 @@ export default function StudentHistoryScreen() {
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const loadHistory = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
         const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
-        setUser(userObj);
+        if (isMounted) setUser(userObj);
 
         const userEmail = userObj.email || '';
 
         if (userEmail) {
-          const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail}`);
-          if (savedHist) {
+          const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail.toLowerCase()}`);
+          if (savedHist && isMounted) {
             try { setHistoryData(JSON.parse(savedHist)); } catch (e) {}
-          } else {
-            setHistoryData([]);
           }
-        } else {
-          setHistoryData([]);
         }
 
-        const apiRes = await axios.get(`${BACKEND_URL}/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
-        if (Array.isArray(apiRes?.data) && apiRes.data.length > 0) {
+        const apiRes = await smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
+        if (Array.isArray(apiRes?.data) && apiRes.data.length > 0 && isMounted) {
           const apiMapped = apiRes.data.map(b => ({
-            id: b.id || `b_${Date.now()}`,
+            id: String(b.id || `b_${Date.now()}`),
             date: b.bookingDate || 'Today',
             time: b.bookingTime || '09:00 AM',
             zone: b.zoneName || b.slot?.zone?.name || 'KRISHNA HOSTEL',
@@ -58,7 +55,7 @@ export default function StudentHistoryScreen() {
               }
             });
             const merged = Array.from(map.values());
-            AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(merged)).catch(() => null);
+            AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(merged)).catch(() => null);
             return merged;
           });
         }
@@ -66,6 +63,7 @@ export default function StudentHistoryScreen() {
     };
 
     loadHistory();
+    const interval = setInterval(loadHistory, 3000);
 
     const chName = `student-history-realtime-${Date.now()}`;
     const channel = supabase
@@ -79,6 +77,8 @@ export default function StudentHistoryScreen() {
     });
 
     return () => {
+      isMounted = false;
+      clearInterval(interval);
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
@@ -87,7 +87,7 @@ export default function StudentHistoryScreen() {
     if (!selectedExitBooking) return;
 
     try {
-      await axios.put(`${BACKEND_URL}/bookings/${selectedExitBooking.id}/exit`).catch(() => null);
+      await smartApiRequest('put', `/bookings/${selectedExitBooking.id}/exit`).catch(() => null);
     } catch (e) {}
 
     const updated = historyData.map(h => 
@@ -96,7 +96,7 @@ export default function StudentHistoryScreen() {
     setHistoryData(updated);
 
     const userEmail = user?.email || 'student@college.edu';
-    await AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(updated));
+    await AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(updated));
 
     setIsExitModalOpen(false);
     Alert.alert('Checkout Successful', `Gate Barrier Released! Slot ${selectedExitBooking.slot} is now marked 100% FREE in backend database.`);

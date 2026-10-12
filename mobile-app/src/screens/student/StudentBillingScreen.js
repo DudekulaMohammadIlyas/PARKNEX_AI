@@ -9,7 +9,7 @@ import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
-export default function StudentBillingScreen({ onLogout }) {
+export default function StudentBillingScreen({ onLogout, navigation }) {
   const [user, setUser] = useState(null);
   const [validUntilYear, setValidUntilYear] = useState('2026');
   const [receiptsList, setReceiptsList] = useState([]);
@@ -31,6 +31,11 @@ export default function StudentBillingScreen({ onLogout }) {
             try { setReceiptsList(JSON.parse(savedReceipts)); } catch (e) {}
           } else {
             setReceiptsList([]);
+          }
+
+          const savedValid = await AsyncStorage.getItem(`@parknex_valid_${userEmail}`);
+          if (savedValid && savedValid.includes('2027')) {
+            setValidUntilYear('2027');
           }
         } else {
           setReceiptsList([]);
@@ -58,17 +63,26 @@ export default function StudentBillingScreen({ onLogout }) {
       const updated = [newRec, ...receiptsList];
       setReceiptsList(updated);
       await AsyncStorage.setItem(`@parknex_receipts_${userEmail}`, JSON.stringify(updated));
+      await AsyncStorage.setItem(`@parknex_valid_${userEmail}`, 'Dec 31, 2027');
+      await AsyncStorage.setItem(`@parknex_days_${userEmail}`, '493');
 
       setIsProcessing(false);
       setIsPayModalOpen(false);
-      Alert.alert('Renewal Successful!', 'Your Digital Campus Parking Permit has been renewed until December 31, 2027.');
+      Alert.alert('Renewal Successful! 💳', 'Your Digital Campus Parking Permit has been renewed until December 31, 2027.');
     }, 1200);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={[styles.header, { paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <Text style={[styles.greeting, { fontSize: 24 }]}>Passes & Billing</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {navigation?.canGoBack?.() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 6, marginLeft: -6, marginRight: 8 }}>
+              <Feather name="arrow-left" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          )}
+          <Text style={[styles.greeting, { fontSize: 22, marginTop: 0 }]}>Passes & Billing</Text>
+        </View>
         <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700' }}>Active Subscription</Text>
       </View>
 

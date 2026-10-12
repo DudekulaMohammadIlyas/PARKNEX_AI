@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Alert } 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import config from '../../../config';
+import config, { smartApiRequest } from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -23,52 +24,76 @@ export default function StudentMapScreen() {
   
   // Slot Modal Booking State
   const [selectedSlotForBooking, setSelectedSlotForBooking] = useState(null);
-  const [selectedVehiclePlate, setSelectedVehiclePlate] = useState('KA-09-ZZ-9999');
+  const [selectedVehiclePlate, setSelectedVehiclePlate] = useState('');
   const [bookingDuration, setBookingDuration] = useState(4);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchMapData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
         const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu' };
         const userEmail = userObj.email || 'student@college.edu';
-        setCurrentUserEmail(userEmail);
+        if (isMounted) setCurrentUserEmail(userEmail);
 
         const [zoneRes, bookRes, allBookRes, vehRes] = await Promise.allSettled([
           smartApiRequest('get', '/zones'),
-          smartApiRequest('get', `/bookings/my-bookings?email=${userEmail}`),
+          smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', '/bookings/all'),
-          smartApiRequest('get', `/vehicles?email=${userEmail}`)
+          smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`)
         ]);
 
-        if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
+        if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0 && isMounted) {
           setRawZoneObjs(zoneRes.value.data);
           const names = zoneRes.value.data.map(z => z.name);
           setZones(names);
         }
 
-        if (bookRes.status === 'fulfilled' && Array.isArray(bookRes.value.data)) {
+        if (bookRes.status === 'fulfilled' && Array.isArray(bookRes.value.data) && isMounted) {
           setMyBookings(bookRes.value.data);
         }
 
-        if (allBookRes.status === 'fulfilled' && Array.isArray(allBookRes.value.data)) {
+        if (allBookRes.status === 'fulfilled' && Array.isArray(allBookRes.value.data) && isMounted) {
           setAllBookings(allBookRes.value.data);
         }
 
-        if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.data.length > 0) {
+        if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0 && isMounted) {
           setVehicles(vehRes.value.data);
-          setSelectedVehiclePlate(vehRes.value.data[0].plateNumber || vehRes.value.data[0].plate || '');
-        } else {
-          setVehicles([]);
-          setSelectedVehiclePlate('');
+          setSelectedVehiclePlate(prev => prev || vehRes.value.data[0].plateNumber || vehRes.value.data[0].plate || '');
+        } else if (isMounted) {
+          // Check local cache
+          const localVeh = await AsyncStorage.getItem(`@parknex_vehicles_${userEmail.toLowerCase()}`).catch(() => null);
+          if (localVeh) {
+            try {
+              const parsed = JSON.parse(localVeh);
+              setVehicles(parsed);
+              if (parsed.length > 0) setSelectedVehiclePlate(prev => prev || parsed[0].plate);
+            } catch (e) {}
+          }
         }
       } catch (e) {}
     };
 
     fetchMapData();
     const interval = setInterval(fetchMapData, 3000);
-    return () => clearInterval(interval);
+
+    const chName = `student-map-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchMapData();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchMapData();
+    });
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const getZonePrefix = (zName) => {
@@ -150,16 +175,36 @@ export default function StudentMapScreen() {
     setMyBookings(prev => [newBookingObj, ...prev]);
     setAllBookings(prev => [newBookingObj, ...prev]);
 
+    const bookingDateStr = new Date().toISOString().split('T')[0];
+    const bookingTimeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
     try {
-      await axios.post(`${BACKEND_URL}/bookings`, {
+      await smartApiRequest('post', '/bookings', {
         userEmail: currentUserEmail,
         zoneName: selectedZone,
         slotNumber: selectedSlotForBooking.id,
         plateNumber: selectedVehiclePlate,
+        vehiclePlate: selectedVehiclePlate,
         durationHours: bookingDuration,
-        bookingDate: new Date().toISOString().split('T')[0],
-        bookingTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        bookingDate: bookingDateStr,
+        bookingTime: bookingTimeStr
       }).catch(() => null);
+
+      // Save to local history cache
+      const histKey = `@parknex_history_${currentUserEmail.toLowerCase()}`;
+      const savedHist = await AsyncStorage.getItem(histKey).catch(() => null);
+      let list = savedHist ? JSON.parse(savedHist) : [];
+      list = [{
+        id: newBookingObj.id,
+        date: bookingDateStr,
+        time: `${bookingTimeStr} (${bookingDuration} hrs)`,
+        zone: selectedZone,
+        slot: selectedSlotForBooking.id,
+        vehicle: selectedVehiclePlate,
+        duration: `${bookingDuration} Hours`,
+        status: 'CONFIRMED'
+      }, ...list];
+      await AsyncStorage.setItem(histKey, JSON.stringify(list)).catch(() => null);
 
       Alert.alert(
         'Slot Reserved Successfully! 🎉',

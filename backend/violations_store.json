@@ -1,11 +1,19 @@
 [
   {
+    "id": "151016c1-e3be-45ba-b74d-a21acbff9857",
+    "plateNumber": "KA-01-AB-1234",
+    "type": "WRONG_PARKING",
+    "description": "Resolved Ticket",
+    "penaltyAmount": 500,
+    "status": "RESOLVED"
+  },
+  {
     "id": "1",
     "plateNumber": "UP-16-XX-8888",
     "type": "UNAUTHORIZED_ENTRY",
     "description": "no entry",
     "penaltyAmount": 1200,
-    "status": "PENDING"
+    "status": "RESOLVED"
   },
   {
     "id": "2",
@@ -13,7 +21,7 @@
     "type": "WRONG_PARKING",
     "description": "Reported by Security Officer",
     "penaltyAmount": 500,
-    "status": "PENDING"
+    "status": "RESOLVED"
   },
   {
     "id": "3",

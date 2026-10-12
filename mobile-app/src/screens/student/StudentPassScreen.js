@@ -106,12 +106,30 @@ export default function StudentPassScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bg }]}>
+      {/* Header with back button */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {navigation?.canGoBack?.() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 6, marginLeft: -6, marginRight: 8 }}>
+              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          )}
+          <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>Digital Campus Pass</Text>
+        </View>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#EFF6FF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }}
+          onPress={() => navigation?.navigate('Billing')}
+        >
+          <Text style={{ color: '#2563EB', fontWeight: '800', fontSize: 12 }}>Billing & Receipts</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
         
-        <Text style={{ fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 4 }}>
-          Digital Campus Parking Pass
+        <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
+          Digital Campus Parking Permit
         </Text>
-        <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>
+        <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16, textAlign: 'center' }}>
           Scan at Gate Barrier for Instant Entry & Exit Release
         </Text>
 
@@ -131,69 +149,79 @@ export default function StudentPassScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity 
-            style={{ backgroundColor: '#D97706', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
-            onPress={() => {
-              Alert.alert(
-                'Select Advance Renewal Plan 🎫',
-                'Choose a dynamic validity duration plan:',
-                [
-                  {
-                    text: '🗓️ 1-Day Daily (₹50)',
-                    onPress: async () => {
-                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      const validStr = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      setPassStartDate(todayStr);
-                      setPassValidityDate(validStr);
-                      setPassPlanDays('1');
-                      setCountdownDays(1);
-                      const uEmail = user?.email || 'student@college.edu';
-                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
-                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
-                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '1');
-                      Alert.alert('Pass Renewed! 🎫', `1-Day Daily Plan Active until ${validStr}`);
-                    }
-                  },
-                  {
-                    text: '🗓️ 30-Day Monthly (₹499)',
-                    onPress: async () => {
-                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      const validStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      setPassStartDate(todayStr);
-                      setPassValidityDate(validStr);
-                      setPassPlanDays('30');
-                      setCountdownDays(30);
-                      const uEmail = user?.email || 'student@college.edu';
-                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
-                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
-                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '30');
-                      Alert.alert('Pass Renewed! 🎫', `30-Day Monthly Plan Active until ${validStr}`);
-                    }
-                  },
-                  {
-                    text: '🎓 180-Day Semester (₹1,499)',
-                    onPress: async () => {
-                      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      const validStr = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                      setPassStartDate(todayStr);
-                      setPassValidityDate(validStr);
-                      setPassPlanDays('180');
-                      setCountdownDays(180);
-                      const uEmail = user?.email || 'student@college.edu';
-                      await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
-                      await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
-                      await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '180');
-                      Alert.alert('Pass Renewed! 🎫', `180-Day Semester Plan Active until ${validStr}`);
-                    }
-                  },
-                  { text: 'Cancel', style: 'cancel' }
-                ]
-              );
-            }}
-          >
-            <Ionicons name="card" size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>Select & Pay Plan Renewal</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity 
+              style={{ flex: 1, backgroundColor: '#D97706', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+              onPress={() => {
+                Alert.alert(
+                  'Select Advance Renewal Plan 🎫',
+                  'Choose a dynamic validity duration plan:',
+                  [
+                    {
+                      text: '🗓️ 1-Day Daily (₹50)',
+                      onPress: async () => {
+                        const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        const validStr = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        setPassStartDate(todayStr);
+                        setPassValidityDate(validStr);
+                        setPassPlanDays('1');
+                        setCountdownDays(1);
+                        const uEmail = user?.email || 'student@college.edu';
+                        await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                        await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                        await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '1');
+                        Alert.alert('Pass Renewed! 🎫', `1-Day Daily Plan Active until ${validStr}`);
+                      }
+                    },
+                    {
+                      text: '🗓️ 30-Day Monthly (₹499)',
+                      onPress: async () => {
+                        const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        const validStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        setPassStartDate(todayStr);
+                        setPassValidityDate(validStr);
+                        setPassPlanDays('30');
+                        setCountdownDays(30);
+                        const uEmail = user?.email || 'student@college.edu';
+                        await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                        await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                        await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '30');
+                        Alert.alert('Pass Renewed! 🎫', `30-Day Monthly Plan Active until ${validStr}`);
+                      }
+                    },
+                    {
+                      text: '🎓 180-Day Semester (₹1,499)',
+                      onPress: async () => {
+                        const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        const validStr = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        setPassStartDate(todayStr);
+                        setPassValidityDate(validStr);
+                        setPassPlanDays('180');
+                        setCountdownDays(180);
+                        const uEmail = user?.email || 'student@college.edu';
+                        await AsyncStorage.setItem(`@parknex_start_${uEmail}`, todayStr);
+                        await AsyncStorage.setItem(`@parknex_valid_${uEmail}`, validStr);
+                        await AsyncStorage.setItem(`@parknex_days_${uEmail}`, '180');
+                        Alert.alert('Pass Renewed! 🎫', `180-Day Semester Plan Active until ${validStr}`);
+                      }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="card" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>Renew Permit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#D97706', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+              onPress={() => navigation?.navigate('Billing')}
+            >
+              <MaterialCommunityIcons name="file-document-outline" size={16} color="#D97706" />
+              <Text style={{ color: '#D97706', fontWeight: '900', fontSize: 12 }}>Invoices & Billing</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {vehicles.length === 0 ? (

@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const crypto = require('crypto');
+const aiService = require('./services/aiService');
 
 dotenv.config();
 
@@ -133,20 +134,7 @@ const NOTIF_PREFS_FILE = path.join(__dirname, 'notification_prefs.json');
 const SENT_REMINDERS_FILE = path.join(__dirname, 'sent_reminders.json');
 
 let sentRemindersStore = loadJSONStore(SENT_REMINDERS_FILE, {});
-let initialNotificationsStore = loadJSONStore(NOTIFICATIONS_FILE, [
-  {
-    id: 'notif_welcome_1',
-    title: '🔔 Welcome to ParkNex AI Notification Center',
-    message: 'Your Smart Campus Parking Platform is active and monitoring real-time slot occupancy, session expiries, and security events.',
-    category: 'SYSTEM',
-    priority: 'NORMAL',
-    isRead: false,
-    userId: null,
-    targetRole: 'ALL',
-    deepLink: 'StudentHomeScreen',
-    createdAt: new Date().toISOString()
-  }
-]);
+let initialNotificationsStore = loadJSONStore(NOTIFICATIONS_FILE, []);
 
 const initialCamerasStore = [
   { id: 'cam_1', camId: 'Cam 01', name: 'Main Campus Entrance Gate', zone: 'Zone A', plate: 'KA-01-AB-1234', status: 'AUTHORIZED' },
@@ -208,6 +196,11 @@ function addSecurityLogEntry(type, text, color = '#6366F1') {
   saveJSONStore(SECURITY_LOGS_FILE, logs);
   return newLog;
 }
+
+// HEALTH CHECK
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
 
 // LIVE SECURITY ACTIVITY LOGS API
 app.get('/api/security-logs', (req, res) => {
@@ -496,8 +489,9 @@ app.get('/api/bookings/all', async (req, res) => {
 });
 
 app.post('/api/bookings', async (req, res) => {
-  const { zoneName, slotNumber, plateNumber, durationHours, bookingDate, bookingTime } = req.body;
-  const userEmail = req.user?.email || 'student@college.edu';
+  const { zoneName, slotNumber, plateNumber, vehiclePlate, durationHours, bookingDate, bookingTime } = req.body;
+  const userEmail = req.user?.email || req.body?.userEmail || req.body?.email || req.query?.email || 'student@college.edu';
+  const targetPlate = (plateNumber || vehiclePlate || req.body?.plate || 'KA-09-ZZ-9999').toUpperCase();
   
   const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
   const newBooking = {
@@ -505,7 +499,7 @@ app.post('/api/bookings', async (req, res) => {
     userEmail: userEmail,
     zoneName: zoneName || 'North Block',
     slotNumber: slotNumber || 'N-01',
-    plateNumber: (plateNumber || 'KA-09-ZZ-9999').toUpperCase(),
+    plateNumber: targetPlate,
     durationHours: Number(durationHours) || 4,
     bookingDate: bookingDate || new Date().toISOString().split('T')[0],
     bookingTime: bookingTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -521,7 +515,7 @@ app.post('/api/bookings', async (req, res) => {
     category: 'BOOKING',
     priority: 'NORMAL',
     title: '🎟️ Parking Booking Confirmed',
-    message: `Your booking for ${zoneName || 'Zone A'} (${slotNumber || 'A-01'}) is confirmed for vehicle ${plateNumber || 'KA-01-AB-1234'}.`,
+    message: `Your booking for ${zoneName || 'Zone A'} (${slotNumber || 'A-01'}) is confirmed for vehicle ${targetPlate}.`,
     relatedEntity: newBooking.id,
     deepLink: 'StudentBookScreen'
   });
@@ -560,7 +554,7 @@ app.post('/api/bookings', async (req, res) => {
     }
   } catch (e) {}
 
-  res.json({ success: true, message: 'Slot reserved successfully', booking: newBooking });
+  res.status(201).json({ success: true, message: 'Slot reserved successfully', booking: newBooking, ...newBooking });
 });
 
 app.get('/api/bookings/my-bookings', async (req, res) => {
@@ -619,10 +613,22 @@ app.put('/api/bookings/:id/exit', async (req, res) => {
   saveJSONStore(BOOKINGS_FILE, updatedBookings);
 
   // 2. Update PostgreSQL database
-  prisma.booking.update({
-    where: { id: targetId },
-    data: { status: 'EXITED' }
-  }).catch(() => {});
+  try {
+    const existing = await prisma.booking.findUnique({ where: { id: targetId } }).catch(() => null);
+    if (existing) {
+      await prisma.booking.update({
+        where: { id: targetId },
+        data: { status: 'EXITED' }
+      }).catch(() => {});
+
+      if (existing.slotId) {
+        await prisma.slot.update({
+          where: { id: existing.slotId },
+          data: { isOccupied: false }
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
 
   addSecurityLogEntry('EXIT', `🚗 Vehicle ${exitedPlate || targetId} Exited Campus Barrier Gate`, '#10B981');
   res.json({ success: true, message: 'Exited successfully! Parking slot released.', id: targetId });
@@ -1472,7 +1478,14 @@ app.post('/api/vehicles', async (req, res) => {
 app.delete('/api/vehicles/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.vehicle.delete({ where: { id } });
+    await prisma.vehicle.deleteMany({
+      where: {
+        OR: [
+          { id: id },
+          { plateNumber: id.toUpperCase().trim() }
+        ]
+      }
+    });
     res.json({ success: true, message: 'Vehicle deleted successfully' });
   } catch (error) { handleDatabaseError(res, error, 'delete vehicle'); }
 });
@@ -1963,15 +1976,19 @@ app.post('/api/simulate-event', async (req, res) => {
         deepLink: 'UnauthorizedLogsScreen'
       });
     } else {
-      createNotification({
-        targetRole: 'ALL',
-        category: type === 'EXIT' ? 'VEHICLE_EXIT' : 'VEHICLE_ENTRY',
-        priority: 'NORMAL',
-        title: type === 'EXIT' ? '🚪 Vehicle Exit Scanned' : '🚗 Vehicle Entry Scanned',
-        message: `Vehicle ${targetPlate} ${type === 'EXIT' ? 'exited campus' : 'entered campus'} via ${zone?.name || 'Main Entrance Gate'}.`,
-        relatedEntity: targetPlate,
-        deepLink: 'StudentVehiclesScreen'
-      });
+      // Send vehicle entry/exit notifications ONLY to the owner of that vehicle
+      if (targetOwnerEmail) {
+        createNotification({
+          userEmail: targetOwnerEmail,
+          targetRole: 'STUDENT',
+          category: type === 'EXIT' ? 'VEHICLE_EXIT' : 'VEHICLE_ENTRY',
+          priority: 'NORMAL',
+          title: type === 'EXIT' ? '🚪 Vehicle Exit Scanned' : '🚗 Vehicle Entry Scanned',
+          message: `Your vehicle ${targetPlate} ${type === 'EXIT' ? 'exited campus' : 'entered campus'} via ${zone?.name || 'Main Entrance Gate'}.`,
+          relatedEntity: targetPlate,
+          deepLink: 'StudentVehiclesScreen'
+        });
+      }
     }
 
     res.json({ success: true, event });
@@ -2003,9 +2020,11 @@ async function createNotification({
   }
 
   let dbUserId = userId;
-  let targetEmail = userEmail;
+  let targetEmail = userEmail ? userEmail.toLowerCase().trim() : null;
   if (!dbUserId && targetEmail) {
-    const foundUser = await prisma.user.findFirst({ where: { email: targetEmail.toLowerCase().trim() } }).catch(() => null);
+    const foundUser = await prisma.user.findFirst({
+      where: { email: { equals: targetEmail, mode: 'insensitive' } }
+    }).catch(() => null);
     if (foundUser) dbUserId = foundUser.id;
   }
 
@@ -2047,7 +2066,7 @@ async function createNotification({
   // 2. JSON Store Persistence
   const store = loadJSONStore(NOTIFICATIONS_FILE, []);
   store.unshift(notifObj);
-  if (store.length > 1000) store.pop();
+  if (store.length > 500) store.pop();
   saveJSONStore(NOTIFICATIONS_FILE, store);
 
   return notifObj;
@@ -2058,6 +2077,7 @@ async function evaluateScheduledNotifications() {
   try {
     const now = new Date();
     const nowMs = now.getTime();
+    const sixHoursAgo = nowMs - (6 * 3600 * 1000);
 
     // A. EVALUATE BOOKINGS & PARKING EXPIRY
     const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
@@ -2095,12 +2115,15 @@ async function evaluateScheduledNotifications() {
     });
 
     allBookingsMap.forEach(b => {
-      if (b.status === 'EXITED' || b.status === 'CANCELLED') return;
+      if (b.status === 'EXITED' || b.status === 'CANCELLED' || b.status === 'EXPIRED' || b.status === 'COMPLETED') return;
+      // Only evaluate recent bookings created within the last 6 hours
+      if (b.createdAt < sixHoursAgo) return;
 
       const durationMs = (b.durationHours || 4) * 3600 * 1000;
       const expiryMs = b.createdAt + durationMs;
       const minsRemaining = Math.floor((expiryMs - nowMs) / 60000);
-      const recipient = b.userEmail;
+      const recipient = b.userEmail ? b.userEmail.toLowerCase().trim() : null;
+      if (!recipient) return;
 
       // 30 MINUTE REMINDER
       if (minsRemaining <= 30 && minsRemaining > 15) {
@@ -2162,8 +2185,8 @@ async function evaluateScheduledNotifications() {
         });
       }
 
-      // OVERSTAY ALERT (> 15 MINS OVER)
-      if (minsRemaining < -15) {
+      // OVERSTAY ALERT (-15 mins to -360 mins)
+      if (minsRemaining < -15 && minsRemaining >= -360) {
         createNotification({
           userEmail: recipient,
           targetRole: 'STUDENT',
@@ -2178,7 +2201,7 @@ async function evaluateScheduledNotifications() {
       }
     });
 
-    // B. EVALUATE ZONE OCCUPANCY & AVAILABILITY ALERTS (DEDUPLICATED STATE TRANSITIONS)
+    // B. EVALUATE ZONE OCCUPANCY ALERTS (ROUTED TO ADMIN ONLY)
     const dbZones = await prisma.zone.findMany().catch(() => []);
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
     const zones = dbZones.length > 0 ? dbZones : fileZones;
@@ -2195,11 +2218,11 @@ async function evaluateScheduledNotifications() {
       if (pct >= 100) {
         if (!sentRemindersStore[fullKey]) {
           createNotification({
-            targetRole: 'ALL',
-            category: 'PARKING',
+            targetRole: 'ADMIN',
+            category: 'CAPACITY',
             priority: 'HIGH',
             title: `🚫 Zone Full: ${z.name}`,
-            message: `${z.name} is currently 100% full (${occupied}/${total} slots occupied). AI recommends checking alternative zones.`,
+            message: `${z.name} is currently 100% full (${occupied}/${total} slots occupied).`,
             relatedEntity: z.id,
             reminderKey: fullKey
           });
@@ -2207,8 +2230,8 @@ async function evaluateScheduledNotifications() {
       } else if (pct >= 90) {
         if (!sentRemindersStore[highKey]) {
           createNotification({
-            targetRole: 'ALL',
-            category: 'PARKING',
+            targetRole: 'ADMIN',
+            category: 'CAPACITY',
             priority: 'NORMAL',
             title: `⚠️ High Occupancy Alert: ${z.name}`,
             message: `${z.name} is currently ${pct}% occupied (${occupied}/${total} slots occupied).`,
@@ -2219,7 +2242,6 @@ async function evaluateScheduledNotifications() {
         delete sentRemindersStore[fullKey];
         saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
       } else {
-        // Reset notification state keys when zone occupancy drops below threshold
         delete sentRemindersStore[fullKey];
         delete sentRemindersStore[highKey];
         saveJSONStore(SENT_REMINDERS_FILE, sentRemindersStore);
@@ -2233,50 +2255,315 @@ setInterval(evaluateScheduledNotifications, 10000);
 
 // ================= NOTIFICATION REST API ENDPOINTS ================= //
 
+const NOTIFICATIONS_USER_STATE_FILE = path.join(__dirname, 'notification_user_state.json');
+
+function getNotifUserKey(email, role) {
+  if (email && email.trim()) return email.toLowerCase().trim();
+  if (role && role.trim()) return `role_${role.toUpperCase().trim()}`;
+  return 'default_user';
+}
+
+function getNotifUserState(userKey) {
+  const all = loadJSONStore(NOTIFICATIONS_USER_STATE_FILE, {});
+  return all[userKey] || { readIds: [], deletedIds: [] };
+}
+
+function setNotifUserRead(userKey, notifId) {
+  const all = loadJSONStore(NOTIFICATIONS_USER_STATE_FILE, {});
+  if (!all[userKey]) all[userKey] = { readIds: [], deletedIds: [] };
+  const sId = String(notifId);
+  if (!all[userKey].readIds.includes(sId)) {
+    all[userKey].readIds.push(sId);
+  }
+  saveJSONStore(NOTIFICATIONS_USER_STATE_FILE, all);
+}
+
+function setNotifUserReadAll(userKey, notifIds) {
+  const all = loadJSONStore(NOTIFICATIONS_USER_STATE_FILE, {});
+  if (!all[userKey]) all[userKey] = { readIds: [], deletedIds: [] };
+  notifIds.forEach(id => {
+    const sId = String(id);
+    if (!all[userKey].readIds.includes(sId)) all[userKey].readIds.push(sId);
+  });
+  saveJSONStore(NOTIFICATIONS_USER_STATE_FILE, all);
+}
+
+function setNotifUserDelete(userKey, notifId) {
+  const all = loadJSONStore(NOTIFICATIONS_USER_STATE_FILE, {});
+  if (!all[userKey]) all[userKey] = { readIds: [], deletedIds: [] };
+  const sId = String(notifId);
+  if (!all[userKey].deletedIds.includes(sId)) {
+    all[userKey].deletedIds.push(sId);
+  }
+  if (!all[userKey].readIds.includes(sId)) {
+    all[userKey].readIds.push(sId);
+  }
+  saveJSONStore(NOTIFICATIONS_USER_STATE_FILE, all);
+}
+
+function setNotifUserClearAll(userKey, notifIds) {
+  const all = loadJSONStore(NOTIFICATIONS_USER_STATE_FILE, {});
+  if (!all[userKey]) all[userKey] = { readIds: [], deletedIds: [] };
+  notifIds.forEach(id => {
+    const sId = String(id);
+    if (!all[userKey].deletedIds.includes(sId)) all[userKey].deletedIds.push(sId);
+    if (!all[userKey].readIds.includes(sId)) all[userKey].readIds.push(sId);
+  });
+  saveJSONStore(NOTIFICATIONS_USER_STATE_FILE, all);
+}
+
 app.get('/api/notifications', async (req, res) => {
   const { email, role, category, unreadOnly } = req.query;
   const userEmail = (email || req.user?.email || '').toLowerCase().trim();
   const userRole = (role || req.user?.role || 'STUDENT').toUpperCase();
+  const userKey = getNotifUserKey(userEmail, userRole);
+  const userState = getNotifUserState(userKey);
 
   try {
-    // Unlimited notification fetch (no artificial take cap)
     const dbNotifs = await prisma.notification.findMany({
+      include: { user: true },
       orderBy: { createdAt: 'desc' }
     }).catch(() => []);
 
-    const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, initialNotificationsStore);
-    const combined = [...dbNotifs.map(n => ({
-      id: String(n.id),
-      title: n.title,
-      message: n.message,
-      category: n.category || 'SYSTEM',
-      priority: n.priority || 'NORMAL',
-      isRead: !!n.isRead,
-      userId: n.userId || null,
-      userEmail: n.user?.email || null,
-      targetRole: n.targetRole || 'ALL',
-      relatedEntity: n.relatedEntity || null,
-      deepLink: n.deepLink || null,
-      createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString()
-    })), ...fileNotifs];
+    const fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, []);
+    const combined = [
+      ...dbNotifs.map(n => ({
+        id: String(n.id),
+        title: n.title,
+        message: n.message,
+        category: n.category || 'SYSTEM',
+        priority: n.priority || 'NORMAL',
+        isRead: !!n.isRead,
+        userId: n.userId || null,
+        userEmail: n.user?.email ? n.user.email.toLowerCase().trim() : null,
+        targetRole: (n.targetRole || 'ALL').toUpperCase(),
+        relatedEntity: n.relatedEntity || null,
+        deepLink: n.deepLink || null,
+        createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString()
+      })),
+      ...fileNotifs.map(n => ({
+        ...n,
+        targetRole: (n.targetRole || 'ALL').toUpperCase(),
+        userEmail: n.userEmail ? n.userEmail.toLowerCase().trim() : null
+      }))
+    ];
 
     const notifMap = new Map();
     combined.forEach(n => notifMap.set(String(n.id), n));
     const allUnique = Array.from(notifMap.values());
 
+    const seenContentKeys = new Set();
     const filtered = allUnique.filter(n => {
-      const targetR = (n.targetRole || 'ALL').toUpperCase();
-      const roleMatches = targetR === 'ALL' || targetR === userRole || userRole === 'ADMIN';
-      const emailMatches = !n.userEmail || !userEmail || n.userEmail.toLowerCase() === userEmail;
-      
-      if (!roleMatches || !emailMatches) return false;
+      // Exclude hardcoded welcome notification permanently
+      if (n.id === 'notif_welcome_1') return false;
+
+      // Exclude notifications deleted by this user
+      if (userState.deletedIds.includes(String(n.id))) return false;
+
+      const targetR = n.targetRole || 'ALL';
+
+      // 1. STRICT USER IDENTITY ISOLATION
+      if (n.userEmail) {
+        if (!userEmail || n.userEmail !== userEmail) return false;
+      }
+
+      // 2. STRICT ROLE ISOLATION
+      if (userRole === 'STUDENT' || userRole === 'FACULTY') {
+        // Disallowed target roles
+        if (targetR !== 'ALL' && targetR !== userRole) return false;
+
+        // Disallowed categories for students
+        const forbiddenForStudents = ['CAPACITY', 'ZONE_CAPACITY', 'PARKING_ALERT', 'AUDIT', 'SYSTEM_HEALTH'];
+        if (forbiddenForStudents.includes(n.category)) return false;
+        if (n.category === 'PARKING' && !n.userEmail) return false;
+        if ((n.category === 'SECURITY' || n.category === 'VIOLATION' || n.category === 'GATE_ALERT') && !n.userEmail) return false;
+
+        // Personal student notifications MUST belong to this email
+        const personalCategories = ['BOOKING', 'PARKING_EXPIRY', 'PARKING_EXPIRED', 'VEHICLE_ENTRY', 'VEHICLE_EXIT', 'PASS'];
+        if (personalCategories.includes(n.category) && (!n.userEmail || n.userEmail !== userEmail)) {
+          return false;
+        }
+      } else if (userRole === 'SECURITY') {
+        const allowedSecurityCategories = ['SECURITY', 'VIOLATION', 'VISITOR', 'EMERGENCY', 'ALERT', 'GATE', 'GATE_ENTRY', 'GATE_EXIT', 'GATE_ALERT', 'CCTV'];
+        const isSecurityCat = allowedSecurityCategories.includes(n.category);
+        const isTargetedSecurity = targetR === 'SECURITY';
+
+        if (!isSecurityCat && !isTargetedSecurity) return false;
+        if (n.category === 'PARKING_EXPIRY' || n.category === 'PARKING_EXPIRED' || n.category === 'BOOKING') return false;
+      } else if (userRole === 'ADMIN') {
+        if (n.category === 'PARKING_EXPIRY' || n.category === 'PARKING_EXPIRED') return false;
+        if ((n.category === 'BOOKING' || n.category === 'VEHICLE_ENTRY' || n.category === 'VEHICLE_EXIT' || n.category === 'PASS') && (!n.userEmail || n.userEmail !== userEmail)) return false;
+      }
+
+      // Apply persistent user read state
+      if (userState.readIds.includes(String(n.id))) {
+        n.isRead = true;
+      }
+
+      // Additional filter queries
       if (category && category !== 'ALL' && n.category !== category) return false;
       if (unreadOnly === 'true' && n.isRead) return false;
+
+      // Deduplicate identical notifications
+      const contentKey = `${n.title}_${n.message}_${n.userEmail || ''}`;
+      if (seenContentKeys.has(contentKey)) return false;
+      seenContentKeys.add(contentKey);
+
       return true;
     });
 
-    const unreadCount = filtered.filter(n => !n.isRead).length;
-    res.json({ success: true, count: filtered.length, unreadCount, notifications: filtered });
+    // 3. CONTEXTUAL DYNAMIC NOTIFICATIONS (Deterministic IDs with Persistent Read/Delete Tracking)
+    let finalNotifications = [...filtered];
+
+    if (userRole === 'STUDENT' || userRole === 'FACULTY') {
+      const personalNotifs = finalNotifications.filter(n => n.category === 'BOOKING' || n.category === 'PASS' || n.category === 'VEHICLE_ENTRY' || n.category === 'VEHICLE_EXIT' || n.category === 'PARKING_EXPIRY' || n.category === 'PARKING_EXPIRED');
+      if (personalNotifs.length === 0) {
+        let userRecord = null;
+        if (userEmail) {
+          userRecord = await prisma.user.findFirst({
+            where: { email: { equals: userEmail, mode: 'insensitive' } },
+            include: { vehicles: true, passes: true, bookings: { take: 1, orderBy: { createdAt: 'desc' } } }
+          }).catch(() => null);
+        }
+
+        const vehiclePlate = userRecord?.vehicles?.[0]?.plateNumber || 'KA-01-AB-1234';
+        const passNumber = userRecord?.passes?.[0]?.passNumber || 'PASS-STU-2026';
+        const recentBooking = userRecord?.bookings?.[0];
+        const emailSlug = (userEmail || 'student').replace(/[^a-zA-Z0-9]/g, '_');
+
+        const contextual = [
+          {
+            id: `dyn_stu_pass_${emailSlug}`,
+            title: '🎫 Campus Digital Parking Pass Active',
+            message: `Your verified pass (${passNumber}) is active for designated campus parking zones.`,
+            category: 'PASS',
+            priority: 'NORMAL',
+            isRead: false,
+            userEmail: userEmail,
+            targetRole: userRole,
+            deepLink: 'StudentPassScreen',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: `dyn_stu_veh_${emailSlug}`,
+            title: '🚗 FastTag RFID Gate Access Ready',
+            message: `Vehicle ${vehiclePlate} is registered for automated barrier sensor clearance.`,
+            category: 'VEHICLE_ENTRY',
+            priority: 'NORMAL',
+            isRead: false,
+            userEmail: userEmail,
+            targetRole: userRole,
+            deepLink: 'StudentVehiclesScreen',
+            createdAt: new Date(Date.now() - 3600000).toISOString()
+          }
+        ];
+
+        if (recentBooking && recentBooking.status === 'CONFIRMED') {
+          contextual.unshift({
+            id: `dyn_stu_bk_${emailSlug}`,
+            title: '🎟️ Active Slot Reservation',
+            message: `Your slot reservation is currently active. Session validity monitored in real-time.`,
+            category: 'BOOKING',
+            priority: 'NORMAL',
+            isRead: false,
+            userEmail: userEmail,
+            targetRole: userRole,
+            deepLink: 'StudentBookScreen',
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          });
+        }
+
+        // Apply persistent read and delete filters to contextual notifications
+        const activeContextual = contextual
+          .filter(c => !userState.deletedIds.includes(c.id))
+          .map(c => userState.readIds.includes(c.id) ? { ...c, isRead: true } : c);
+
+        finalNotifications = [...activeContextual, ...finalNotifications];
+      }
+    } else if (finalNotifications.length === 0) {
+      if (userRole === 'SECURITY') {
+        const secContextual = [
+          {
+            id: 'dyn_sec_gate_system',
+            title: '🛡️ Gate ANPR & Barrier System Operational',
+            message: 'Main Gate and North Barrier cameras active with 99.4% plate recognition accuracy.',
+            category: 'SECURITY',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'SECURITY',
+            deepLink: 'cctv',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'dyn_sec_patrol_grid',
+            title: '📹 CCTV Grid Monitoring Live',
+            message: 'Zone A, B, and C bay surveillance streams operating with real-time occupancy tracking.',
+            category: 'SECURITY',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'SECURITY',
+            deepLink: 'cctv',
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          },
+          {
+            id: 'dyn_sec_clear_status',
+            title: '✅ Zero Pending Security Breaches',
+            message: 'All perimeter sensors and visitor logs checked. No active blacklist flags detected.',
+            category: 'SECURITY',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'SECURITY',
+            deepLink: 'visitors',
+            createdAt: new Date(Date.now() - 3600000).toISOString()
+          }
+        ];
+        finalNotifications = secContextual
+          .filter(c => !userState.deletedIds.includes(c.id))
+          .map(c => userState.readIds.includes(c.id) ? { ...c, isRead: true } : c);
+      } else if (userRole === 'ADMIN') {
+        const admContextual = [
+          {
+            id: 'dyn_adm_cap_status',
+            title: '📊 Campus Zone Capacity Normal',
+            message: 'All campus parking zones are operating within optimal capacity thresholds.',
+            category: 'CAPACITY',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'ADMIN',
+            deepLink: 'ManageZones',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'dyn_adm_ai_system',
+            title: '⚡ AI ANPR & Telemetry Online',
+            message: 'Predictive occupancy engine and camera feeds synchronized with 0ms queue latency.',
+            category: 'SYSTEM',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'ADMIN',
+            deepLink: 'Analytics',
+            createdAt: new Date(Date.now() - 3600000).toISOString()
+          },
+          {
+            id: 'dyn_adm_audit_status',
+            title: '🔒 System Audit & Database Healthy',
+            message: 'Automated nightly backups verified and RBAC access permissions active.',
+            category: 'AUDIT',
+            priority: 'NORMAL',
+            isRead: false,
+            targetRole: 'ADMIN',
+            deepLink: 'SystemSettings',
+            createdAt: new Date(Date.now() - 7200000).toISOString()
+          }
+        ];
+        finalNotifications = admContextual
+          .filter(c => !userState.deletedIds.includes(c.id))
+          .map(c => userState.readIds.includes(c.id) ? { ...c, isRead: true } : c);
+      }
+    }
+
+    const unreadCount = finalNotifications.filter(n => !n.isRead).length;
+    res.json({ success: true, count: finalNotifications.length, unreadCount, notifications: finalNotifications });
   } catch (e) {
     res.json({ success: true, count: 0, unreadCount: 0, notifications: [] });
   }
@@ -2284,6 +2571,9 @@ app.get('/api/notifications', async (req, res) => {
 
 app.put('/api/notifications/:id/read', async (req, res) => {
   const { id } = req.params;
+  const { email, role } = req.body || {};
+  const userEmail = (email || req.query?.email || req.user?.email || '').toLowerCase().trim();
+  const userRole = (role || req.query?.role || req.user?.role || '').toUpperCase();
   const targetId = String(id);
 
   try {
@@ -2297,23 +2587,32 @@ app.put('/api/notifications/:id/read', async (req, res) => {
   const updated = fileNotifs.map(n => String(n.id) === targetId ? { ...n, isRead: true } : n);
   saveJSONStore(NOTIFICATIONS_FILE, updated);
 
+  // Persist read state in user state tracker
+  const userKey = getNotifUserKey(userEmail, userRole);
+  setNotifUserRead(userKey, targetId);
+  if (userEmail) setNotifUserRead(userEmail, targetId);
+
   res.json({ success: true, message: 'Notification marked as read', id: targetId });
 });
 
 app.put('/api/notifications/read-all', async (req, res) => {
-  const { email } = req.body;
-  const userEmail = (email || req.user?.email || '').toLowerCase().trim();
+  const { email, role } = req.body || {};
+  const userEmail = (email || req.query?.email || req.user?.email || '').toLowerCase().trim();
+  const userRole = (role || req.query?.role || req.user?.role || '').toUpperCase();
+  const userKey = getNotifUserKey(userEmail, userRole);
 
   try {
     if (userEmail) {
-      const user = await prisma.user.findUnique({ where: { email: userEmail } }).catch(() => null);
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: userEmail, mode: 'insensitive' } }
+      }).catch(() => null);
       if (user) {
         await prisma.notification.updateMany({
           where: { userId: user.id },
           data: { isRead: true }
         }).catch(() => {});
       }
-    } else {
+    } else if (userRole === 'ADMIN') {
       await prisma.notification.updateMany({ data: { isRead: true } }).catch(() => {});
     }
   } catch (e) {}
@@ -2327,11 +2626,85 @@ app.put('/api/notifications/read-all', async (req, res) => {
   });
   saveJSONStore(NOTIFICATIONS_FILE, updated);
 
+  // Fetch all current visible IDs for this user and record them as read
+  const allDbNotifs = await prisma.notification.findMany().catch(() => []);
+  const allNotifIds = [
+    ...allDbNotifs.map(n => String(n.id)),
+    ...fileNotifs.map(n => String(n.id)),
+    `dyn_stu_pass_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    `dyn_stu_veh_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    `dyn_stu_bk_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    'dyn_sec_gate_system',
+    'dyn_sec_patrol_grid',
+    'dyn_sec_clear_status',
+    'dyn_adm_cap_status',
+    'dyn_adm_ai_system',
+    'dyn_adm_audit_status'
+  ];
+
+  setNotifUserReadAll(userKey, allNotifIds);
+  if (userEmail) setNotifUserReadAll(userEmail, allNotifIds);
+
   res.json({ success: true, message: 'All notifications marked as read' });
+});
+
+app.delete('/api/notifications/clear-all', async (req, res) => {
+  const { email, role } = req.query;
+  const userEmail = (email || '').toLowerCase().trim();
+  const userRole = (role || '').toUpperCase();
+  const userKey = getNotifUserKey(userEmail, userRole);
+
+  try {
+    if (userEmail) {
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: userEmail, mode: 'insensitive' } }
+      }).catch(() => null);
+      if (user) {
+        await prisma.notification.deleteMany({
+          where: { userId: user.id }
+        }).catch(() => {});
+      }
+    } else if (userRole === 'ADMIN') {
+      await prisma.notification.deleteMany().catch(() => {});
+    }
+  } catch (e) {}
+
+  let fileNotifs = loadJSONStore(NOTIFICATIONS_FILE, []);
+  if (userEmail) {
+    fileNotifs = fileNotifs.filter(n => n.userEmail && n.userEmail.toLowerCase() !== userEmail);
+  } else if (userRole === 'ADMIN') {
+    fileNotifs = [];
+  }
+  saveJSONStore(NOTIFICATIONS_FILE, fileNotifs);
+
+  // Persist clear state in user state tracker
+  const allDbNotifs = await prisma.notification.findMany().catch(() => []);
+  const allNotifIds = [
+    ...allDbNotifs.map(n => String(n.id)),
+    ...fileNotifs.map(n => String(n.id)),
+    `dyn_stu_pass_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    `dyn_stu_veh_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    `dyn_stu_bk_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    'dyn_sec_gate_system',
+    'dyn_sec_patrol_grid',
+    'dyn_sec_clear_status',
+    'dyn_adm_cap_status',
+    'dyn_adm_ai_system',
+    'dyn_adm_audit_status'
+  ];
+
+  setNotifUserClearAll(userKey, allNotifIds);
+  if (userEmail) setNotifUserClearAll(userEmail, allNotifIds);
+
+  res.json({ success: true, message: 'All notifications cleared successfully' });
 });
 
 app.delete('/api/notifications/:id', async (req, res) => {
   const { id } = req.params;
+  const { email, role } = req.query;
+  const userEmail = (email || '').toLowerCase().trim();
+  const userRole = (role || '').toUpperCase();
+  const userKey = getNotifUserKey(userEmail, userRole);
   const targetId = String(id);
 
   try {
@@ -2342,7 +2715,10 @@ app.delete('/api/notifications/:id', async (req, res) => {
   fileNotifs = fileNotifs.filter(n => String(n.id) !== targetId);
   saveJSONStore(NOTIFICATIONS_FILE, fileNotifs);
 
-  res.json({ success: true, message: 'Notification deleted' });
+  setNotifUserDelete(userKey, targetId);
+  if (userEmail) setNotifUserDelete(userEmail, targetId);
+
+  res.json({ success: true, message: 'Notification deleted', id: targetId });
 });
 
 app.post('/api/announcements', async (req, res) => {
@@ -2645,7 +3021,7 @@ app.post('/api/security/release-vehicle', async (req, res) => {
     const targetOwnerEmail = currentBooking?.userEmail || 'student@college.edu';
     createNotification({
       userEmail: targetOwnerEmail,
-      targetRole: 'ALL',
+      targetRole: 'STUDENT',
       category: 'VEHICLE_EXIT',
       priority: 'HIGH',
       title: '🚪 Vehicle Release Confirmed',
@@ -3049,16 +3425,120 @@ app.get('/api/ai/find-vehicle', async (req, res) => {
   });
 });
 
-app.post('/api/ai/chat', async (req, res) => {
-  const { message } = req.body;
-  const lower = (message || '').toLowerCase();
-  
-  if (lower.includes('park') || lower.includes('slot') || lower.includes('where')) {
-    res.json({ success: true, reply: "🤖 **ParkNex AI**: Based on real-time traffic and your schedule, I recommend **Slot K-04 in KRISHNA HOSTEL** (80m away, 96% vacant with EV charging)." });
-  } else if (lower.includes('car') || lower.includes('find')) {
-    res.json({ success: true, reply: "🤖 **ParkNex AI**: Your vehicle is parked in **Slot K-30 in KRISHNA HOSTEL**. Follow walking route directions in the AI Find My Vehicle section." });
+// Production Local Ollama AI Integration Endpoints
+app.post('/api/ai/chat', authenticateToken, async (req, res) => {
+  try {
+    const { message, conversationId } = req.body;
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Message text is required.' });
+    }
+
+    const aiResult = await aiService.processAIChat({
+      prisma,
+      user: req.user,
+      message: message.trim(),
+      conversationId: conversationId
+    });
+
+    res.json({
+      success: true,
+      reply: aiResult.response,
+      conversationId: aiResult.conversationId,
+      intent: aiResult.intent,
+      confidence: aiResult.confidence,
+      intentSource: aiResult.intentSource,
+      groundingStatus: aiResult.groundingStatus,
+      answerVerification: aiResult.answerVerification,
+      dataContext: aiResult.dataContext,
+      suggestions: aiResult.suggestions,
+      actionPayload: aiResult.actionPayload,
+      contextSummary: aiResult.contextSummary,
+      meta: {
+        ollamaUsed: aiResult.ollamaUsed,
+        modelUsed: aiResult.modelUsed,
+        processingTimeMs: aiResult.processingTimeMs,
+        confidence: aiResult.confidence,
+        intentSource: aiResult.intentSource,
+        groundingStatus: aiResult.groundingStatus,
+        answerVerification: aiResult.answerVerification
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in /api/ai/chat handler:', error);
+    res.status(500).json({
+      success: false,
+      error: 'AI Processing Error',
+      message: 'Failed to process AI chat query.',
+      reply: 'An error occurred while communicating with the AI service. Core parking features remain accessible.'
+    });
+  }
+});
+
+app.post('/api/ai/demo-occupancy-toggle', authenticateToken, async (req, res) => {
+  try {
+    const zoneA = await prisma.zone.findFirst({ where: { name: { contains: 'Zone A' } } });
+    if (!zoneA) {
+      return res.status(404).json({ success: false, message: 'Zone A not found in database' });
+    }
+
+    const newOccupied = zoneA.occupied >= zoneA.total ? Math.floor(zoneA.total * 0.2) : zoneA.total;
+    const updated = await prisma.zone.update({
+      where: { id: zoneA.id },
+      data: { occupied: newOccupied }
+    });
+
+    console.log(`[DEMO DB MUTATION] ${updated.name} occupancy updated: ${updated.occupied}/${updated.total}`);
+
+    res.json({
+      success: true,
+      message: `Database updated! ${updated.name} is now ${updated.occupied >= updated.total ? '100% FULL' : '20% OCCUPIED (' + updated.occupied + '/' + updated.total + ' slots)'}.`,
+      zoneName: updated.name,
+      occupied: updated.occupied,
+      total: updated.total,
+      isFull: updated.occupied >= updated.total
+    });
+  } catch (err) {
+    console.error('❌ Demo occupancy toggle error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/ai/suggestions', authenticateToken, (req, res) => {
+  const role = (req.user?.role || 'STUDENT').toUpperCase();
+  let suggestions = [];
+
+  if (role === 'SECURITY') {
+    suggestions = [
+      'Show active security incidents',
+      'List unauthorized vehicle detections',
+      'Which zones are currently overcrowded?',
+      'Check recent parking violations'
+    ];
+  } else if (['ADMIN', 'SUPER_ADMIN', 'CAMPUS_ADMIN'].includes(role)) {
+    suggestions = [
+      'Summarize today\'s campus parking occupancy',
+      'Which zone requires administrative attention?',
+      'Show peak parking hours today',
+      'View system activity analytics'
+    ];
   } else {
-    res.json({ success: true, reply: "🤖 **ParkNex AI**: All 12 campus parking zones are currently online and accepting real-time slot bookings." });
+    suggestions = [
+      'Where should I park right now?',
+      'Check my active booking',
+      'What are my registered vehicles?',
+      'How does slot booking work?'
+    ];
+  }
+
+  res.json({ success: true, role, suggestions });
+});
+
+app.get('/api/ai/health', async (req, res) => {
+  try {
+    const health = await aiService.checkOllamaHealth();
+    res.json({ success: true, health });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

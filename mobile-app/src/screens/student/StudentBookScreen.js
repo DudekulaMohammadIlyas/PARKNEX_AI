@@ -201,11 +201,14 @@ export default function StudentBookScreen({ navigation }) {
       status: 'CONFIRMED'
     };
 
+    const userEmail = user?.email || 'student@college.edu';
     try {
-      await axios.post(`${BACKEND_URL}/bookings`, {
+      await smartApiRequest('post', '/bookings', {
         slotNumber: selectedSlot,
         zoneName: selectedZone,
+        plateNumber: targetPlate,
         vehiclePlate: targetPlate,
+        userEmail: userEmail,
         bookingDate,
         bookingTime,
         durationHours
@@ -215,8 +218,7 @@ export default function StudentBookScreen({ navigation }) {
     const updatedHistory = [newBookingRecord, ...historyList];
     setHistoryList(updatedHistory);
 
-    const userEmail = user?.email || 'student@college.edu';
-    await AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(updatedHistory));
+    await AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(updatedHistory));
 
     setIsSubmitting(false);
 

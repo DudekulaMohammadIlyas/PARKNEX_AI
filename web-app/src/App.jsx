@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CarFront, 
   Video, 
@@ -23,7 +23,8 @@ import {
   History,
   RotateCcw,
   MonitorCheck,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
@@ -36,6 +37,7 @@ import UserManagement from './UserManagement';
 import Analytics from './Analytics';
 import SettingsPage from './SettingsPage';
 import NotificationDrawer from './NotificationDrawer';
+import AIChatModal from './components/AIChatModal';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -84,8 +86,11 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [toastAlert, setToastAlert] = useState(null);
+  const seenToastIdsRef = useRef(new Set());
   
   const [profile, setProfile] = useState({
     name: 'User',
@@ -210,11 +215,24 @@ function App() {
         if (res.data?.success) {
           setUnreadNotifCount(res.data.unreadCount || 0);
           
-          // Check for latest CRITICAL/HIGH unread notification to trigger toast alert
-          const latestAlert = (res.data.notifications || []).find(n => !n.isRead && (n.priority === 'CRITICAL' || n.priority === 'HIGH'));
-          if (latestAlert && (!toastAlert || toastAlert.id !== latestAlert.id)) {
-            setToastAlert(latestAlert);
-            setTimeout(() => setToastAlert(null), 8000);
+          // Check for fresh CRITICAL/HIGH unread notification created recently (< 2 mins) that hasn't been shown yet
+          const nowMs = Date.now();
+          const freshAlerts = (res.data.notifications || []).filter(n => {
+            if (n.isRead) return false;
+            if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH') return false;
+            if (seenToastIdsRef.current.has(n.id)) return false;
+            
+            const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+            return (nowMs - createdMs) < 120000;
+          });
+
+          if (freshAlerts.length > 0) {
+            const newAlert = freshAlerts[0];
+            seenToastIdsRef.current.add(newAlert.id);
+            setToastAlert(newAlert);
+            setTimeout(() => {
+              setToastAlert(current => current?.id === newAlert.id ? null : current);
+            }, 6000);
           }
         }
       } catch (e) {}
@@ -331,10 +349,25 @@ function App() {
     setRole(null);
   };
 
+  const confirmLogout = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
   const handleLogout = async () => {
+    setIsLogoutConfirmOpen(false);
+    setIsProfileModalOpen(false);
+    setIsNotificationOpen(false);
+    setIsAIChatOpen(false);
+
+    // Thorough storage purge
     localStorage.removeItem('parknex_token');
     localStorage.removeItem('parknex_role');
     localStorage.removeItem('parknex_user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('role');
+    sessionStorage.clear();
+
     await supabase.auth.signOut().catch(() => {});
     setRole(null);
   };
@@ -436,8 +469,8 @@ function App() {
               Backend: Express + PostgreSQL
             </div>
           </div>
-          <a className="nav-item" onClick={handleLogout} style={{ margin: 0, cursor: 'pointer' }}>
-            <LogOut size={20} color="var(--danger)" /> Logout
+          <a className="nav-item" onClick={confirmLogout} style={{ margin: 0, cursor: 'pointer', color: 'var(--danger)' }}>
+            <LogOut size={20} color="var(--danger)" /> <span>Logout</span>
           </a>
         </div>
       </aside>
@@ -446,7 +479,7 @@ function App() {
       <div className="main-wrapper">
         <header className="top-nav" style={{ position: 'relative' }}>
           <h2 className="page-title">{activePage.replace(/_/g, ' ').toUpperCase()}</h2>
-          <div className="top-nav-right">
+          <div className="top-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)} style={{ position: 'relative' }}>
               <Bell size={20} />
               {unreadNotifCount > 0 && (
@@ -459,8 +492,9 @@ function App() {
             <NotificationDrawer 
               isOpen={isNotificationOpen} 
               onClose={() => setIsNotificationOpen(false)} 
-              userEmail={profile.email} 
+              userEmail={profile.email || `${(role || 'student').toLowerCase()}@college.edu`} 
               userRole={role} 
+              onUnreadCountChange={setUnreadNotifCount}
               onNavigate={handleNotifNavigate} 
             />
 
@@ -471,6 +505,40 @@ function App() {
               </div>
               <div className="user-avatar">{profile.avatar}</div>
             </div>
+
+            <button 
+              className="btn btn-logout-nav" 
+              onClick={confirmLogout} 
+              title="Sign Out of Session"
+              style={{ 
+                background: 'rgba(239, 68, 68, 0.12)', 
+                color: '#EF4444', 
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '0.5rem 0.95rem',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                fontWeight: '700',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#EF4444';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.35)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                e.currentTarget.style.color = '#EF4444';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.15)';
+              }}
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
           </div>
         </header>
 
@@ -484,14 +552,14 @@ function App() {
                 {activePage === 'slots' && <ManageSlots occupancy={occupancy} refreshData={refreshData} />}
                 {activePage === 'users' && <UserManagement />}
                 {activePage === 'analytics' && <Analytics />}
-                {activePage === 'settings' && <SettingsPage />}
+                {activePage === 'settings' && <SettingsPage onLogout={confirmLogout} />}
               </>
             )}
 
             {/* STUDENT PORTAL VIEWS */}
             {role === 'STUDENT' && (
               activePage === 'settings' ? (
-                <SettingsPage />
+                <SettingsPage onLogout={confirmLogout} />
               ) : (
                 <StudentDashboard 
                   occupancy={occupancy} 
@@ -507,7 +575,7 @@ function App() {
             {/* SECURITY COMMAND CENTER VIEWS */}
             {role === 'SECURITY' && (
               activePage === 'settings' ? (
-                <SettingsPage />
+                <SettingsPage onLogout={confirmLogout} />
               ) : (
                 <SecurityDashboard 
                   occupancy={occupancy} 
@@ -603,14 +671,57 @@ function App() {
             </form>
 
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: '800' }}>Danger Zone</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: '800' }}>Session & Danger Zone</span>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={confirmLogout}
+                  style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', border: '1px solid rgba(99, 102, 241, 0.3)', justifyContent: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.75rem', flex: 1 }}
+                >
+                  <LogOut size={18} /> Sign Out Session
+                </button>
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={handleDeleteAccount}
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', justifyContent: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.75rem', flex: 1 }}
+                >
+                  <Trash2 size={18} /> Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sleek Logout Confirmation Modal */}
+      {isLogoutConfirmOpen && (
+        <div className="modal-overlay" onClick={() => setIsLogoutConfirmOpen(false)} style={{ zIndex: 10000 }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'center', padding: '2.25rem 1.75rem' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto', color: '#EF4444' }}>
+              <LogOut size={30} />
+            </div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+              Confirm Sign Out
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.75rem', lineHeight: '1.5' }}>
+              Are you sure you want to end your current session? You will need to sign in again to access ParkNex AI.
+            </p>
+            <div style={{ display: 'flex', gap: '0.85rem' }}>
               <button 
-                type="button" 
-                className="btn" 
-                onClick={handleDeleteAccount}
-                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', justifyContent: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.75rem' }}
+                className="btn btn-outline" 
+                onClick={() => setIsLogoutConfirmOpen(false)} 
+                style={{ flex: 1, justifyContent: 'center', fontWeight: '700', padding: '0.75rem' }}
               >
-                <Trash2 size={18} /> Delete My Account Permanently
+                Cancel
+              </button>
+              <button 
+                className="btn" 
+                onClick={handleLogout} 
+                style={{ flex: 1, justifyContent: 'center', background: '#EF4444', color: '#FFFFFF', fontWeight: '800', border: 'none', padding: '0.75rem', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}
+              >
+                Sign Out Now
               </button>
             </div>
           </div>
@@ -645,13 +756,66 @@ function App() {
             <p style={{ fontSize: '0.82rem', margin: 0, opacity: 0.9 }}>{toastAlert.message}</p>
           </div>
           <button 
-            onClick={() => setToastAlert(null)}
+            onClick={() => {
+              if (toastAlert?.id) {
+                seenToastIdsRef.current.add(toastAlert.id);
+                axios.put(`${BACKEND_URL}/notifications/${toastAlert.id}/read`).catch(() => {});
+              }
+              setToastAlert(null);
+            }}
             style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
           >
             Dismiss
           </button>
         </div>
       )}
+
+      {/* FLOATING LOCAL OLLAMA AI ASSISTANT LAUNCHER BUTTON */}
+      {role && (
+        <button
+          onClick={() => setIsAIChatOpen(true)}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '24px',
+            zIndex: 9998,
+            background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
+            color: '#FFFFFF',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '9999px',
+            padding: '0.85rem 1.35rem',
+            boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.5), 0 0 15px rgba(124, 58, 237, 0.4)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            transition: 'transform 0.2s, box-shadow 0.2s'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <Sparkles size={20} color="#FDE047" className="animate-pulse" />
+          <span>AI Assistant</span>
+          <span style={{
+            fontSize: '0.65rem',
+            padding: '2px 6px',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '10px',
+            fontWeight: 800
+          }}>
+            Ollama
+          </span>
+        </button>
+      )}
+
+      {/* LOCAL OLLAMA AI CHAT MODAL */}
+      <AIChatModal
+        isOpen={isAIChatOpen}
+        onClose={() => setIsAIChatOpen(false)}
+        currentUser={{ name: profile.name, role: role, email: profile.email, department: profile.department }}
+      />
     </div>
   );
 }

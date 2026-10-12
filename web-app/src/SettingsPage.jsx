@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Bell, Eye, Globe, Save, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Shield, Bell, Eye, Globe, Save, Sparkles, CheckCircle2, LogOut } from 'lucide-react';
 import axios from 'axios';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
-export default function SettingsPage() {
+export default function SettingsPage({ onLogout }) {
   const [institutionName, setInstitutionName] = useState(() => {
     const cached = localStorage.getItem('parknex_system_config');
     if (cached) {
@@ -193,6 +193,45 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Account & Session Control Card */}
+        <div className="card" style={{ borderLeft: '4px solid var(--danger)' }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+            <LogOut size={20} color="var(--danger)" /> Account Session & Security
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.25rem' }}>
+            Terminate your active authentication token and clear session cache across all devices.
+          </p>
+          {onLogout && (
+            <button 
+              className="btn" 
+              onClick={onLogout}
+              style={{ 
+                background: 'rgba(239, 68, 68, 0.12)', 
+                color: '#EF4444', 
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                fontWeight: '800',
+                padding: '0.75rem 1.25rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#EF4444';
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                e.currentTarget.style.color = '#EF4444';
+              }}
+            >
+              <LogOut size={18} /> Sign Out of ParkNex AI
+            </button>
+          )}
         </div>
       </div>
     </div>

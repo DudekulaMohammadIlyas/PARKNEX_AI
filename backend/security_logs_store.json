@@ -1,5 +1,131 @@
 [
   {
+    "id": "1791816746753",
+    "type": "EXIT",
+    "text": "🚗 Vehicle 45724d1e-3305-4c36-8bd7-552622641446 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791816731351",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791816696950",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket Resolved for Vehicle 151016c1-e3be-45ba-b74d-a21acbff9857",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791816693487",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket Resolved for Vehicle KA-01-AB-1234",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791816689640",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket Resolved for Vehicle UP-16-XX-8888",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791816651622",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791816434974",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791711372205",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791710112553",
+    "type": "USER",
+    "text": "🔑 User Login: mdilyas1024 (mdilyas1024@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791709192907",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791708703519",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791702232073",
+    "type": "EXIT",
+    "text": "🚗 Vehicle KA-04-SY-1234 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791702142556",
+    "type": "EXIT",
+    "text": "🚗 Vehicle undefined Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791549329934",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Test Student (admin@parknex.ai) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791548546325",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791054527525",
+    "type": "EXIT",
+    "text": "🚗 Vehicle AP-CS-0234 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791052799270",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791052513699",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1789668927998",
     "type": "EXIT",
     "text": "🚪 Vehicle KA-01-AB-1234 RELEASED via QR Scan by Officer officer_test@college.edu",

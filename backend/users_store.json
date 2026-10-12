@@ -199,5 +199,35 @@
     "passwordChangedAt": null,
     "createdAt": "2026-09-17T17:20:54.046Z",
     "updatedAt": "2026-09-17T17:20:54.046Z"
+  },
+  {
+    "id": "1eb28aed-445e-4812-9736-ebe8c740b15c",
+    "email": "admin@parknex.ai",
+    "password": "$2b$10$k7Z6cd97OLW0eOoqActBrOqP95E5mBNoWe4A8JbRPnBgPKRuYUo2u",
+    "role": "STUDENT",
+    "name": "Test Student",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-557",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-09T12:35:27.788Z",
+    "updatedAt": "2026-10-09T12:35:27.788Z"
+  },
+  {
+    "id": "7d03306e-088b-4b8a-838b-c0d351027ba2",
+    "email": "sync_test_student@college.edu",
+    "name": "sync_test_student",
+    "role": "STUDENT",
+    "studentId": "STU-2026-448",
+    "passwordHash": "$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe",
+    "phone": "",
+    "department": "",
+    "academicTerm": "Fall 2024 - Spring 2028",
+    "lastLogin": "2026-10-11T07:02:20.096Z",
+    "createdAt": "2026-10-11T07:02:20.096Z"
   }
 ]

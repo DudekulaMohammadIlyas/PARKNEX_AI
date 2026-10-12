@@ -223,7 +223,7 @@ export default function ManageSlots({ occupancy, refreshData }) {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.5rem' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: '500' }}>Slot Capacity</span>
@@ -260,12 +260,12 @@ export default function ManageSlots({ occupancy, refreshData }) {
                 <X size={22} />
               </button>
             </div>
-            
+
             <form onSubmit={isAddModal ? handleAddSubmit : handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <label>Zone Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Zone D (Hostel)"
                   value={zoneName}
@@ -276,8 +276,8 @@ export default function ManageSlots({ occupancy, refreshData }) {
               </div>
               <div>
                 <label>Capacity Slots</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   required
                   value={zoneCapacity}
                   onChange={e => setZoneCapacity(e.target.value)}
@@ -287,7 +287,7 @@ export default function ManageSlots({ occupancy, refreshData }) {
               </div>
               <div>
                 <label>Zone Vehicle Restrictions</label>
-                <select 
+                <select
                   value={zoneType}
                   onChange={e => setZoneType(e.target.value)}
                   className="search-input"
@@ -300,7 +300,7 @@ export default function ManageSlots({ occupancy, refreshData }) {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <input 
+                <input
                   type="checkbox"
                   id="facultyCheck"
                   checked={isFacultyOnly}
@@ -311,7 +311,7 @@ export default function ManageSlots({ occupancy, refreshData }) {
                   Faculty Priority Only Zone
                 </label>
               </div>
-              
+
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => { setIsAddModal(false); setIsEditModal(false); }} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>{isAddModal ? 'Create' : 'Save'}</button>

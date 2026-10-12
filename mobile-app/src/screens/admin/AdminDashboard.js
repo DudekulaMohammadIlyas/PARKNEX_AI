@@ -17,14 +17,16 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
   const [isSignageModalOpen, setIsSignageModalOpen] = useState(false);
   const [customSignageText, setCustomSignageText] = useState('WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE');
   const [liveOccupancyPct, setLiveOccupancyPct] = useState('68%');
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const fetchAdminData = async () => {
     try {
-      const [execRes, sustRes, signRes, zoneRes] = await Promise.allSettled([
+      const [execRes, sustRes, signRes, zoneRes, notifRes] = await Promise.allSettled([
         smartApiRequest('get', '/executive/dashboard'),
         smartApiRequest('get', '/sustainability/metrics'),
         smartApiRequest('get', '/signage'),
-        smartApiRequest('get', '/zones')
+        smartApiRequest('get', '/zones'),
+        smartApiRequest('get', '/notifications?role=ADMIN&email=admin@college.edu')
       ]);
 
       if (execRes.status === 'fulfilled' && execRes.value.data) setExecutiveData(execRes.value.data);
@@ -39,12 +41,19 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
         const pct = Math.round((totalOcc / totalCap) * 100);
         setLiveOccupancyPct(`${pct}%`);
       }
+      if (notifRes.status === 'fulfilled' && notifRes.value.data) {
+        setUnreadNotifCount(notifRes.value.data.unreadCount || 0);
+      }
     } catch (e) {}
   };
 
   useEffect(() => {
     fetchAdminData();
     const interval = setInterval(fetchAdminData, 3000);
+
+    const unsubscribe = navigation?.addListener?.('focus', () => {
+      fetchAdminData();
+    });
 
     const chName = `admin-dashboard-realtime-${Date.now()}`;
     const channel = supabase
@@ -59,9 +68,10 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
 
     return () => {
       clearInterval(interval);
+      if (unsubscribe) unsubscribe();
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [navigation]);
 
   const handleBroadcastSignage = async () => {
     if (!customSignageText.trim()) {
@@ -135,12 +145,33 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
-              onPress={onLogout}
-            >
-              <Ionicons name="log-out" size={20} color="#F87171" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#1E293B', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#334155', position: 'relative' }} 
+                onPress={() => navigation?.navigate('Notifications', { userEmail: user?.email || 'admin@college.edu', userRole: 'ADMIN' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="notifications" size={20} color="#38BDF8" />
+                {unreadNotifCount > 0 && (
+                  <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', borderRadius: 9, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>{unreadNotifCount > 9 ? '9+' : unreadNotifCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#2563EB', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#3B82F6' }} 
+                onPress={() => navigation?.navigate('AIChat', { userRole: 'ADMIN', userName: 'Administrator' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
+                onPress={onLogout}
+              >
+                <Ionicons name="log-out" size={20} color="#F87171" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -226,6 +257,17 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
             </View>
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>AI Analytics</Text>
             <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Models & anomaly detection</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('AIChat', { userRole: 'ADMIN', userName: 'Administrator' })}
+            style={{ width: '48%', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 18, borderWidth: 1.5, borderColor: '#8B5CF6', elevation: 2 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(139, 92, 246, 0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+              <MaterialCommunityIcons name="robot" size={24} color="#8B5CF6" />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Ask AI Assistant</Text>
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Interactive system GPT queries</Text>
           </TouchableOpacity>
         </View>
 
@@ -335,6 +377,34 @@ export default function AdminDashboard({ navigation, onLogout, occupancy }) {
           </View>
         </View>
       </Modal>
+
+      {/* FLOATING ACTION BUTTON (FAB) FOR AI ASSISTANT */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 20,
+          backgroundColor: '#4F46E5',
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 18,
+          borderRadius: 28,
+          shadowColor: '#4F46E5',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.4,
+          shadowRadius: 10,
+          elevation: 8,
+          gap: 8,
+          borderWidth: 1.5,
+          borderColor: '#818CF8'
+        }}
+        onPress={() => navigation?.navigate('AIChat', { userRole: 'ADMIN', userName: 'Administrator' })}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
+        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13, letterSpacing: 0.2 }}>Ask AI</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
