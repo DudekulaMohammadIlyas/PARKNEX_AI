@@ -128,6 +128,27 @@ function FormattedAIMessage({ text, isStreaming }) {
   );
 }
 
+function formatContextSummary(cs) {
+  if (!cs) return 'Live occupancy & zone facts';
+  if (typeof cs === 'string') return cs;
+  if (typeof cs === 'object') {
+    const parts = [];
+    if (cs.userRole) parts.push(`Role: ${cs.userRole}`);
+    if (cs.detectedIntent) parts.push(`Intent: ${cs.detectedIntent}`);
+    if (cs.confidence) parts.push(`Confidence: ${cs.confidence}`);
+    if (cs.groundTruthVerified) parts.push('Ground Truth: Verified');
+    if (cs.securityBlocked) parts.push('Security Blocked');
+    if (cs.hallucinationRefusal) parts.push('Entity Not Found');
+    if (parts.length > 0) return parts.join(' • ');
+    try {
+      return Object.entries(cs).map(([k, v]) => `${k}: ${v}`).join(' • ');
+    } catch (e) {
+      return 'Live occupancy & zone facts';
+    }
+  }
+  return String(cs);
+}
+
 export default function AIChatScreen({ navigation, route }) {
   const userRole = route?.params?.userRole || 'STUDENT';
   const userName = route?.params?.userName || 'User';
@@ -150,6 +171,18 @@ export default function AIChatScreen({ navigation, route }) {
 
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'demo'
   const [isDemoRunning, setIsDemoRunning] = useState(false);
+  const flatListRef = useRef(null);
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [healthStatus, setHealthStatus] = useState(null);
+  const [suggestions, setSuggestions] = useState([
+    "Where should I park right now?",
+    "How does slot booking work?",
+    "Check my active booking",
+    "What vehicles are linked to my account?"
+  ]);
+  const [expandedDetails, setExpandedDetails] = useState({});
   const [demoTests, setDemoTests] = useState([
     { id: 1, name: 'Test 1: Slot Booking Workflow', query: 'How does slot booking work?', expectedIntent: 'BOOKING_HOW_TO', status: 'IDLE', latency: null, intent: null, ollamaUsed: null, reply: null },
     { id: 2, name: 'Test 2: Parking Recommendation', query: 'Where should I park right now?', expectedIntent: 'PARKING_RECOMMENDATION', status: 'IDLE', latency: null, intent: null, ollamaUsed: null, reply: null },
@@ -391,7 +424,7 @@ export default function AIChatScreen({ navigation, route }) {
                   </Text>
                   <Text style={styles.telemetryLine}>
                     <Text style={styles.telemetryLabel}>Data Used: </Text>
-                    <Text style={styles.telemetryVal}>{item.contextSummary || item.meta.contextSummary || 'Live occupancy & zone facts'}</Text>
+                    <Text style={styles.telemetryVal}>{formatContextSummary(item.contextSummary || item.meta?.contextSummary)}</Text>
                   </Text>
                   <Text style={styles.telemetryLine}>
                     <Text style={styles.telemetryLabel}>Database: </Text>

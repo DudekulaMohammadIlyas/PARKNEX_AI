@@ -2956,14 +2956,36 @@ app.post('/api/security/release-vehicle', async (req, res) => {
       }
     }
 
+    // Also query database for booking if not found in memory/file store
+    let dbBooking = null;
+    if (targetBookingIndex === -1 && bookingId) {
+      dbBooking = await prisma.booking.findUnique({
+        where: { id: String(bookingId) },
+        include: { slot: { include: { zone: true } }, vehicle: true, user: true }
+      }).catch(() => null);
+    }
+    if (targetBookingIndex === -1 && !dbBooking && targetPlate) {
+      dbBooking = await prisma.booking.findFirst({
+        where: {
+          vehicle: { plateNumber: { equals: targetPlate, mode: 'insensitive' } },
+          status: 'CONFIRMED'
+        },
+        include: { slot: { include: { zone: true } }, vehicle: true, user: true },
+        orderBy: { createdAt: 'desc' }
+      }).catch(() => null);
+    }
+
     const currentBooking = targetBookingIndex !== -1 ? fileBookings[targetBookingIndex] : null;
 
     // ATOMIC CONCURRENCY CHECK: Prevent duplicate releases
-    if (currentBooking && (currentBooking.status === 'RELEASED' || currentBooking.status === 'EXITED')) {
+    if ((currentBooking && (currentBooking.status === 'RELEASED' || currentBooking.status === 'EXITED')) ||
+        (dbBooking && (dbBooking.status === 'RELEASED' || dbBooking.status === 'EXITED'))) {
+      const priorReleasedAt = currentBooking?.releasedAt || currentBooking?.exitedAt || dbBooking?.createdAt || 'earlier session';
+      const priorOfficer = currentBooking?.releasedBy || 'another Security Officer';
       return res.status(409).json({
         success: false,
         status: 'ALREADY_RELEASED',
-        error: `Duplicate Release Attempt Blocked: Vehicle ${targetPlate} was ALREADY released at ${currentBooking.releasedAt || 'earlier session'} by ${currentBooking.releasedBy || 'another Security Officer'}.`
+        error: `Duplicate Release Attempt Blocked: Vehicle ${targetPlate} was ALREADY released at ${priorReleasedAt} by ${priorOfficer}.`
       });
     }
 
@@ -2973,8 +2995,10 @@ app.post('/api/security/release-vehicle', async (req, res) => {
     if (currentBooking) {
       updatedBooking = {
         ...currentBooking,
-        status: 'RELEASED',
+        status: 'EXITED',
+        releaseStatus: 'RELEASED',
         releasedAt: releaseTimestamp,
+        exitedAt: releaseTimestamp,
         releasedBy: securityOfficer,
         remarks: remarks || 'Released via Security QR Scanner'
       };
@@ -2991,13 +3015,40 @@ app.post('/api/security/release-vehicle', async (req, res) => {
         return z;
       });
       saveJSONStore(ZONES_FILE, updatedZones);
+
+      if (currentBooking.slotId) {
+        await prisma.slot.update({
+          where: { id: String(currentBooking.slotId) },
+          data: { status: 'AVAILABLE' }
+        }).catch(() => null);
+      }
+    } else if (dbBooking) {
+      updatedBooking = {
+        id: dbBooking.id,
+        userEmail: dbBooking.user?.email || 'student@college.edu',
+        plateNumber: targetPlate,
+        slotNumber: dbBooking.slot?.slotNumber || 'A-01',
+        zoneName: dbBooking.slot?.zone?.name || 'Zone A',
+        durationHours: dbBooking.durationHours || 4,
+        bookingTime: dbBooking.bookingTime || 'Just Now',
+        bookingDate: dbBooking.bookingDate || new Date().toISOString().split('T')[0],
+        status: 'EXITED',
+        releaseStatus: 'RELEASED',
+        releasedAt: releaseTimestamp,
+        exitedAt: releaseTimestamp,
+        releasedBy: securityOfficer,
+        remarks: remarks || 'Released via Security QR Scanner'
+      };
+      fileBookings.unshift(updatedBooking);
+      saveJSONStore(BOOKINGS_FILE, fileBookings);
     }
 
-    // Try database record mutation as well
-    if (bookingId) {
+    // Update database record mutation
+    const bId = String(bookingId || currentBooking?.id || dbBooking?.id || '');
+    if (bId) {
       await prisma.booking.update({
-        where: { id: String(bookingId) },
-        data: { status: 'RELEASED' }
+        where: { id: bId },
+        data: { status: 'EXITED' }
       }).catch(() => null);
     }
 
@@ -3018,21 +3069,39 @@ app.post('/api/security/release-vehicle', async (req, res) => {
     }).catch(() => null);
 
     // Create Notification for owner
-    const targetOwnerEmail = currentBooking?.userEmail || 'student@college.edu';
+    let targetOwnerEmail = currentBooking?.userEmail || dbBooking?.user?.email;
+    if (!targetOwnerEmail && targetPlate) {
+      const veh = await prisma.vehicle.findFirst({
+        where: { plateNumber: { equals: targetPlate, mode: 'insensitive' } },
+        include: { user: true }
+      }).catch(() => null);
+      if (veh?.user?.email) targetOwnerEmail = veh.user.email;
+    }
+    if (!targetOwnerEmail) targetOwnerEmail = 'student@college.edu';
+
     createNotification({
-      userEmail: targetOwnerEmail,
+      userEmail: targetOwnerEmail.toLowerCase(),
       targetRole: 'STUDENT',
       category: 'VEHICLE_EXIT',
       priority: 'HIGH',
       title: '🚪 Vehicle Release Confirmed',
-      message: `Your vehicle ${targetPlate} has been officially verified and released by Security Officer (${securityOfficer}).`,
+      message: `Your vehicle ${targetPlate} has been officially verified and released by Security Officer (${securityOfficer}). Gate barrier released.`,
       relatedEntity: targetPlate,
-      deepLink: 'StudentVehiclesScreen'
+      deepLink: 'ExitSuccess',
+      metadata: {
+        bookingId: bId,
+        plateNumber: targetPlate,
+        duration: `${currentBooking?.durationHours || dbBooking?.durationHours || 4} Hours`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        amount: '₹0.00',
+        officer: securityOfficer
+      }
     });
 
     res.json({
       success: true,
-      status: 'RELEASED',
+      status: 'EXITED',
+      releaseStatus: 'RELEASED',
       message: `Vehicle ${targetPlate} has been successfully released by Security Officer.`,
       releasedAt: releaseTimestamp,
       releasedBy: securityOfficer,

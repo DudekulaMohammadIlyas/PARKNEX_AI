@@ -69,10 +69,14 @@ export default function ExitScanScreen({ navigation }) {
     const bookingId = scannedResult.booking?.id || null;
 
     try {
+      const storedUser = await AsyncStorage.getItem('@parknex_user').catch(() => null);
+      const u = storedUser ? JSON.parse(storedUser) : null;
+      const officerEmail = u?.email || 'security@college.edu';
+
       const res = await smartApiRequest('post', '/security/release-vehicle', {
         bookingId,
         plateNumber,
-        officerEmail: 'officer@college.edu',
+        officerEmail,
         role: 'SECURITY',
         remarks: 'Released via Mobile Security Scanner'
       });

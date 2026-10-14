@@ -53,163 +53,190 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [toastAlert, setToastAlert] = useState(null);
   const seenToastIdsRef = useRef(new Set());
+  const activeBookingRef = useRef(null);
+  const handledExitBookingIdsRef = useRef(new Set());
 
-  // Focus listener to continuously keep userProfile synced without screen flickering
-  useEffect(() => {
-    let isMounted = true;
-    const loadProfileState = async () => {
-      try {
-        const storedUserStr = await AsyncStorage.getItem('@parknex_user').catch(() => null);
-        if (storedUserStr && isMounted) {
-          const parsed = JSON.parse(storedUserStr);
-          if (parsed && parsed.name) {
-            setUserProfile(prev => {
-              if (prev.name === parsed.name && prev.department === parsed.department && prev.academicTerm === parsed.academicTerm) {
-                return prev;
-              }
-              return { ...prev, ...parsed };
-            });
-          }
+  const loadProfileState = async () => {
+    try {
+      const storedUserStr = await AsyncStorage.getItem('@parknex_user').catch(() => null);
+      if (storedUserStr) {
+        const parsed = JSON.parse(storedUserStr);
+        if (parsed && parsed.name) {
+          setUserProfile(prev => {
+            if (prev.name === parsed.name && prev.department === parsed.department && prev.academicTerm === parsed.academicTerm) {
+              return prev;
+            }
+            return { ...prev, ...parsed };
+          });
         }
-      } catch (e) {}
-    };
+      }
+    } catch (e) {}
+  };
 
+  const fetchHomeData = async () => {
+    try {
+      const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
+      const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
+
+      const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes] = await Promise.allSettled([
+        smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
+        smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
+        smartApiRequest('get', `/zones`),
+        smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
+        smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
+        smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`),
+        smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`)
+      ]);
+
+      if (profRes.status === 'fulfilled' && profRes.value.data?.user) {
+        const u = profRes.value.data.user;
+        if (u.name) {
+          setUserProfile(prev => ({ ...prev, ...u }));
+          // Save to local cache atomically
+          await AsyncStorage.setItem('@parknex_user', JSON.stringify({ ...(user || {}), ...u })).catch(() => null);
+        }
+      }
+
+      if (passRes.status === 'fulfilled' && passRes.value.data) {
+        setDigitalPass(passRes.value.data);
+      }
+      if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations)) {
+        setRecommendations(recRes.value.data.recommendations);
+      }
+      if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
+        setCampusZones(zoneRes.value.data);
+      }
+
+      // Process notifications for unread count badge & real-time toast alert
+      if (notifsRes.status === 'fulfilled' && notifsRes.value.data) {
+        const notifList = notifsRes.value.data.notifications || [];
+        const unread = notifList.filter(n => !n.isRead).length;
+        setUnreadCount(unread);
+
+        const nowMs = Date.now();
+        const freshAlerts = notifList.filter(n => {
+          if (n.isRead) return false;
+          if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH') return false;
+          if (seenToastIdsRef.current.has(n.id)) return false;
+          const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+          return (nowMs - createdMs) < 180000;
+        });
+
+        if (freshAlerts.length > 0) {
+          const newAlert = freshAlerts[0];
+          seenToastIdsRef.current.add(newAlert.id);
+          setToastAlert(newAlert);
+          setTimeout(() => {
+            setToastAlert(curr => curr?.id === newAlert.id ? null : curr);
+          }, 6500);
+        }
+      }
+
+      // Fetch vehicles from API & AsyncStorage
+      let currentVeh = [];
+      if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0) {
+        const apiVeh = vehRes.value.data.map(v => ({
+          id: v.id,
+          brand: v.brand,
+          model: v.model || 'Standard',
+          plate: v.plateNumber || v.plate,
+          type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : '4-Wheeler',
+          status: 'Verified'
+        }));
+        setVehicles(apiVeh);
+        currentVeh = apiVeh;
+      } else {
+        const savedVeh = await AsyncStorage.getItem(userVehiclesKey).catch(() => null);
+        if (savedVeh) {
+          try { currentVeh = JSON.parse(savedVeh); setVehicles(currentVeh); } catch (e) { currentVeh = []; setVehicles([]); }
+        } else {
+          currentVeh = [];
+          setVehicles([]);
+        }
+      }
+
+      // Fetch active booking from API & AsyncStorage
+      const apiBookings = (bookRes.status === 'fulfilled' && Array.isArray(bookRes.value.data)) ? bookRes.value.data : [];
+      const notifList = (notifsRes.status === 'fulfilled' && notifsRes.value.data?.notifications) || [];
+      const exitNotif = notifList.find(n => n.category === 'VEHICLE_EXIT');
+
+      const activeFromApi = apiBookings.find(b => b.status === 'CONFIRMED');
+      const exitedFromApi = apiBookings.find(b => b.status === 'EXITED' || b.status === 'RELEASED');
+
+      const savedHist = await AsyncStorage.getItem(userHistoryKey).catch(() => null);
+      let parsedHist = [];
+      if (savedHist) {
+        try { parsedHist = JSON.parse(savedHist); } catch (e) { parsedHist = []; }
+      }
+      const localConfirmed = parsedHist.find(h => h.status === 'CONFIRMED');
+
+      // Check if user has an active confirmed booking from server
+      if (activeFromApi) {
+        const activeObj = {
+          id: String(activeFromApi.id),
+          slotNumber: activeFromApi.slotNumber || activeFromApi.slot?.slotNumber || 'Slot',
+          zoneName: activeFromApi.zoneName || activeFromApi.slot?.zone?.name || 'Campus Zone',
+          plateNumber: activeFromApi.plateNumber || activeFromApi.vehicle?.plateNumber || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'NO VEHICLE LINKED'),
+          durationHours: activeFromApi.durationHours || 4,
+          bookingTime: activeFromApi.bookingTime || 'Just Now',
+          bookingDate: activeFromApi.bookingDate || new Date().toISOString().split('T')[0],
+          status: 'CONFIRMED'
+        };
+        setActiveBooking(activeObj);
+        activeBookingRef.current = activeObj;
+      } else {
+        // NO ACTIVE CONFIRMED BOOKING ON SERVER:
+        const wasActive = activeBookingRef.current || localConfirmed;
+        activeBookingRef.current = null;
+        setActiveBooking(null);
+
+        // Update any local confirmed records to EXITED in AsyncStorage
+        if (localConfirmed) {
+          const updatedHist = parsedHist.map(h => h.status === 'CONFIRMED' ? { ...h, status: 'EXITED', exitedAt: new Date().toISOString() } : h);
+          await AsyncStorage.setItem(userHistoryKey, JSON.stringify(updatedHist)).catch(() => null);
+        }
+
+        // DETECT AUTOMATIC EXIT: If session was previously active, or server has an exited booking / exit notification
+        const latestExited = exitedFromApi || (apiBookings.length > 0 ? apiBookings[0] : null);
+        const exitTrigger = wasActive || latestExited;
+        const exitedId = String(latestExited?.id || exitTrigger?.id || exitNotif?.metadata?.bookingId || '');
+
+        const shouldTriggerExitScreen = (
+          (wasActive && (latestExited || exitNotif || apiBookings.length > 0)) ||
+          (exitNotif && exitNotif.category === 'VEHICLE_EXIT')
+        );
+
+        if (shouldTriggerExitScreen && exitedId && !handledExitBookingIdsRef.current.has(exitedId)) {
+          handledExitBookingIdsRef.current.add(exitedId);
+          await AsyncStorage.setItem('@parknex_last_exited_booking_id', exitedId).catch(() => null);
+
+          const exitedPlate = latestExited?.plateNumber || exitTrigger?.plateNumber || exitTrigger?.vehicle || exitNotif?.relatedEntity || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'AP03CH4591');
+          const officerName = latestExited?.releasedBy || exitNotif?.metadata?.officer || 'Security Officer';
+          const exitDuration = latestExited?.durationHours ? `${latestExited.durationHours} Hours` : (exitTrigger?.durationHours ? `${exitTrigger.durationHours} Hours` : '4 Hours');
+          const exitTime = exitNotif?.metadata?.time || (latestExited?.releasedAt ? new Date(latestExited.releasedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+
+          navigation?.navigate('ExitSuccess', {
+            plate: exitedPlate,
+            duration: exitDuration,
+            time: exitTime,
+            amount: '₹0.00',
+            officer: officerName,
+            status: 'EXIT CLEARED & BARRIER RELEASED'
+          });
+        }
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
     loadProfileState();
+    fetchHomeData();
+    const interval = setInterval(fetchHomeData, 3000);
 
     const unsubscribe = navigation?.addListener?.('focus', () => {
       loadProfileState();
       fetchHomeData();
     });
-
-    return () => {
-      isMounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [navigation]);
-
-  useEffect(() => {
-    const fetchHomeData = async () => {
-      try {
-        const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
-        const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
-
-        const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes] = await Promise.allSettled([
-          smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
-          smartApiRequest('get', `/zones`),
-          smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`),
-          smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`)
-        ]);
-
-        if (profRes.status === 'fulfilled' && profRes.value.data?.user) {
-          const u = profRes.value.data.user;
-          if (u.name) {
-            setUserProfile(prev => ({ ...prev, ...u }));
-            // Save to local cache atomically
-            await AsyncStorage.setItem('@parknex_user', JSON.stringify({ ...(user || {}), ...u })).catch(() => null);
-          }
-        }
-
-        if (passRes.status === 'fulfilled' && passRes.value.data) {
-          setDigitalPass(passRes.value.data);
-        }
-        if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations)) {
-          setRecommendations(recRes.value.data.recommendations);
-        }
-        if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
-          setCampusZones(zoneRes.value.data);
-        }
-
-        // Process notifications for unread count badge & real-time toast alert
-        if (notifsRes.status === 'fulfilled' && notifsRes.value.data) {
-          const notifList = notifsRes.value.data.notifications || [];
-          const unread = notifList.filter(n => !n.isRead).length;
-          setUnreadCount(unread);
-
-          const nowMs = Date.now();
-          const freshAlerts = notifList.filter(n => {
-            if (n.isRead) return false;
-            if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH') return false;
-            if (seenToastIdsRef.current.has(n.id)) return false;
-            const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
-            return (nowMs - createdMs) < 180000;
-          });
-
-          if (freshAlerts.length > 0) {
-            const newAlert = freshAlerts[0];
-            seenToastIdsRef.current.add(newAlert.id);
-            setToastAlert(newAlert);
-            setTimeout(() => {
-              setToastAlert(curr => curr?.id === newAlert.id ? null : curr);
-            }, 6500);
-          }
-        }
-
-        // Fetch vehicles from API & AsyncStorage
-        let currentVeh = [];
-        if (vehRes.status === 'fulfilled' && Array.isArray(vehRes.value.data) && vehRes.value.data.length > 0) {
-          const apiVeh = vehRes.value.data.map(v => ({
-            id: v.id,
-            brand: v.brand,
-            model: v.model || 'Standard',
-            plate: v.plateNumber || v.plate,
-            type: v.type === 'TWO_WHEELER' ? '2-Wheeler' : '4-Wheeler',
-            status: 'Verified'
-          }));
-          setVehicles(apiVeh);
-          currentVeh = apiVeh;
-        } else {
-          const savedVeh = await AsyncStorage.getItem(userVehiclesKey).catch(() => null);
-          if (savedVeh) {
-            try { currentVeh = JSON.parse(savedVeh); setVehicles(currentVeh); } catch (e) { currentVeh = []; setVehicles([]); }
-          } else {
-            currentVeh = [];
-            setVehicles([]);
-          }
-        }
-
-        // Fetch active booking from API & AsyncStorage
-        if (bookRes.status === 'fulfilled' && Array.isArray(bookRes.value.data) && bookRes.value.data.length > 0) {
-          const active = bookRes.value.data.find(b => b.status === 'CONFIRMED');
-          if (active) {
-            setActiveBooking({
-              id: String(active.id),
-              slotNumber: active.slotNumber || active.slot?.slotNumber || 'Slot',
-              zoneName: active.zoneName || active.slot?.zone?.name || 'Campus Zone',
-              plateNumber: active.plateNumber || active.vehicle?.plateNumber || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'NO VEHICLE LINKED'),
-              durationHours: active.durationHours || 4,
-              bookingTime: active.bookingTime || 'Just Now',
-              bookingDate: active.bookingDate || new Date().toISOString().split('T')[0],
-              status: 'CONFIRMED'
-            });
-          } else {
-            setActiveBooking(null);
-          }
-        } else {
-          const savedHist = await AsyncStorage.getItem(userHistoryKey).catch(() => null);
-          if (savedHist) {
-            try {
-              const parsedHist = JSON.parse(savedHist);
-              const active = parsedHist.find(h => h.status === 'CONFIRMED');
-              if (active) {
-                setActiveBooking(active);
-              } else {
-                setActiveBooking(null);
-              }
-            } catch (e) {
-              setActiveBooking(null);
-            }
-          } else {
-            setActiveBooking(null);
-          }
-        }
-      } catch (e) {}
-    };
-
-    fetchHomeData();
-    const interval = setInterval(fetchHomeData, 3000);
 
     const chName = `student-home-realtime-${Date.now()}`;
     const channel = supabase
@@ -224,9 +251,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
     return () => {
       clearInterval(interval);
+      if (unsubscribe) unsubscribe();
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
-  }, [userEmail]);
+  }, [userEmail, navigation]);
 
   const handleAddVehicleSubmit = async () => {
     if (!newBrand.trim() || !newPlate.trim()) {

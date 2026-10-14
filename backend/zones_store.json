@@ -11,7 +11,7 @@
     "id": "z2",
     "name": "South Block",
     "total": 150,
-    "occupied": 50,
+    "occupied": 49,
     "type": "Mixed",
     "status": "Active"
   },
@@ -19,7 +19,7 @@
     "id": "z3",
     "name": "Central Library",
     "total": 80,
-    "occupied": 78,
+    "occupied": 76,
     "type": "4-Wheeler",
     "status": "Active"
   },

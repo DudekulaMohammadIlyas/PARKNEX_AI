@@ -1148,7 +1148,8 @@ async function processAIChat({ prisma, user, message, conversationId }) {
       processingTimeMs: Date.now() - startTime,
       suggestions: ['Where should I park right now?', 'How does slot booking work?'],
       actionPayload: null,
-      contextSummary: { securityBlocked: true },
+      contextSummary: 'Security Blocked • Query filtered by security guardrails',
+      contextDetails: { securityBlocked: true },
       groundingStatus: 'SECURITY_BLOCKED',
       answerVerification: { status: 'PASS', relevance: 'MATCHED', factsVerified: true }
     };
@@ -1186,7 +1187,8 @@ async function processAIChat({ prisma, user, message, conversationId }) {
       processingTimeMs: Date.now() - startTime,
       suggestions: ['Where should I park right now?', 'Show active parking zones'],
       actionPayload: null,
-      contextSummary: { hallucinationRefusal: true },
+      contextSummary: 'Grounding Refusal • Entity not found in campus database',
+      contextDetails: { hallucinationRefusal: true },
       groundingStatus: 'ENTITY_NOT_FOUND',
       answerVerification: { status: 'PASS', relevance: 'MATCHED', factsVerified: true }
     };
@@ -1800,7 +1802,8 @@ You can also ask me:
     dataContext: dbContext.groundTruthFacts || {},
     suggestions: suggestions,
     actionPayload: actionPayload,
-    contextSummary: {
+    contextSummary: `${userRole} • Intent: ${intent} (${Math.round(confidence * 100)}%) • Ground Truth Verified`,
+    contextDetails: {
       userRole: userRole,
       detectedIntent: intent,
       confidence: `${Math.round(confidence * 100)}%`,

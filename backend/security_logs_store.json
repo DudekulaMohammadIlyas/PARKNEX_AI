@@ -1,5 +1,145 @@
 [
   {
+    "id": "1791981508640",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791981508497",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791980733042",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791980732900",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791980119408",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791980048139",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791979862067",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791979861896",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791979818442",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791979801600",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791979679813",
+    "type": "EXIT",
+    "text": "🚪 Vehicle EXIT_GATE_SIGNAL_B_LIVE_TEST_1791979623546 RELEASED via QR Scan by Officer mohammadilyas5017.sse@saveetha.com",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791978165621",
+    "type": "EXIT",
+    "text": "🚗 Vehicle AP03CH4591 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791978054527",
+    "type": "EXIT",
+    "text": "🚪 Vehicle EXIT_GATE_SIGNAL_B_1791977898586 RELEASED via QR Scan by Officer mohammadilyas5017.sse@saveetha.com",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791978013576",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: mohammadilyas5017.sse (mohammadilyas5017.sse@saveetha.com) as SECURITY",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1791977930782",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791973856001",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791973588893",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791973540532",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791973510577",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1791972352997",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1791816746753",
     "type": "EXIT",
     "text": "🚗 Vehicle 45724d1e-3305-4c36-8bd7-552622641446 Exited Campus Barrier Gate",

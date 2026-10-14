@@ -249,6 +249,29 @@ export default function AuthScreen({ onLoginSuccess }) {
           )}
         </TouchableOpacity>
 
+        {isLogin && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+            <TouchableOpacity 
+              onPress={() => { setEmail('mraghavendra6305@gmail.com'); setPassword('password123'); }} 
+              style={{ flex: 1, backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#2563EB' }}>🎓 Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => { setEmail('security@college.edu'); setPassword('password123'); }} 
+              style={{ flex: 1, backgroundColor: '#F0FDF4', paddingVertical: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#16A34A' }}>🛡️ Security</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => { setEmail('admin@college.edu'); setPassword('password123'); }} 
+              style={{ flex: 1, backgroundColor: '#F8FAFC', paddingVertical: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1' }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#475569' }}>⚙️ Admin</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity
           style={{ marginTop: 20, alignItems: 'center' }}
           onPress={() => setIsLogin(!isLogin)}

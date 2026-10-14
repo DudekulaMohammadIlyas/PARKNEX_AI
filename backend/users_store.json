@@ -229,5 +229,22 @@
     "academicTerm": "Fall 2024 - Spring 2028",
     "lastLogin": "2026-10-11T07:02:20.096Z",
     "createdAt": "2026-10-11T07:02:20.096Z"
+  },
+  {
+    "id": "e6ac93df-e8ec-46ca-8a6e-7c4b048a093a",
+    "email": "mohammadilyas5017.sse@saveetha.com",
+    "password": "$2b$10$4qlPMQGr/mWXMowcA1OoruF/.Bn/NnuuO.Jrn0CtfiLze1Oaqq/.O",
+    "role": "SECURITY",
+    "name": "mohammadilyas5017.sse",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": null,
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-14T11:40:13.442Z",
+    "updatedAt": "2026-10-14T11:40:13.442Z"
   }
 ]

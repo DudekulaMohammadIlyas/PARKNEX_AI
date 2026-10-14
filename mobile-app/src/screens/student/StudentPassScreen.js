@@ -86,6 +86,54 @@ export default function StudentPassScreen({ navigation }) {
     loadPassData();
   }, []);
 
+  // AUTOMATIC EXIT MONITOR: When security completes verification & releases the barrier,
+  // automatically exit the session and transition to ExitSuccess screen!
+  useEffect(() => {
+    const userEmail = user?.email;
+    if (!userEmail) return;
+
+    const checkExitVerification = async () => {
+      try {
+        const bookRes = await smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
+        if (bookRes?.data && Array.isArray(bookRes.data)) {
+          const hasConfirmed = bookRes.data.some(b => b.status === 'CONFIRMED');
+          const exited = bookRes.data.find(b => b.status === 'EXITED' || b.status === 'RELEASED');
+          if (!hasConfirmed && exited) {
+            const lastHandled = await AsyncStorage.getItem('@parknex_last_exited_booking_id').catch(() => null);
+            if (lastHandled !== String(exited.id)) {
+              await AsyncStorage.setItem('@parknex_last_exited_booking_id', String(exited.id)).catch(() => null);
+
+              // Update local history
+              const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
+              const savedHist = await AsyncStorage.getItem(userHistoryKey).catch(() => null);
+              if (savedHist) {
+                try {
+                  const list = JSON.parse(savedHist).map(h => (String(h.id) === String(exited.id) || h.vehicle === exited.plateNumber) ? { ...h, status: 'EXITED' } : h);
+                  await AsyncStorage.setItem(userHistoryKey, JSON.stringify(list));
+                } catch (e) {}
+              }
+
+              navigation?.navigate('Home', {
+                screen: 'ExitSuccess',
+                params: {
+                  plate: exited.plateNumber || activeVehicle?.plate || 'KA-01-AB-1234',
+                  duration: `${exited.durationHours || 4} Hours`,
+                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  amount: '₹0.00',
+                  officer: exited.releasedBy || 'Security Officer',
+                  status: 'EXIT CLEARED & BARRIER RELEASED'
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(checkExitVerification, 2500);
+    return () => clearInterval(interval);
+  }, [user?.email, activeVehicle?.plate, navigation]);
+
   const activeVehicle = vehicles.find(v => v.plate === selectedVehiclePlate) || vehicles[0];
 
   const getQRPayload = () => {

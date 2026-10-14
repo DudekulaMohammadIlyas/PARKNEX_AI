@@ -1,11 +1,24 @@
 import Constants from 'expo-constants';
 import axios from 'axios';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 let activeBackendUrl = null;
+
+// Initialize cached working backend URL from previous successful session
+AsyncStorage.getItem('@parknex_active_backend_url').then(cached => {
+  if (cached && typeof cached === 'string') {
+    activeBackendUrl = cached;
+  }
+}).catch(() => null);
 
 const getCandidateUrls = () => {
   const candidates = [];
   
+  if (activeBackendUrl) {
+    candidates.push(activeBackendUrl);
+  }
+
   // 1. Explicit env URL if configured
   if (process.env.EXPO_PUBLIC_BACKEND_URL) {
     candidates.push(process.env.EXPO_PUBLIC_BACKEND_URL);
@@ -30,15 +43,16 @@ const getCandidateUrls = () => {
     }
   }
 
-  // 3. Host machine active Wi-Fi IPv4 address
+  // 3. Current Host machine Wi-Fi IPv4 address
+  candidates.push('http://192.168.29.254:5000/api');
   candidates.push('http://10.213.187.205:5000/api');
 
-  // 4. Android Emulator default host mapping
-  candidates.push('http://10.0.2.2:5000/api');
-
-  // 5. USB reverse debugging localhost (for adb reverse tcp:5000 tcp:5000)
+  // 4. USB reverse debugging localhost (for adb reverse tcp:5000 tcp:5000)
   candidates.push('http://localhost:5000/api');
   candidates.push('http://127.0.0.1:5000/api');
+
+  // 5. Android Emulator default host mapping
+  candidates.push('http://10.0.2.2:5000/api');
 
   return [...new Set(candidates)];
 };
@@ -62,16 +76,18 @@ export const smartApiRequest = async (method, relativePath, data = null, headers
         url: fullUrl,
         data,
         headers,
-        timeout: 3000
+        timeout: 2500
       });
 
-      // Cache the working backend URL for future requests
+      // Cache the working backend URL for future requests in memory and AsyncStorage
       activeBackendUrl = baseUrl;
+      AsyncStorage.setItem('@parknex_active_backend_url', baseUrl).catch(() => null);
       return response;
     } catch (err) {
       lastError = err;
       if (err.response) {
         activeBackendUrl = baseUrl;
+        AsyncStorage.setItem('@parknex_active_backend_url', baseUrl).catch(() => null);
         throw err;
       }
     }

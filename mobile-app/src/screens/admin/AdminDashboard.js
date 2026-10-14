@@ -9,7 +9,7 @@ import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
-export default function AdminDashboard({ navigation, onLogout, occupancy }) {
+export default function AdminDashboard({ navigation, onLogout, occupancy, user }) {
   const [executiveData, setExecutiveData] = useState({ systemHealth: '99.8% Optimal' });
   const [sustainability, setSustainability] = useState({ co2ReducedKg: 1450, fuelSavedLiters: 620, greenCampusRating: 'A+ Excellent' });
   const [signage, setSignage] = useState([{ screenName: 'MAIN_GATE_LED_01', displayedText: 'WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE' }]);
