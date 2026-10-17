@@ -272,8 +272,13 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
     setInputText('');
     setLoading(true);
 
-    try {
       const token = localStorage.getItem('token');
+      let storedUser = null;
+      try {
+        const u = localStorage.getItem('user');
+        if (u) storedUser = JSON.parse(u);
+      } catch (e) {}
+
       const headers = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -284,7 +289,10 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
         headers,
         body: JSON.stringify({
           message: query.trim(),
-          conversationId: conversationId
+          conversationId: conversationId,
+          userEmail: storedUser?.email || '',
+          userName: storedUser?.name || '',
+          userRole: storedUser?.role || ''
         })
       });
 
@@ -401,7 +409,10 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
           headers,
           body: JSON.stringify({
             message: test.query,
-            conversationId: testConvId
+            conversationId: testConvId,
+            userEmail: storedUser?.email || '',
+            userName: storedUser?.name || '',
+            userRole: storedUser?.role || ''
           })
         });
 

@@ -527,7 +527,15 @@ export default function StudentDashboard({
     setChatInput('');
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/ai/chat`, { message: userText });
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${BACKEND_URL}/ai/chat`, {
+        message: userText,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        userRole: user?.role || 'STUDENT'
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.data?.reply) {
         setChatMessages(prev => [...prev, { sender: 'ai', text: res.data.reply }]);
       }

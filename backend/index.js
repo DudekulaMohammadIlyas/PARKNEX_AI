@@ -3619,14 +3619,27 @@ app.get('/api/ai/find-vehicle', async (req, res) => {
 // Production Local Ollama AI Integration Endpoints
 app.post('/api/ai/chat', authenticateToken, async (req, res) => {
   try {
-    const { message, conversationId } = req.body;
+    const { message, conversationId, userEmail, userRole, userName } = req.body;
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Bad Request', message: 'Message text is required.' });
     }
 
+    // Resolve user context from authenticated token or request parameters
+    let effectiveUser = req.user;
+    if (!effectiveUser && (userEmail || req.query.email)) {
+      const email = (userEmail || req.query.email || '').toLowerCase().trim();
+      effectiveUser = {
+        email: email,
+        role: (userRole || req.query.role || 'STUDENT').toUpperCase(),
+        name: userName || email.split('@')[0]
+      };
+    } else if (effectiveUser && userEmail && !effectiveUser.email) {
+      effectiveUser.email = userEmail.toLowerCase().trim();
+    }
+
     const aiResult = await aiService.processAIChat({
       prisma,
-      user: req.user,
+      user: effectiveUser,
       message: message.trim(),
       conversationId: conversationId
     });
