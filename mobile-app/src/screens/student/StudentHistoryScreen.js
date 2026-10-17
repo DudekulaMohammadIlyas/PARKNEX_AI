@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal, ActivityIndicator } from 'react-native';
+import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
 import axios from 'axios';
 import config, { smartApiRequest } from '../../../config';
 import { supabase } from '../../../supabaseClient';
@@ -83,25 +84,6 @@ export default function StudentHistoryScreen() {
     };
   }, []);
 
-  const handleConfirmExit = async () => {
-    if (!selectedExitBooking) return;
-
-    try {
-      await smartApiRequest('put', `/bookings/${selectedExitBooking.id}/exit`).catch(() => null);
-    } catch (e) {}
-
-    const updated = historyData.map(h => 
-      h.id === selectedExitBooking.id ? { ...h, status: 'EXITED' } : h
-    );
-    setHistoryData(updated);
-
-    const userEmail = user?.email || 'student@college.edu';
-    await AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(updated));
-
-    setIsExitModalOpen(false);
-    Alert.alert('Checkout Successful', `Gate Barrier Released! Slot ${selectedExitBooking.slot} is now marked 100% FREE in backend database.`);
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={[styles.header, { paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
@@ -150,9 +132,10 @@ export default function StudentHistoryScreen() {
                 {item.status === 'CONFIRMED' && (
                   <TouchableOpacity
                     onPress={() => { setSelectedExitBooking(item); setIsExitModalOpen(true); }}
-                    style={{ backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                    style={{ backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                   >
-                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>Sign Gate Exit</Text>
+                    <Ionicons name="qr-code-outline" size={14} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>Show Exit QR Pass</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -162,36 +145,70 @@ export default function StudentHistoryScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* SIGN GATE EXIT MODAL */}
-      <Modal visible={isExitModalOpen} animationType="slide" transparent>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
-          <View style={[styles.card, { padding: 24 }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>Sign Gate Exit / Checkout</Text>
-              <TouchableOpacity onPress={() => setIsExitModalOpen(false)}>
-                <Feather name="x" size={24} color={COLORS.textMuted} />
+      {/* SECURITY EXIT QR PASS MODAL (SECURITY CLEARANCE ONLY) */}
+      <Modal visible={isExitModalOpen} animationType="slide" transparent onRequestClose={() => setIsExitModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 20 }}>
+          <View style={[styles.card, { padding: 22, alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={24} color="#047857" />
+                <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.text }}>Security Exit Gate Pass</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsExitModalOpen(false)} style={{ padding: 6 }}>
+                <Feather name="x" size={22} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
 
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginBottom: 16, fontWeight: '600' }}>
+              Present this QR Code to the Security Officer at the gate barrier to verify and release your vehicle.
+            </Text>
+
             {selectedExitBooking && (
-              <View style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 14, marginBottom: 20 }}>
-                <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700' }}>Active Reservation</Text>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: COLORS.primary, marginTop: 2 }}>{selectedExitBooking.zone}</Text>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: COLORS.text, marginTop: 4 }}>
-                  {selectedExitBooking.slot} • Vehicle {selectedExitBooking.vehicle}
-                </Text>
-                <Text style={{ fontSize: 12, color: COLORS.success, fontWeight: '800', marginTop: 8 }}>
-                  ● Gate Barrier Sensor Armed for Release
-                </Text>
+              <View style={{ padding: 14, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 2, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3, marginBottom: 16 }}>
+                <QRCode
+                  value={JSON.stringify({
+                    type: 'EXIT_PASS',
+                    bookingId: selectedExitBooking.id,
+                    vehiclePlate: selectedExitBooking.vehicle,
+                    plateNumber: selectedExitBooking.vehicle,
+                    slotNumber: selectedExitBooking.slot,
+                    zoneName: selectedExitBooking.zone,
+                    studentEmail: user?.email || 'student@college.edu'
+                  })}
+                  size={190}
+                />
               </View>
             )}
 
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 20, textAlign: 'center' }}>
-              Confirming exit will release slot {selectedExitBooking?.slot} back to 100% FREE capacity in the PostgreSQL database.
-            </Text>
+            {selectedExitBooking && (
+              <View style={{ width: '100%', backgroundColor: '#F8FAFC', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700' }}>Vehicle Plate:</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.text }}>{selectedExitBooking.vehicle}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700' }}>Parked Slot:</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.primary }}>{selectedExitBooking.slot} ({selectedExitBooking.zone})</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '700' }}>Gate Barrier Control:</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#047857' }}>Security Officer Only</Text>
+                </View>
+              </View>
+            )}
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleConfirmExit}>
-              <Text style={styles.primaryBtnText}>Confirm Exit & Release Slot</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: 'rgba(37,99,235,0.08)', borderRadius: 12, width: '100%', marginBottom: 16 }}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={{ fontSize: 12, color: '#1D4ED8', fontWeight: '800', flex: 1 }}>
+                Waiting for Security Officer to scan and confirm release...
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              onPress={() => setIsExitModalOpen(false)} 
+              style={{ width: '100%', paddingVertical: 12, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#475569' }}>Close Pass</Text>
             </TouchableOpacity>
           </View>
         </View>

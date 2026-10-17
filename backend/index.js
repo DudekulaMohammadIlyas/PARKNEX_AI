@@ -278,10 +278,32 @@ app.get('/api/violations', async (req, res) => {
 });
 
 app.post('/api/violations', async (req, res) => {
-  const { plateNumber, type, description, penaltyAmount } = req.body;
+  const { plateNumber, type, description, penaltyAmount, officerEmail } = req.body;
   const plate = (plateNumber || 'KA-01-AB-1234').toUpperCase();
   const fine = Number(penaltyAmount) || 500;
   const idStr = String(Date.now());
+  const issuerEmail = officerEmail || req.user?.email || 'security@college.edu';
+
+  // 1. Look up vehicle owner user email from DB or Bookings file
+  let ownerEmail = null;
+  let ownerName = null;
+  try {
+    const dbVeh = await prisma.vehicle.findFirst({
+      where: { plateNumber: { equals: plate, mode: 'insensitive' } },
+      include: { user: true }
+    }).catch(() => null);
+    if (dbVeh?.user?.email) {
+      ownerEmail = dbVeh.user.email;
+      ownerName = dbVeh.user.name;
+    }
+    if (!ownerEmail) {
+      const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+      const bMatch = fileBookings.find(b => (b.plateNumber || b.vehicle || '').toUpperCase() === plate);
+      if (bMatch?.userEmail) {
+        ownerEmail = bMatch.userEmail;
+      }
+    }
+  } catch (e) {}
 
   const newViolation = {
     id: idStr,
@@ -289,15 +311,18 @@ app.post('/api/violations', async (req, res) => {
     type: type || 'WRONG_PARKING',
     description: description || 'Reported by Security Officer',
     penaltyAmount: fine,
-    status: 'PENDING'
+    status: 'PENDING',
+    userEmail: ownerEmail || null,
+    issuedBy: issuerEmail,
+    issuedAt: new Date().toISOString()
   };
 
-  // 1. Save to JSON disk store immediately
+  // 2. Save to JSON disk store immediately
   const fileViolations = loadJSONStore(VIOLATIONS_FILE, initialViolationsStore);
   fileViolations.unshift(newViolation);
   saveJSONStore(VIOLATIONS_FILE, fileViolations);
 
-  // 2. Save to DB asynchronously
+  // 3. Save to DB asynchronously
   prisma.violation.create({
     data: {
       id: idStr,
@@ -309,24 +334,106 @@ app.post('/api/violations', async (req, res) => {
     }
   }).catch(() => {});
 
-  addSecurityLogEntry('TICKET', `🎟️ Violation Ticket Issued for Plate ${plate} (Fine: ₹${fine})`, '#F59E0B');
+  // 4. Emit High-Priority Notification to Vehicle Owner
+  if (ownerEmail) {
+    createNotification({
+      userEmail: ownerEmail,
+      targetRole: 'STUDENT',
+      category: 'VIOLATION',
+      priority: 'HIGH',
+      title: `⚠️ Parking Violation Ticket Issued (${plate})`,
+      message: `A penalty fine of ₹${fine} has been issued for vehicle ${plate} (${type || 'WRONG_PARKING'}: ${description || 'Reported by Security Officer'}).`,
+      relatedEntity: idStr,
+      deepLink: 'violations',
+      metadata: {
+        violationId: idStr,
+        plateNumber: plate,
+        type: type || 'WRONG_PARKING',
+        penaltyAmount: fine,
+        description: description || 'Reported by Security Officer',
+        issuedBy: issuerEmail,
+        issuedAt: new Date().toISOString()
+      }
+    });
+  }
+
+  // 5. Emit Notification to Security Team
+  createNotification({
+    targetRole: 'SECURITY',
+    category: 'VIOLATION',
+    priority: 'NORMAL',
+    title: `🎟️ Violation Ticket #${idStr} Logged`,
+    message: `Ticket issued for vehicle ${plate} (Fine: ₹${fine}, Type: ${type || 'WRONG_PARKING'}) by ${issuerEmail}.`,
+    relatedEntity: idStr,
+    deepLink: 'violations'
+  });
+
+  addSecurityLogEntry('TICKET', `🎟️ Violation Ticket Issued for Plate ${plate} (Fine: ₹${fine}) by ${issuerEmail}`, '#F59E0B');
   res.status(201).json(newViolation);
+});
+
+app.get('/api/violations/my-violations', async (req, res) => {
+  try {
+    const isElevated = req.user?.role === 'ADMIN' || req.user?.role === 'SECURITY';
+    const effectiveEmail = (req.user && !isElevated)
+      ? req.user.email
+      : (req.query.email || req.user?.email || null);
+
+    if (!effectiveEmail) return res.json([]);
+    const userEmail = effectiveEmail.toLowerCase().trim();
+
+    // Collect all plates registered or booked by this user
+    const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+    const myPlates = new Set();
+
+    fileBookings
+      .filter(b => b.userEmail?.toLowerCase() === userEmail)
+      .forEach(b => {
+        if (b.plateNumber) myPlates.add(b.plateNumber.toUpperCase());
+        if (b.vehicle) myPlates.add(b.vehicle.toUpperCase());
+      });
+
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: userEmail },
+        include: { vehicles: true }
+      }).catch(() => null);
+      if (dbUser?.vehicles) {
+        dbUser.vehicles.forEach(v => {
+          if (v.plateNumber) myPlates.add(v.plateNumber.toUpperCase());
+        });
+      }
+    } catch (e) {}
+
+    const fileViolations = loadJSONStore(VIOLATIONS_FILE, initialViolationsStore);
+    const myViolations = fileViolations.filter(v => 
+      (v.userEmail && v.userEmail.toLowerCase() === userEmail) ||
+      myPlates.has((v.plateNumber || '').toUpperCase())
+    );
+
+    res.json(myViolations);
+  } catch (e) {
+    res.json([]);
+  }
 });
 
 app.put('/api/violations/:id/resolve', async (req, res) => {
   const { id } = req.params;
   const targetId = String(id);
+  const resolverEmail = req.user?.email || 'security@college.edu';
 
   // 1. Update in JSON disk store
   const fileViolations = loadJSONStore(VIOLATIONS_FILE, initialViolationsStore);
   let updatedPlate = '';
+  let updatedUserEmail = null;
   let foundInFile = false;
 
   const newViolations = fileViolations.map(v => {
     if (String(v.id) === targetId) {
       updatedPlate = v.plateNumber;
+      updatedUserEmail = v.userEmail;
       foundInFile = true;
-      return { ...v, status: 'RESOLVED' };
+      return { ...v, status: 'RESOLVED', resolvedAt: new Date().toISOString(), resolvedBy: resolverEmail };
     }
     return v;
   });
@@ -338,7 +445,9 @@ app.put('/api/violations/:id/resolve', async (req, res) => {
       type: 'WRONG_PARKING',
       description: 'Resolved Ticket',
       penaltyAmount: 500,
-      status: 'RESOLVED'
+      status: 'RESOLVED',
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: resolverEmail
     });
   }
 
@@ -350,7 +459,20 @@ app.put('/api/violations/:id/resolve', async (req, res) => {
     data: { status: 'RESOLVED' }
   }).catch(() => {});
 
-  addSecurityLogEntry('TICKET', `✅ Violation Ticket Resolved for Vehicle ${updatedPlate || targetId}`, '#10B981');
+  if (updatedUserEmail) {
+    createNotification({
+      userEmail: updatedUserEmail,
+      targetRole: 'STUDENT',
+      category: 'VIOLATION',
+      priority: 'NORMAL',
+      title: '✅ Violation Ticket Resolved',
+      message: `Your violation ticket for vehicle ${updatedPlate || targetId} has been officially cleared and marked resolved by Security.`,
+      relatedEntity: targetId,
+      deepLink: 'violations'
+    });
+  }
+
+  addSecurityLogEntry('TICKET', `✅ Violation Ticket #${targetId} Resolved for Vehicle ${updatedPlate || targetId} by ${resolverEmail}`, '#10B981');
   res.json({ success: true, message: 'Violation marked resolved', id: targetId });
 });
 

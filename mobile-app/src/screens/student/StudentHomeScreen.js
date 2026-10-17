@@ -56,6 +56,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const activeBookingRef = useRef(null);
   const handledExitBookingIdsRef = useRef(new Set());
 
+  // Security Exit QR Pass & Violations State
+  const [isExitQRModalOpen, setIsExitQRModalOpen] = useState(false);
+  const [myViolations, setMyViolations] = useState([]);
+
   const loadProfileState = async () => {
     try {
       const storedUserStr = await AsyncStorage.getItem('@parknex_user').catch(() => null);
@@ -78,15 +82,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
       const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
       const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
 
-      const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes] = await Promise.allSettled([
+      const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes, violRes] = await Promise.allSettled([
         smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
         smartApiRequest('get', `/zones`),
         smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`),
-        smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`)
+        smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`),
+        smartApiRequest('get', `/violations/my-violations?email=${encodeURIComponent(userEmail)}`)
       ]);
+
+      if (violRes.status === 'fulfilled' && Array.isArray(violRes.value.data)) {
+        setMyViolations(violRes.value.data);
+      }
 
       if (profRes.status === 'fulfilled' && profRes.value.data?.user) {
         const u = profRes.value.data.user;
@@ -208,6 +217,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
         if (shouldTriggerExitScreen && exitedId && !handledExitBookingIdsRef.current.has(exitedId)) {
           handledExitBookingIdsRef.current.add(exitedId);
+          setIsExitQRModalOpen(false);
           await AsyncStorage.setItem('@parknex_last_exited_booking_id', exitedId).catch(() => null);
 
           const exitedPlate = latestExited?.plateNumber || exitTrigger?.plateNumber || exitTrigger?.vehicle || exitNotif?.relatedEntity || (currentVeh.length > 0 ? currentVeh[0]?.plate : 'AP03CH4591');
@@ -520,6 +530,41 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           </TouchableOpacity>
         </ScrollView>
 
+        {/* ACTIVE VIOLATION TICKETS WARNING BANNER */}
+        {myViolations && myViolations.some(v => v.status === 'PENDING') && (
+          <View style={{ marginBottom: 18 }}>
+            {myViolations.filter(v => v.status === 'PENDING').map((viol, vIdx) => (
+              <View key={viol.id || vIdx} style={{ backgroundColor: '#FEF2F2', borderRadius: 20, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: '#EF4444', shadowColor: '#EF4444', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="warning" size={20} color="#DC2626" />
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#DC2626', letterSpacing: 0.3 }}>
+                      PARKING VIOLATION TICKET ISSUED
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#991B1B' }}>PENDING</Text>
+                  </View>
+                </View>
+
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A', marginBottom: 2 }}>
+                  Vehicle {viol.plateNumber} • Fine: ₹{viol.penaltyAmount || 500}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600', marginBottom: 10 }}>
+                  Violation: {viol.type || 'WRONG_PARKING'} - {viol.description || 'Reported by Security Officer'}
+                </Text>
+
+                <View style={{ backgroundColor: '#FFFFFF', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="information-circle" size={16} color="#DC2626" />
+                  <Text style={{ fontSize: 11, color: '#991B1B', fontWeight: '800', flex: 1 }}>
+                    Please report to Campus Security Gate Desk to resolve this violation citation.
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* ACTIVE PARKED VEHICLE CARD OR NO SESSION BANNER */}
         {activeBooking && activeBooking.status === 'CONFIRMED' ? (
           <View style={{ backgroundColor: '#047857', borderRadius: 20, padding: 18, marginBottom: 20, shadowColor: '#047857', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 }}>
@@ -540,31 +585,13 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </Text>
 
             <TouchableOpacity 
-              style={{ backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
-              onPress={async () => {
-                const bookingId = activeBooking?.id;
-                try {
-                  if (bookingId) {
-                    await axios.put(`${BACKEND_URL}/bookings/${bookingId}/exit`).catch(() => null);
-                  }
-                } catch (e) {}
-
-                // Save to history as EXITED
-                try {
-                  const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail}`).catch(() => null);
-                  let list = savedHist ? JSON.parse(savedHist) : [];
-                  list = list.map(h => h.id === bookingId ? { ...h, status: 'EXITED' } : h);
-                  await AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(list));
-                } catch (e) {}
-
-                setActiveBooking(null);
-                Alert.alert('Exited Successfully! 🚗💨', 'Barrier gate released! Parking slot marked vacant in PostgreSQL database.');
-              }}
+              style={{ backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}
+              onPress={() => setIsExitQRModalOpen(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="exit-outline" size={18} color="#047857" />
+              <Ionicons name="qr-code-outline" size={18} color="#047857" />
               <Text style={{ color: '#047857', fontWeight: '900', fontSize: 13 }}>
-                Check Out / Exit Parking Gate
+                Show Exit QR Pass to Security
               </Text>
             </TouchableOpacity>
           </View>
@@ -865,6 +892,73 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
             <TouchableOpacity style={styles.primaryBtn} onPress={handleAddVehicleSubmit}>
               <Text style={styles.primaryBtnText}>Register Vehicle & Link Pass</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* SECURITY EXIT QR PASS MODAL */}
+      <Modal visible={isExitQRModalOpen} animationType="slide" transparent onRequestClose={() => setIsExitQRModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 22, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={24} color="#047857" />
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Security Exit Gate Pass</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsExitQRModalOpen(false)} style={{ padding: 6 }}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginBottom: 16, fontWeight: '600' }}>
+              Present this QR Code to the Security Officer at the gate barrier to verify and release your vehicle.
+            </Text>
+
+            {activeBooking && (
+              <View style={{ padding: 14, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 2, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3, marginBottom: 16 }}>
+                <QRCode
+                  value={JSON.stringify({
+                    type: 'EXIT_PASS',
+                    bookingId: activeBooking.id,
+                    vehiclePlate: activeBooking.plateNumber || activeBooking.vehicle,
+                    plateNumber: activeBooking.plateNumber || activeBooking.vehicle,
+                    slotNumber: activeBooking.slotNumber || activeBooking.slot,
+                    zoneName: activeBooking.zoneName || activeBooking.zone,
+                    studentEmail: userEmail
+                  })}
+                  size={190}
+                />
+              </View>
+            )}
+
+            <View style={{ width: '100%', backgroundColor: '#F8FAFC', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '700' }}>Vehicle Plate:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#0F172A' }}>{activeBooking?.plateNumber || activeBooking?.vehicle || 'VEHICLE'}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '700' }}>Parked Slot:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#2563EB' }}>{activeBooking?.slotNumber || activeBooking?.slot} ({activeBooking?.zoneName || activeBooking?.zone})</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '700' }}>Gate Barrier Control:</Text>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#047857' }}>Security Officer Only</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: 'rgba(37,99,235,0.08)', borderRadius: 12, width: '100%', marginBottom: 16 }}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={{ fontSize: 12, color: '#1D4ED8', fontWeight: '800', flex: 1 }}>
+                Waiting for Security Officer to scan and confirm release...
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              onPress={() => setIsExitQRModalOpen(false)} 
+              style={{ width: '100%', paddingVertical: 12, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#475569' }}>Close Pass</Text>
             </TouchableOpacity>
           </View>
         </View>

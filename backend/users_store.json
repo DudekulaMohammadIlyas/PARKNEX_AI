@@ -246,5 +246,41 @@
     "passwordChangedAt": null,
     "createdAt": "2026-10-14T11:40:13.442Z",
     "updatedAt": "2026-10-14T11:40:13.442Z"
+  },
+  {
+    "id": "f1df7a57-dff4-4701-92ab-c763d1634a31",
+    "email": "abhiabhinandhan61@gmail.com",
+    "password": "$2b$10$BrkCisIcKis/AeLkgDaTe.C7Oa/LVaBdhUf8NQmmHIIv6UH328QJO",
+    "role": "STUDENT",
+    "name": "Abhinandan",
+    "phone": "9391919879",
+    "designation": null,
+    "academicYear": null,
+    "studentId": "STU-2026-591",
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-17T16:28:21.522Z",
+    "updatedAt": "2026-10-17T16:28:21.522Z",
+    "department": "ECE",
+    "academicTerm": "2023"
+  },
+  {
+    "id": "1dfe6b5a-7bc9-4615-951d-ac0eeb3db828",
+    "email": "security@parknex.com",
+    "password": "$2b$10$Y0eTPZgqY13nJStxRoFjdOOgwbqk9YvOsv3wljflUAgBwtvQ3KI4.",
+    "role": "SECURITY",
+    "name": "Security Officer",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": null,
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-17T18:12:28.252Z",
+    "updatedAt": "2026-10-17T18:12:28.252Z"
   }
 ]

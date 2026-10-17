@@ -71,12 +71,13 @@ export const smartApiRequest = async (method, relativePath, data = null, headers
   for (const baseUrl of candidates) {
     const fullUrl = `${baseUrl.replace(/\/$/, '')}/${relativePath.replace(/^\//, '')}`;
     try {
+      const isAiReq = (relativePath || '').toLowerCase().includes('ai');
       const response = await axios({
         method,
         url: fullUrl,
         data,
         headers,
-        timeout: 2500
+        timeout: isAiReq ? 25000 : 6000
       });
 
       // Cache the working backend URL for future requests in memory and AsyncStorage

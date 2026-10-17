@@ -19,7 +19,7 @@
     "id": "z3",
     "name": "Central Library",
     "total": 80,
-    "occupied": 76,
+    "occupied": 75,
     "type": "4-Wheeler",
     "status": "Active"
   },
@@ -27,7 +27,7 @@
     "id": "z4",
     "name": "KRISHNA HOSTEL",
     "total": 150,
-    "occupied": 50,
+    "occupied": 49,
     "type": "Hostel Block",
     "status": "Active"
   },

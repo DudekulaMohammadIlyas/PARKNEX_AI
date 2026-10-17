@@ -1,5 +1,145 @@
 [
   {
+    "id": "1792262007083",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792260748400",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Security Officer (security@parknex.com) as SECURITY",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792260333980",
+    "type": "USER",
+    "text": "🔑 User Login: Test Student (admin@parknex.ai)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792259841198",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer sec1@campus.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792259332252",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792259087501",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792258272341",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate AP03CH4591 (Fine: ₹500)",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1792258272216",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate AP03CH4591 (Fine: ₹500) by security@college.edu",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1792258073655",
+    "type": "ALERT",
+    "text": "🚨 EMERGENCY OVERRIDE ACTIVATED BY SECURITY OFFICER",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1792258073596",
+    "type": "ALERT",
+    "text": "🚨 EMERGENCY TRIGGERED: CAMPUS EMERGENCY at Main Gate",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1792257985390",
+    "type": "ALERT",
+    "text": "🚨 EMERGENCY OVERRIDE ACTIVATED BY SECURITY OFFICER",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1792257985275",
+    "type": "ALERT",
+    "text": "🚨 EMERGENCY TRIGGERED: CAMPUS EMERGENCY at Main Gate",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1792255555139",
+    "type": "EXIT",
+    "text": "🚗 Vehicle AP10DF2325 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792255263821",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate AP10DF2325 (Fine: ₹200)",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1792255263706",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate AP10DF2325 (Fine: ₹200)",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1792255192367",
+    "type": "EXIT",
+    "text": "🚪 Vehicle EXIT_GATE_SIGNAL_B_1792254616449 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792255172018",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792254851598",
+    "type": "USER",
+    "text": "🔑 User Login: Abhinandan (abhiabhinandhan61@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792254539655",
+    "type": "USER",
+    "text": "✏️ Profile Updated: Abhinandan (abhiabhinandhan61@gmail.com)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792254501789",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Abhinandan (abhiabhinandhan61@gmail.com) as STUDENT",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
     "id": "1791981508640",
     "type": "EXIT",
     "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",

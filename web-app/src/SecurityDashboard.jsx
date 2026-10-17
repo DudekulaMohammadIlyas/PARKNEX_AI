@@ -377,7 +377,7 @@ export default function SecurityDashboard({
   const fetchViolations = async () => {
     try {
       const res = await axios.get(`${BACKEND_URL}/violations`);
-      if (Array.isArray(res.data) && res.data.length > 0) {
+      if (Array.isArray(res.data)) {
         setViolations(res.data);
       }
     } catch (e) {}
@@ -610,12 +610,18 @@ export default function SecurityDashboard({
         plateNumber: violationPlate.trim().toUpperCase(),
         type: violationType,
         description: violationDesc || 'Reported by Security Officer',
-        penaltyAmount: Number(penaltyAmount) || 500
+        penaltyAmount: Number(penaltyAmount) || 500,
+        issuedBy: profile?.name || profile?.email || 'Officer Security'
       });
 
+      if (res.data) {
+        setViolations(prev => [res.data, ...prev.filter(v => String(v.id) !== String(res.data.id))]);
+      }
       alert(`Parking Violation Ticket issued for plate ${violationPlate.trim().toUpperCase()}! Saved to database.`);
       fetchViolations();
       setIsViolationModalOpen(false);
+      setViolationPlate('');
+      setViolationDesc('');
     } catch (e) {
       // Memory fallback if server unavailable
       const newV = {
@@ -624,11 +630,15 @@ export default function SecurityDashboard({
         type: violationType,
         description: violationDesc || 'Reported by Security Officer',
         penaltyAmount: Number(penaltyAmount) || 500,
-        status: 'PENDING'
+        status: 'PENDING',
+        issuedBy: profile?.name || profile?.email || 'Officer Security',
+        issuedAt: new Date().toISOString()
       };
-      setViolations([newV, ...violations]);
+      setViolations(prev => [newV, ...prev]);
       alert(`Parking Violation Ticket issued for plate ${violationPlate.trim().toUpperCase()}!`);
       setIsViolationModalOpen(false);
+      setViolationPlate('');
+      setViolationDesc('');
     } finally {
       setIsSubmittingViolation(false);
     }
@@ -1127,8 +1137,8 @@ export default function SecurityDashboard({
 
       {/* SECURITY QR SCANNER & VEHICLE RELEASE MODAL */}
       {isQRModalOpen && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div className="card modal-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', padding: '2rem', borderRadius: '24px', border: '1.5px solid #334155', backgroundColor: '#0F172A', color: '#F8FAFC', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+        <div className="modal-overlay" onClick={() => setIsQRModalOpen(false)} style={{ zIndex: 1000, overflowY: 'auto', padding: '1.5rem' }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', borderRadius: '24px', border: '1.5px solid #334155', backgroundColor: '#0F172A', color: '#F8FAFC', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
             
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #1E293B', paddingBottom: '1rem' }}>

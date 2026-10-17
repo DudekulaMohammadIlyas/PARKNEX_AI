@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, 
   MapPin, 
@@ -127,9 +127,15 @@ export default function StudentDashboard({
   const [isAdvancePayModalOpen, setIsAdvancePayModalOpen] = useState(false);
   const [selectedPayTier, setSelectedPayTier] = useState('GRANT');
 
-  // Campus Gate Exit Feature State
+  // Campus Gate Exit Feature State (Security Only Clearance)
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const [exitSessionDetails, setExitSessionDetails] = useState(null);
+  const [exitConfirmedModal, setExitConfirmedModal] = useState(null);
+  const activeBookingRef = useRef(null);
+  const handledExitBookingIds = useRef(new Set());
+
+  // Parking Violations & Fines State
+  const [myViolations, setMyViolations] = useState([]);
 
   // Admin-Created Campus Zones Registry State
   const [adminZones, setAdminZones] = useState([
@@ -344,6 +350,15 @@ export default function StudentDashboard({
     } catch (e) {}
   };
 
+  const fetchMyViolations = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/violations/my-violations?email=${encodeURIComponent(userEmail)}`);
+      if (Array.isArray(res.data)) {
+        setMyViolations(res.data);
+      }
+    } catch (e) {}
+  };
+
   const fetchBookings = async () => {
     try {
       const res = await axios.get(`${BACKEND_URL}/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`);
@@ -356,9 +371,31 @@ export default function StudentDashboard({
           slot: b.slotNumber || b.slot?.slotNumber || 'K-30',
           vehicle: b.vehiclePlate || b.plateNumber || b.vehicle?.plateNumber || 'NO VEHICLE',
           duration: `${b.durationHours || 4} Hours`,
-          status: b.status || 'CONFIRMED'
+          status: b.status || 'CONFIRMED',
+          releasedBy: b.releasedBy || null,
+          releasedAt: b.releasedAt || null
         }));
         
+        // AUTOMATIC EXIT DETECTION: If an active booking was cleared by security
+        const activeBefore = activeBookingRef.current;
+        const currentActive = mapped.find(b => b.status === 'CONFIRMED');
+        const latestExited = mapped.find(b => b.status === 'EXITED' || b.status === 'RELEASED');
+
+        if (activeBefore && !currentActive && latestExited && !handledExitBookingIds.current.has(latestExited.id)) {
+          handledExitBookingIds.current.add(latestExited.id);
+          setIsExitModalOpen(false);
+          setExitConfirmedModal({
+            plate: latestExited.vehicle,
+            slot: latestExited.slot,
+            zone: latestExited.zone,
+            duration: latestExited.duration,
+            releasedBy: latestExited.releasedBy || 'Security Officer',
+            releasedAt: latestExited.releasedAt || new Date().toISOString()
+          });
+        }
+
+        activeBookingRef.current = currentActive || null;
+
         setHistoryList(prev => {
           const map = new Map();
           mapped.forEach(m => map.set(m.id, m));
@@ -383,10 +420,12 @@ export default function StudentDashboard({
     fetchAIRecommendations();
     fetchFindVehicle();
     fetchBookings();
+    fetchMyViolations();
 
     const interval = setInterval(() => {
       fetchAdminZonesAndSlots();
       fetchBookings();
+      fetchMyViolations();
     }, 3000);
 
     const chName = `student-dashboard-realtime-${Date.now()}`;
@@ -396,12 +435,14 @@ export default function StudentDashboard({
         fetchAdminZonesAndSlots();
         fetchBookings();
         fetchVehicles();
+        fetchMyViolations();
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           fetchAdminZonesAndSlots();
           fetchBookings();
           fetchVehicles();
+          fetchMyViolations();
         }
       });
 
@@ -630,35 +671,10 @@ export default function StudentDashboard({
     }
   };
 
-  // PERSISTENT CAMPUS EXIT GATE CHECKOUT FEATURE
+  // CAMPUS EXIT GATE PASS DISPLAY (Clearance via Security Officer Scan)
   const handleExitCampusGate = (session) => {
     setExitSessionDetails(session);
     setIsExitModalOpen(true);
-  };
-
-  const handleConfirmGateExit = async () => {
-    if (!exitSessionDetails) return;
-    
-    // Update status locally AND in localStorage immediately
-    const updatedHistory = historyList.map(h => 
-      (h.id === exitSessionDetails.id || (h.slot === exitSessionDetails.slot && h.date === exitSessionDetails.date))
-        ? { ...h, status: 'EXITED' }
-        : h
-    );
-
-    setHistoryList(updatedHistory);
-    localStorage.setItem('parknex_historyList', JSON.stringify(updatedHistory));
-
-    // Async REST API call to backend database
-    try {
-      if (exitSessionDetails.id && !exitSessionDetails.id.startsWith('h')) {
-        await axios.put(`${BACKEND_URL}/bookings/${exitSessionDetails.id}/exit`);
-      }
-    } catch (e) {}
-
-    alert(`🚗 Gate Exit Barrier Signaled! Barrier Gate Opened. Vehicle ${exitSessionDetails.vehicle} has checked out from ${exitSessionDetails.slot} in ${exitSessionDetails.zone}. Slot is now 100% FREE!`);
-    setIsExitModalOpen(false);
-    setExitSessionDetails(null);
   };
 
   // PERSISTENT ADVANCE PERMIT RENEWAL PAYMENT HANDLER
@@ -887,6 +903,59 @@ export default function StudentDashboard({
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
+          {/* ACTIVE VIOLATIONS & FINES WARNING CARD */}
+          {myViolations.some(v => v.status === 'PENDING') && (
+            <div className="card animate-fade-in" style={{ background: 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)', border: '2px solid #ef4444', borderRadius: '20px', padding: '1.25rem 1.75rem', color: '#fff', boxShadow: '0 8px 25px rgba(239,68,68,0.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.25)', borderRadius: '12px', border: '1px solid #fca5a5' }}>
+                    <AlertTriangle size={26} color="#fca5a5" />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1.2rem', fontWeight: '900', margin: 0, color: '#fef2f2', letterSpacing: '0.3px' }}>
+                      ⚠️ Active Parking Violation Ticket Issued
+                    </h4>
+                    <span style={{ fontSize: '0.8rem', color: '#fecaca', fontWeight: '600' }}>
+                      Security Enforcement Notice • Action Required
+                    </span>
+                  </div>
+                </div>
+                <span className="badge" style={{ background: '#ef4444', color: '#ffffff', fontWeight: '900', padding: '0.4rem 0.85rem', borderRadius: '12px' }}>
+                  {myViolations.filter(v => v.status === 'PENDING').length} PENDING TICKET(S)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {myViolations.filter(v => v.status === 'PENDING').map((viol, vIdx) => (
+                  <div key={viol.id || vIdx} style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '14px', padding: '1rem', border: '1px solid rgba(239,68,68,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#ffffff', fontFamily: 'monospace' }}>{viol.plateNumber}</strong>
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(239,68,68,0.4)', color: '#fecaca', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '800' }}>
+                          {viol.type || 'WRONG_PARKING'}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#e2e8f0' }}>
+                        {viol.description || 'Reported by Security Officer'} • Issued by: <strong>{viol.issuedBy || 'Security Officer'}</strong>
+                      </p>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '0.2rem' }}>
+                        Issued: {viol.issuedAt ? new Date(viol.issuedAt).toLocaleString() : 'Recent'}
+                      </span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fbbf24', display: 'block' }}>
+                        Fine: ₹{viol.penaltyAmount || 500}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#fca5a5', fontWeight: '700' }}>
+                        Clear at Security Gate Desk
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ACTIVE PARKED SESSION & CAMPUS GATE CHECKOUT ACTION CARD */}
           {activeParkedSession && (
             <div className="card" style={{ background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)', border: '1px solid #10b981', borderRadius: '20px', padding: '1.25rem 1.75rem', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', boxShadow: '0 8px 25px rgba(16,185,129,0.3)' }}>
@@ -905,9 +974,9 @@ export default function StudentDashboard({
               <button 
                 className="btn" 
                 onClick={() => handleExitCampusGate(activeParkedSession)}
-                style={{ background: '#ffffff', color: '#065f46', fontWeight: '900', padding: '0.75rem 1.5rem', borderRadius: '14px', border: 'none', gap: '0.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}
+                style={{ background: '#ffffff', color: '#047857', fontWeight: '900', padding: '0.75rem 1.5rem', borderRadius: '14px', border: 'none', gap: '0.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center' }}
               >
-                <ExitIcon size={18} /> Check Out / Exit Parking Gate
+                <QrIcon size={18} /> Show Exit QR Pass to Security
               </button>
             </div>
           )}
@@ -1679,9 +1748,9 @@ export default function StudentDashboard({
                             <button 
                               className="btn btn-outline" 
                               onClick={() => handleExitCampusGate(h)}
-                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderColor: 'var(--success)', color: 'var(--success)', gap: '0.3rem' }}
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderColor: 'var(--primary)', color: 'var(--primary)', gap: '0.3rem' }}
                             >
-                              <ExitIcon size={14} /> Exit Parking Gate
+                              <QrIcon size={14} /> Show Exit QR Pass
                             </button>
                           ) : (
                             <span className="badge badge-success" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
@@ -1794,44 +1863,118 @@ export default function StudentDashboard({
         </div>
       )}
 
-      {/* CAMPUS EXIT GATE CHECKOUT MODAL */}
+      {/* CAMPUS EXIT GATE QR PASS MODAL (SECURITY AUTHORITY ONLY) */}
       {isExitModalOpen && exitSessionDetails && (
         <div className="modal-overlay" onClick={() => setIsExitModalOpen(false)}>
-          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ExitIcon color="var(--success)" size={24} /> Campus Exit Gate Barrier Checkout
-              </h3>
-              <button onClick={() => setIsExitModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <QrIcon color="var(--primary)" size={24} /> Campus Exit QR Pass
+                </h3>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  Show this pass to Security Officer at the Exit Gate Barrier
+                </span>
+              </div>
+              <button onClick={() => setIsExitModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}>
                 <X size={22} />
               </button>
             </div>
 
-            <div style={{ background: '#ffffff', padding: '1rem', borderRadius: '20px', display: 'inline-flex', margin: '0 auto 1.25rem', boxShadow: '0 0 25px rgba(16,185,129,0.3)' }}>
-              <RealScannableQRCode value={`EXIT_GATE_SIGNAL_${exitSessionDetails.id || exitSessionDetails.vehicle || 'PARKNEX'}`} size={140} />
+            <div style={{ background: '#ffffff', padding: '1rem', borderRadius: '22px', display: 'inline-flex', margin: '0 auto 1.25rem', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '2px solid #e2e8f0' }}>
+              <RealScannableQRCode 
+                value={JSON.stringify({
+                  type: 'EXIT_PASS',
+                  bookingId: exitSessionDetails.id,
+                  vehiclePlate: exitSessionDetails.vehicle,
+                  plateNumber: exitSessionDetails.vehicle,
+                  slotNumber: exitSessionDetails.slot,
+                  zoneName: exitSessionDetails.zone,
+                  studentName: profile?.name || userEmail.split('@')[0],
+                  studentEmail: userEmail
+                })} 
+                size={160} 
+              />
             </div>
 
-            <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.3)', padding: '1rem', borderRadius: '16px', textAlign: 'left', fontSize: '0.85rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '16px', textAlign: 'left', fontSize: '0.85rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Exiting Vehicle:</span>
-                <strong style={{ color: 'var(--text-main)' }}>{exitSessionDetails.vehicle}</strong>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Vehicle Plate:</span>
+                <strong style={{ color: 'var(--text-main)', fontFamily: 'monospace', fontSize: '0.95rem' }}>{exitSessionDetails.vehicle}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Vacating Slot:</span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Vacating Slot:</span>
                 <strong style={{ color: 'var(--primary)' }}>{exitSessionDetails.slot} ({exitSessionDetails.zone})</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Session Duration:</span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Session Duration:</span>
                 <strong style={{ color: 'var(--text-main)' }}>{exitSessionDetails.duration}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Barrier Gate Signal:</span>
-                <strong style={{ color: 'var(--success)' }}>ANPR EXIT SIGNAL READY</strong>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Gate Barrier Control:</span>
+                <strong style={{ color: '#047857' }}>OFFICER SCAN & RELEASE ONLY</strong>
               </div>
             </div>
 
-            <button className="btn btn-primary" onClick={handleConfirmGateExit} style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', padding: '0.85rem', fontSize: '1rem', fontWeight: '900' }}>
-              Confirm Exit & Open Gate Barrier
+            <div style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.25)', borderRadius: '12px', padding: '0.85rem', marginBottom: '1.25rem', textAlign: 'left', fontSize: '0.8rem', color: '#1e3a8a', lineHeight: '1.4' }}>
+              🛡️ <strong>Security Enforcement Notice:</strong> Gate barrier checkout is strictly controlled by Campus Security personnel. Present this QR screen to the officer on duty at the barrier gate.
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', background: '#ecfdf5', borderRadius: '12px', color: '#065f46', fontWeight: '800', fontSize: '0.85rem', marginBottom: '1.25rem', border: '1px solid #a7f3d0' }}>
+              <span className="animate-clock-pulse">⏳</span> Waiting for Security Officer to scan & release gate...
+            </div>
+
+            <button className="btn btn-outline" onClick={() => setIsExitModalOpen(false)} style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '800' }}>
+              Close Pass
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* EXIT CONFIRMED BY SECURITY POPUP MODAL */}
+      {exitConfirmedModal && (
+        <div className="modal-overlay" onClick={() => setExitConfirmedModal(null)}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', textAlign: 'center', border: '2px solid #10b981' }}>
+            <div style={{ width: '70px', height: '70px', borderRadius: '35px', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+              <CheckCircle size={44} color="#10b981" />
+            </div>
+
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              Exit Verified & Gate Released!
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '1.5rem', fontWeight: '600' }}>
+              Your vehicle exit has been officially verified by Campus Security. The gate barrier has opened.
+            </p>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', textAlign: 'left', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Vehicle Plate:</span>
+                <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{exitConfirmedModal.plate}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Released Slot:</span>
+                <strong style={{ color: '#2563eb' }}>{exitConfirmedModal.slot} ({exitConfirmedModal.zone})</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Verified By:</span>
+                <strong style={{ color: '#047857' }}>{exitConfirmedModal.releasedBy}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Barrier Gate:</span>
+                <strong style={{ color: '#10b981' }}>🟢 RELEASED / OPENED</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Exit Time:</span>
+                <strong style={{ color: '#0f172a' }}>{exitConfirmedModal.releasedAt ? new Date(exitConfirmedModal.releasedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just Now'}</strong>
+              </div>
+            </div>
+
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setExitConfirmedModal(null)}
+              style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', padding: '0.85rem', fontSize: '1rem', fontWeight: '900' }}
+            >
+              Got It • Safe Drive!
             </button>
           </div>
         </div>

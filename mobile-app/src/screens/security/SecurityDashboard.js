@@ -97,7 +97,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
         smartApiRequest('get', `/notifications?role=SECURITY&email=${encodeURIComponent(officerProfile.email || 'security@college.edu')}`)
       ]);
 
-      if (vRes.status === 'fulfilled' && Array.isArray(vRes.value.data) && vRes.value.data.length > 0) {
+      if (vRes.status === 'fulfilled' && Array.isArray(vRes.value.data)) {
         setViolationsList(vRes.value.data);
       }
       if (cRes.status === 'fulfilled' && Array.isArray(cRes.value.data) && cRes.value.data.length > 0) {
@@ -238,15 +238,40 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
     const targetP = violationPlate.toUpperCase().trim();
 
     try {
-      await axios.post(`${BACKEND_URL}/violations`, {
+      const res = await smartApiRequest('post', '/violations', {
         plateNumber: targetP,
         type: violationType,
         description: violationDesc || 'Reported by Security Officer',
-        penaltyAmount: fineVal
+        penaltyAmount: fineVal,
+        issuedBy: officerProfile?.name || 'Officer Davis'
       });
+
+      const created = res?.data || {
+        id: String(Date.now()),
+        plateNumber: targetP,
+        type: violationType,
+        description: violationDesc || 'Reported by Security Officer',
+        penaltyAmount: fineVal,
+        status: 'PENDING',
+        issuedBy: officerProfile?.name || 'Officer Davis',
+        issuedAt: new Date().toISOString()
+      };
+
+      setViolationsList(prev => [created, ...prev.filter(v => String(v.id) !== String(created.id))]);
       pushSecurityLog('TICKET', `🎟️ Violation Ticket Issued for Plate ${targetP} (Fine: ₹${fineVal})`, '#F59E0B');
       Alert.alert('Ticket Issued! 🎟️', `Violation ticket (₹${fineVal}) issued for ${targetP}`);
     } catch (e) {
+      const fallbackV = {
+        id: String(Date.now()),
+        plateNumber: targetP,
+        type: violationType,
+        description: violationDesc || 'Reported by Security Officer',
+        penaltyAmount: fineVal,
+        status: 'PENDING',
+        issuedBy: officerProfile?.name || 'Officer Davis',
+        issuedAt: new Date().toISOString()
+      };
+      setViolationsList(prev => [fallbackV, ...prev]);
       pushSecurityLog('TICKET', `🎟️ Violation Ticket Issued for Plate ${targetP} (Fine: ₹${fineVal})`, '#F59E0B');
       Alert.alert('Ticket Issued! 🎟️', `Violation ticket (₹${fineVal}) issued for ${targetP}`);
     } finally {
@@ -254,6 +279,8 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
       setViolationPlate('');
       setViolationDesc('');
       setPenaltyAmount('500');
+      fetchSecurityData();
+      setActiveTab('violations');
     }
   };
 
@@ -262,7 +289,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
     setViolationsList(prev => prev.map(v => String(v.id) === targetId ? { ...v, status: 'RESOLVED' } : v));
     pushSecurityLog('TICKET', `✅ Violation Ticket #${targetId} Marked Resolved by Officer`, '#10B981');
     try {
-      await axios.put(`${BACKEND_URL}/violations/${targetId}/resolve`).catch(() => null);
+      await smartApiRequest('put', `/violations/${targetId}/resolve`).catch(() => null);
       Alert.alert('Ticket Cleared ✅', 'Violation ticket marked as resolved.');
     } catch (e) {
       Alert.alert('Ticket Cleared ✅', 'Violation ticket marked as resolved.');
@@ -345,7 +372,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
             { key: 'overview', label: '🛡️ Overview' },
             { key: 'cctv', label: '📹 CCTV Grid' },
             { key: 'visitors', label: '👤 Visitors' },
-            { key: 'violations', label: '🎟️ Violations' },
+            { key: 'violations', label: `🎟️ Violations (${violationsList.filter(v => v.status === 'PENDING').length})` },
             { key: 'settings', label: '⚙️ Settings' }
           ].map(t => {
             if (t.key === 'aichat') {

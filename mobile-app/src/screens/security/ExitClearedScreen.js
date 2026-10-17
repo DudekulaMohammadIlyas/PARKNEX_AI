@@ -5,9 +5,9 @@ import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
 export default function ExitClearedScreen({ navigation, route }) {
-  const plate = route?.params?.plate || 'NO VEHICLE LINKED';
-  const duration = route?.params?.duration || '4 Hours';
-  const status = route?.params?.status || 'Cleared';
+  const plate = route?.params?.plate || route?.params?.plateNumber || route?.params?.booking?.plateNumber || route?.params?.booking?.vehicle || 'AP03CH4591';
+  const duration = route?.params?.duration || (route?.params?.booking?.durationHours ? `${route.params.booking.durationHours} Hours` : '4 Hours');
+  const status = route?.params?.status || 'Gate Cleared & Released';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
