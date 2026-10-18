@@ -612,24 +612,119 @@ app.get('/api/bookings/all', async (req, res) => {
 
 app.post('/api/bookings', async (req, res) => {
   const { zoneName, slotNumber, plateNumber, vehiclePlate, durationHours, bookingDate, bookingTime } = req.body;
-  const userEmail = req.user?.email || req.body?.userEmail || req.body?.email || req.query?.email || 'student@college.edu';
-  const targetPlate = (plateNumber || vehiclePlate || req.body?.plate || 'KA-09-ZZ-9999').toUpperCase();
-  
+  const userEmail = (req.user?.email || req.body?.userEmail || req.body?.email || req.query?.email || 'student@college.edu').toLowerCase().trim();
+  const targetPlate = (plateNumber || vehiclePlate || req.body?.plate || 'KA-09-ZZ-9999').toUpperCase().trim();
+  const chosenZoneName = zoneName || 'KRISHNA HOSTEL';
+  const chosenSlotNumber = slotNumber || 'K-04';
+
+  let dbBookingId = null;
+
+  try {
+    let user = await prisma.user.findUnique({ where: { email: userEmail } }).catch(() => null);
+    if (!user) {
+      user = await prisma.user.findFirst().catch(() => null);
+    }
+
+    if (user) {
+      let zone = await prisma.zone.findFirst({ where: { name: chosenZoneName } }).catch(() => null);
+      if (!zone) {
+        zone = await prisma.zone.create({
+          data: { name: chosenZoneName, total: 100, occupied: 0, status: 'Active' }
+        }).catch(() => null);
+      }
+
+      if (zone) {
+        let slot = await prisma.slot.findFirst({ where: { zoneId: zone.id, slotNumber: chosenSlotNumber } }).catch(() => null);
+        if (!slot) {
+          slot = await prisma.slot.create({
+            data: {
+              slotNumber: chosenSlotNumber,
+              zoneId: zone.id,
+              status: 'RESERVED'
+            }
+          }).catch(() => null);
+        } else {
+          await prisma.slot.update({
+            where: { id: slot.id },
+            data: { status: 'RESERVED' }
+          }).catch(() => null);
+        }
+
+        // Increment occupied count in database in real time
+        await prisma.zone.update({
+          where: { id: zone.id },
+          data: { occupied: { increment: 1 } }
+        }).catch(() => null);
+
+        let vehicle = await prisma.vehicle.findFirst({
+          where: {
+            OR: [
+              { plateNumber: targetPlate },
+              { userId: user.id }
+            ]
+          }
+        }).catch(() => null);
+
+        if (!vehicle) {
+          vehicle = await prisma.vehicle.create({
+            data: {
+              userId: user.id,
+              plateNumber: targetPlate,
+              brand: 'Standard',
+              status: 'Verified'
+            }
+          }).catch(() => null);
+        }
+
+        if (slot && vehicle) {
+          const dbCreated = await prisma.booking.create({
+            data: {
+              userId: user.id,
+              slotId: slot.id,
+              vehicleId: vehicle.id,
+              bookingDate: bookingDate || new Date().toISOString().split('T')[0],
+              bookingTime: bookingTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              durationHours: Number(durationHours) || 4,
+              status: 'CONFIRMED'
+            }
+          }).catch(() => null);
+
+          if (dbCreated) dbBookingId = dbCreated.id;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ Prisma booking creation warning:', e.message);
+  }
+
+  // Update JSON disk stores for full synchronization
   const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
   const newBooking = {
-    id: `b_${Date.now()}`,
+    id: dbBookingId || `b_${Date.now()}`,
     userEmail: userEmail,
-    zoneName: zoneName || 'North Block',
-    slotNumber: slotNumber || 'N-01',
+    zoneName: chosenZoneName,
+    slotNumber: chosenSlotNumber,
     plateNumber: targetPlate,
     durationHours: Number(durationHours) || 4,
     bookingDate: bookingDate || new Date().toISOString().split('T')[0],
     bookingTime: bookingTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    status: 'CONFIRMED'
+    status: 'CONFIRMED',
+    slot: { slotNumber: chosenSlotNumber, zone: { name: chosenZoneName } },
+    vehicle: { plateNumber: targetPlate }
   };
 
   fileBookings.unshift(newBooking);
   saveJSONStore(BOOKINGS_FILE, fileBookings);
+
+  // Update zone occupied in zones_store.json
+  const fileZones = loadJSONStore(ZONES_FILE, []);
+  const updatedZones = fileZones.map(z => {
+    if (z.name === chosenZoneName) {
+      return { ...z, occupied: (z.occupied || 0) + 1 };
+    }
+    return z;
+  });
+  saveJSONStore(ZONES_FILE, updatedZones);
 
   createNotification({
     userEmail: userEmail,
@@ -637,44 +732,10 @@ app.post('/api/bookings', async (req, res) => {
     category: 'BOOKING',
     priority: 'NORMAL',
     title: '🎟️ Parking Booking Confirmed',
-    message: `Your booking for ${zoneName || 'Zone A'} (${slotNumber || 'A-01'}) is confirmed for vehicle ${targetPlate}.`,
+    message: `Your booking for ${chosenZoneName} (${chosenSlotNumber}) is confirmed for vehicle ${targetPlate}.`,
     relatedEntity: newBooking.id,
     deepLink: 'StudentBookScreen'
   });
-
-  try {
-    const user = await prisma.user.findUnique({ where: { email: userEmail } }).catch(() => null);
-    if (user) {
-      let zone = await prisma.zone.findFirst({ where: { name: zoneName } }).catch(() => null);
-      if (!zone) zone = await prisma.zone.findFirst().catch(() => null);
-      
-      if (zone) {
-        let slot = await prisma.slot.findFirst({ where: { zoneId: zone.id, slotNumber: slotNumber } }).catch(() => null);
-        if (!slot) {
-          slot = await prisma.slot.create({ data: { slotNumber: slotNumber, zoneId: zone.id, isOccupied: true, isFacultyOnly: false } }).catch(() => null);
-        } else {
-          await prisma.slot.update({ where: { id: slot.id }, data: { isOccupied: true } }).catch(() => null);
-        }
-
-        let vehicle = await prisma.vehicle.findFirst({ where: { userId: user.id } }).catch(() => null);
-        if (!vehicle) {
-          vehicle = await prisma.vehicle.create({ data: { userId: user.id, plateNumber: plateNumber || 'KA-09-ZZ-9999', brand: 'Vehicle' } }).catch(() => null);
-        }
-
-        if (slot && vehicle) {
-          await prisma.booking.create({
-            data: {
-              userId: user.id,
-              slotId: slot.id,
-              vehicleId: vehicle.id,
-              durationHours: Number(durationHours) || 4,
-              status: 'CONFIRMED'
-            }
-          }).catch(() => null);
-        }
-      }
-    }
-  } catch (e) {}
 
   res.status(201).json({ success: true, message: 'Slot reserved successfully', booking: newBooking, ...newBooking });
 });
@@ -722,22 +783,32 @@ app.put('/api/bookings/:id/exit', async (req, res) => {
   const { id } = req.params;
   const targetId = String(id);
 
+  let targetZoneName = '';
+  let exitedPlate = '';
+
   // 1. Update JSON disk store
   const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
-  let exitedPlate = '';
   const updatedBookings = fileBookings.map(b => {
     if (String(b.id) === targetId) {
-      exitedPlate = b.plateNumber || b.vehicle;
+      exitedPlate = b.plateNumber || b.vehicle || '';
+      targetZoneName = b.zoneName || b.slot?.zone?.name || '';
       return { ...b, status: 'EXITED', exitedAt: new Date().toISOString() };
     }
     return b;
   });
   saveJSONStore(BOOKINGS_FILE, updatedBookings);
 
-  // 2. Update PostgreSQL database
+  // 2. Update PostgreSQL database & slot/zone status
   try {
-    const existing = await prisma.booking.findUnique({ where: { id: targetId } }).catch(() => null);
+    const existing = await prisma.booking.findUnique({
+      where: { id: targetId },
+      include: { slot: { include: { zone: true } }, vehicle: true }
+    }).catch(() => null);
+
     if (existing) {
+      if (existing.vehicle?.plateNumber) exitedPlate = existing.vehicle.plateNumber;
+      if (existing.slot?.zone?.name) targetZoneName = existing.slot.zone.name;
+
       await prisma.booking.update({
         where: { id: targetId },
         data: { status: 'EXITED' }
@@ -746,11 +817,36 @@ app.put('/api/bookings/:id/exit', async (req, res) => {
       if (existing.slotId) {
         await prisma.slot.update({
           where: { id: existing.slotId },
-          data: { isOccupied: false }
+          data: { status: 'AVAILABLE' }
         }).catch(() => {});
       }
+
+      const zoneIdToUpdate = existing.slot?.zoneId || null;
+      if (zoneIdToUpdate) {
+        const dbZone = await prisma.zone.findUnique({ where: { id: zoneIdToUpdate } }).catch(() => null);
+        if (dbZone) {
+          await prisma.zone.update({
+            where: { id: dbZone.id },
+            data: { occupied: Math.max(0, dbZone.occupied - 1) }
+          }).catch(() => {});
+        }
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('⚠️ Prisma exit mutation warning:', e.message);
+  }
+
+  // 3. Decrement zone occupancy in zones_store.json
+  if (targetZoneName) {
+    const fileZones = loadJSONStore(ZONES_FILE, []);
+    const updatedFileZones = fileZones.map(fz => {
+      if (fz.name === targetZoneName) {
+        return { ...fz, occupied: Math.max(0, (fz.occupied || 1) - 1) };
+      }
+      return fz;
+    });
+    saveJSONStore(ZONES_FILE, updatedFileZones);
+  }
 
   addSecurityLogEntry('EXIT', `🚗 Vehicle ${exitedPlate || targetId} Exited Campus Barrier Gate`, '#10B981');
   res.json({ success: true, message: 'Exited successfully! Parking slot released.', id: targetId });
@@ -1665,180 +1761,7 @@ app.get('/api/passes/my-pass', async (req, res) => {
 
 let activeBookedSlotsStore = new Set(['K-30', 'A-08']);
 
-app.get('/api/bookings/my-bookings', async (req, res) => {
-  try {
-    const targetEmail = (req.query.email || req.user?.email || '').toLowerCase().trim();
-
-    let persistentBookings = loadJSONStore(BOOKINGS_FILE, []);
-    let dbBookings = [];
-
-    try {
-      if (targetEmail && targetEmail !== 'student@college.edu') {
-        const dbUser = await prisma.user.findUnique({ where: { email: targetEmail } }).catch(() => null);
-        if (dbUser) {
-          dbBookings = await prisma.booking.findMany({
-            where: { userId: dbUser.id },
-            include: { slot: { include: { zone: true } }, vehicle: true },
-            orderBy: { createdAt: 'desc' }
-          }).catch(() => []);
-        }
-      } else {
-        dbBookings = await prisma.booking.findMany({
-          include: { slot: { include: { zone: true } }, vehicle: true },
-          orderBy: { createdAt: 'desc' },
-          take: 20
-        }).catch(() => []);
-      }
-    } catch (e) {}
-
-    // Combine & deduplicate by ID
-    const combinedMap = new Map();
-    persistentBookings.forEach(b => {
-      if (!targetEmail || targetEmail === 'student@college.edu' || (b.userEmail && b.userEmail.toLowerCase().trim() === targetEmail)) {
-        combinedMap.set(b.id, b);
-      }
-    });
-    dbBookings.forEach(b => combinedMap.set(b.id, b));
-
-    const result = Array.from(combinedMap.values());
-    res.json(result);
-  } catch (error) { res.json([]); }
-});
-
-app.post('/api/bookings', async (req, res) => {
-  const { bookingDate, bookingTime, durationHours, zoneName, slotNumber, plateNumber } = req.body;
-  try {
-    let user = req.user?.id ? await prisma.user.findUnique({ where: { id: req.user.id } }) : await prisma.user.findFirst();
-    if (!user) return res.status(400).json({ error: 'User not found' });
-
-    let vehicle = plateNumber ? await prisma.vehicle.findFirst({ where: { plateNumber } }) : await prisma.vehicle.findFirst({ where: { userId: user.id } });
-    if (!vehicle && plateNumber) {
-      vehicle = await prisma.vehicle.create({
-        data: {
-          brand: 'Standard',
-          plateNumber: plateNumber,
-          userId: user.id,
-          status: 'Verified'
-        }
-      });
-    }
-
-    let zone = await prisma.zone.findFirst({ where: { name: zoneName || 'Zone A' } });
-    if (!zone) zone = await prisma.zone.findFirst();
-
-    let slot = await prisma.slot.findFirst({ where: { zoneId: zone.id, slotNumber: slotNumber || 'A-12' } });
-    if (!slot) {
-      slot = await prisma.slot.create({
-        data: {
-          slotNumber: slotNumber || 'A-12',
-          zoneId: zone.id,
-          status: 'RESERVED'
-        }
-      });
-    } else {
-      await prisma.slot.update({
-        where: { id: slot.id },
-        data: { status: 'RESERVED' }
-      });
-    }
-
-    const booking = await prisma.booking.create({
-      data: {
-        bookingDate: bookingDate || new Date().toISOString().split('T')[0],
-        bookingTime: bookingTime || '09:00',
-        durationHours: Number(durationHours) || 4,
-        status: 'CONFIRMED',
-        userId: user.id,
-        slotId: slot.id,
-        vehicleId: vehicle.id
-      },
-      include: {
-        slot: { include: { zone: true } },
-        vehicle: true
-      }
-    });
-
-    const newBookingObj = {
-      id: booking ? booking.id : `b_${Date.now()}`,
-      bookingDate: bookingDate || new Date().toISOString().split('T')[0],
-      bookingTime: bookingTime || '10:56 AM',
-      durationHours: Number(durationHours) || 6,
-      status: 'CONFIRMED',
-      slotNumber: slotNumber || 'K-12',
-      zoneName: zoneName || 'KRISHNA HOSTEL',
-      vehiclePlate: plateNumber || 'KA-09-ZZ-9999',
-      userId: user.id,
-      userEmail: user.email,
-      slot: { slotNumber: slotNumber || 'K-12', zone: { name: zoneName || 'KRISHNA HOSTEL' } },
-      vehicle: { plateNumber: plateNumber || 'KA-09-ZZ-9999' }
-    };
-
-    let persistentBookings = loadJSONStore(BOOKINGS_FILE, []);
-    persistentBookings.unshift(newBookingObj);
-    saveJSONStore(BOOKINGS_FILE, persistentBookings);
-
-    res.status(201).json({ success: true, booking: newBookingObj, message: 'Slot reserved successfully!' });
-  } catch (error) {
-    const fallbackBooking = {
-      id: `b_${Date.now()}`,
-      bookingDate: req.body.bookingDate || new Date().toISOString().split('T')[0],
-      bookingTime: req.body.bookingTime || '10:56 AM',
-      durationHours: Number(req.body.durationHours) || 6,
-      status: 'CONFIRMED',
-      slotNumber: req.body.slotNumber || 'K-12',
-      zoneName: req.body.zoneName || 'KRISHNA HOSTEL',
-      vehiclePlate: req.body.plateNumber || 'KA-09-ZZ-9999',
-      userEmail: (req.query.email || req.user?.email || 'student@college.edu').toLowerCase().trim(),
-      slot: { slotNumber: req.body.slotNumber || 'K-12', zone: { name: req.body.zoneName || 'KRISHNA HOSTEL' } },
-      vehicle: { plateNumber: req.body.plateNumber || 'KA-09-ZZ-9999' }
-    };
-    let persistentBookings = loadJSONStore(BOOKINGS_FILE, []);
-    persistentBookings.unshift(fallbackBooking);
-    saveJSONStore(BOOKINGS_FILE, persistentBookings);
-    res.status(201).json({ success: true, booking: fallbackBooking });
-  }
-});
-
-app.put('/api/bookings/:id/exit', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: { slot: { include: { zone: true } } }
-    }).catch(() => null);
-
-    if (booking) {
-      await prisma.booking.update({
-        where: { id },
-        data: { status: 'EXITED' }
-      }).catch(() => null);
-
-      if (booking.slotId) {
-        await prisma.slot.update({
-          where: { id: booking.slotId },
-          data: { status: 'AVAILABLE' }
-        }).catch(() => {});
-      }
-
-      if (booking.slot?.zoneId) {
-        const zone = await prisma.zone.findUnique({ where: { id: booking.slot.zoneId } });
-        if (zone) {
-          await prisma.zone.update({
-            where: { id: zone.id },
-            data: { occupied: Math.max(0, zone.occupied - 1) }
-          }).catch(() => {});
-        }
-      }
-    }
-  } catch (e) {}
-
-  let persistentBookings = loadJSONStore(BOOKINGS_FILE, []);
-  persistentBookings = persistentBookings.map(b => b.id === id ? { ...b, status: 'EXITED' } : b);
-  saveJSONStore(BOOKINGS_FILE, persistentBookings);
-
-  res.json({ success: true, message: 'Checkout successful. Gate barrier released!' });
-});
+// (Booking endpoints unified above at line 613)
 
 // ================= SYSTEM SETTINGS ENDPOINTS ================= //
 
@@ -3165,13 +3088,37 @@ app.post('/api/security/release-vehicle', async (req, res) => {
       saveJSONStore(BOOKINGS_FILE, fileBookings);
     }
 
-    // Update database record mutation
+    // Update database record mutation & synchronize slot and zone
     const bId = String(bookingId || currentBooking?.id || dbBooking?.id || '');
     if (bId) {
+      const bRec = await prisma.booking.findUnique({
+        where: { id: bId },
+        include: { slot: { include: { zone: true } } }
+      }).catch(() => null);
+
       await prisma.booking.update({
         where: { id: bId },
         data: { status: 'EXITED' }
       }).catch(() => null);
+
+      const targetSlotId = bRec?.slotId || currentBooking?.slotId || dbBooking?.slotId || null;
+      if (targetSlotId) {
+        await prisma.slot.update({
+          where: { id: String(targetSlotId) },
+          data: { status: 'AVAILABLE' }
+        }).catch(() => null);
+      }
+
+      const targetZoneId = bRec?.slot?.zoneId || dbBooking?.slot?.zoneId || null;
+      if (targetZoneId) {
+        const z = await prisma.zone.findUnique({ where: { id: targetZoneId } }).catch(() => null);
+        if (z) {
+          await prisma.zone.update({
+            where: { id: z.id },
+            data: { occupied: Math.max(0, z.occupied - 1) }
+          }).catch(() => null);
+        }
+      }
     }
 
     // Add Security Audit Log Entry
@@ -3527,49 +3474,18 @@ app.get('/api/ai/kpi-analytics', async (req, res) => {
 
 app.get('/api/ai/recommendations', async (req, res) => {
   try {
-    const zones = await prisma.zone.findMany().catch(() => []);
-    const sortedZones = zones.length >= 3 ? zones : [
-      { id: 'z1', name: 'KRISHNA HOSTEL', total: 150, occupied: 6 },
-      { id: 'z2', name: 'HOSPITAL PARKING', total: 200, occupied: 0 },
-      { id: 'z3', name: 'North Block', total: 200, occupied: 0 },
-      { id: 'z4', name: 'South Block', total: 150, occupied: 10 },
-      { id: 'z5', name: 'Zone A', total: 120, occupied: 20 }
-    ];
-
-    const recommendations = sortedZones.map((z, idx) => {
-      let prefix = z.name.split(' ')[0].charAt(0).toUpperCase();
-      if (z.name.startsWith('Faculty Block')) prefix = 'FB';
-      else if (z.name.startsWith('HOSPITAL')) prefix = 'H';
-      else if (z.name.startsWith('KRISHNA')) prefix = 'K';
-      else if (z.name.startsWith('Near Temple')) prefix = 'T';
-      else if (z.name.startsWith('North')) prefix = 'N';
-      else if (z.name.startsWith('South')) prefix = 'S';
-      else if (z.name.startsWith('Visitor')) prefix = 'V';
-
-      const slotNum = idx === 0 ? `${prefix}-04` : idx === 1 ? `${prefix}-08` : idx === 2 ? `${prefix}-15` : `${prefix}-${String(idx * 5 + 3).padStart(2, '0')}`;
-      const distance = 80 + idx * 60;
-      const vacantPercent = Math.max(30, Math.round((((z.total || 100) - (z.occupied || 0)) / (z.total || 100)) * 100));
-      const score = Math.max(75, 96 - idx * 5);
-
-      return {
-        zoneId: z.id || `z-${idx}`,
-        zoneName: z.name,
-        slotNumber: slotNum,
-        distanceMeters: distance,
-        score: score,
-        availableSlots: (z.total || 100) - (z.occupied || 0),
-        reason: `${distance}m from CS Block • ${vacantPercent}% vacant ${idx === 0 ? '• EV Charger available' : ''}`
-      };
-    });
-
-    res.json({ success: true, recommendations: recommendations.slice(0, 3) });
+    const userRole = req.user?.role || req.query.role || 'STUDENT';
+    const department = req.query.department || 'General';
+    const recommendations = await aiService.getSynchronizedRecommendations({ prisma, userRole, department });
+    res.json({ success: true, recommendations });
   } catch (error) {
+    console.error('Error in /api/ai/recommendations:', error);
     res.json({
       success: true,
       recommendations: [
-        { zoneName: 'KRISHNA HOSTEL', slotNumber: 'K-04', distanceMeters: 80, score: 96, reason: '80m from Academic Block • 96% vacant • EV Charger available' },
-        { zoneName: 'HOSPITAL PARKING', slotNumber: 'H-08', distanceMeters: 140, score: 91, reason: '140m from Health Center • 100% vacant' },
-        { zoneName: 'North Block', slotNumber: 'N-15', distanceMeters: 190, score: 85, reason: '190m from North Block Gate • Wide shade cover' }
+        { zoneName: 'KRISHNA HOSTEL', slotNumber: 'K-04', distanceMeters: 80, score: 96, availableSlots: 100, totalSlots: 150, occupancyPercent: '33%', hasEvCharger: true, reason: '80m from Academic Block • 67% vacant • EV Charger available' },
+        { zoneName: 'South Block', slotNumber: 'S-04', distanceMeters: 120, score: 91, availableSlots: 100, totalSlots: 150, occupancyPercent: '33%', hasEvCharger: false, reason: '120m from Student Center • 67% vacant' },
+        { zoneName: 'North Block', slotNumber: 'N-05', distanceMeters: 180, score: 85, availableSlots: 120, totalSlots: 200, occupancyPercent: '40%', hasEvCharger: false, reason: '180m from North Gate • 60% vacant' }
       ]
     });
   }

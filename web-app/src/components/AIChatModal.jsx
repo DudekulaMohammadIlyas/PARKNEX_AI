@@ -272,6 +272,7 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
     setInputText('');
     setLoading(true);
 
+    try {
       const token = localStorage.getItem('token');
       let storedUser = null;
       try {
@@ -390,6 +391,12 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
     setIsDemoRunning(true);
 
     const token = localStorage.getItem('token');
+    let storedUser = null;
+    try {
+      const u = localStorage.getItem('user');
+      if (u) storedUser = JSON.parse(u);
+    } catch (e) {}
+
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})

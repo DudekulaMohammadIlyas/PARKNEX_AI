@@ -600,7 +600,203 @@ function computeCampusAnalytics(zones) {
 }
 
 /**
- * Deterministic Parking Recommendation Engine
+ * Standardized Campus Zone Metadata (Distances, Features, Slot Prefixes)
+ */
+const CAMPUS_ZONE_METADATA = {
+  'KRISHNA HOSTEL': {
+    distanceMeters: 80,
+    hasEvCharger: true,
+    description: 'Adjacent to Academic Block • Level-2 EV Charging',
+    slotPrefix: 'K'
+  },
+  'South Block': {
+    distanceMeters: 120,
+    hasEvCharger: false,
+    description: 'Near Student Center & Food Court • Wide shaded bays',
+    slotPrefix: 'S'
+  },
+  'North Block': {
+    distanceMeters: 180,
+    hasEvCharger: false,
+    description: 'North Gate Perimeter • High vacancy & quick road exit',
+    slotPrefix: 'N'
+  },
+  'Zone C': {
+    distanceMeters: 220,
+    hasEvCharger: false,
+    description: 'East Campus Quadrant • Low traffic congestion',
+    slotPrefix: 'C'
+  },
+  'Zone A': {
+    distanceMeters: 250,
+    hasEvCharger: false,
+    description: 'Main Campus Quad • Rapid transit access',
+    slotPrefix: 'A'
+  },
+  'Faculty Block Parking': {
+    distanceMeters: 40,
+    hasEvCharger: true,
+    description: 'Direct Admin Building access • Reserved Priority',
+    slotPrefix: 'FB'
+  },
+  'Faculty Parking': {
+    distanceMeters: 50,
+    hasEvCharger: false,
+    description: 'Faculty Quad • Dedicated reserved bays',
+    slotPrefix: 'F'
+  },
+  'Visitor Parking': {
+    distanceMeters: 60,
+    hasEvCharger: false,
+    description: 'Main Gate 1 • Kiosk optical pass verification',
+    slotPrefix: 'V'
+  },
+  'Near Temple': {
+    distanceMeters: 280,
+    hasEvCharger: false,
+    description: 'South-West perimeter • Open parking',
+    slotPrefix: 'T'
+  },
+  'HOSPITAL PARKING': {
+    distanceMeters: 300,
+    hasEvCharger: false,
+    description: 'Medical & Health Wing • Emergency access zone',
+    slotPrefix: 'H'
+  }
+};
+
+/**
+ * Synchronized AI Recommendation Engine
+ * Used concurrently by GET /api/ai/recommendations and POST /api/ai/chat.
+ * Grounds recommendations in live PostgreSQL Prisma database facts and slot statuses.
+ */
+async function getSynchronizedRecommendations({ prisma, userRole = 'STUDENT', department = 'General' }) {
+  const normalizedRole = (userRole || 'STUDENT').toUpperCase();
+  const isFacultyOrAdmin = ['FACULTY', 'ADMIN', 'SUPER_ADMIN'].includes(normalizedRole);
+
+  let zonesWithSlots = [];
+  try {
+    zonesWithSlots = await prisma.zone.findMany({
+      include: {
+        slots: {
+          orderBy: { slotNumber: 'asc' }
+        }
+      }
+    });
+  } catch (err) {
+    console.warn('⚠️ Prisma query warning in getSynchronizedRecommendations:', err.message);
+  }
+
+  if (!zonesWithSlots || zonesWithSlots.length === 0) {
+    const fileZones = readJsonSafe('zones_store.json', []);
+    zonesWithSlots = fileZones.map(z => ({
+      id: z.id || `zone_${(z.name || '').replace(/\s+/g, '_')}`,
+      name: z.name,
+      total: z.total || 100,
+      occupied: z.occupied || 0,
+      isFacultyOnly: z.isFacultyOnly || z.type === 'Faculty Only',
+      status: z.status || 'Active',
+      slots: []
+    }));
+  }
+
+  // Filter eligible zones based on RBAC and active availability
+  const eligibleZones = zonesWithSlots.filter(z => {
+    if (z.status !== 'Active') return false;
+
+    // RBAC: Non-faculty cannot park in faculty-only zones
+    if (z.isFacultyOnly && !isFacultyOrAdmin) return false;
+    if ((z.name || '').toLowerCase().includes('faculty') && !isFacultyOrAdmin) return false;
+
+    // RBAC: Students cannot park in visitor lots
+    if (normalizedRole === 'STUDENT' && (z.name || '').toLowerCase().includes('visitor')) return false;
+
+    // Filter out uncalibrated zones without configured physical slots
+    if (!Array.isArray(z.slots) || z.slots.length === 0) return false;
+
+    // Filter out zones with 0 capacity
+    if ((z.total || 0) <= 0) return false;
+
+    // Must have at least 1 open bay
+    const available = Math.max(0, (z.total || 0) - (z.occupied || 0));
+    return available > 0;
+  });
+
+  const scoredRecommendations = eligibleZones.map(z => {
+    const total = Math.max(1, z.total || 100);
+    const occupied = Math.max(0, z.occupied || 0);
+    const available = Math.max(0, total - occupied);
+    const vacantPercent = Math.round((available / total) * 100);
+    const occupancyPercent = `${Math.round((occupied / total) * 100)}%`;
+
+    const meta = CAMPUS_ZONE_METADATA[z.name] || {
+      distanceMeters: 200,
+      hasEvCharger: false,
+      description: `${z.name} parking area`,
+      slotPrefix: (z.name || 'Z').charAt(0).toUpperCase()
+    };
+
+    // Find actual unoccupied slot in this zone (prioritize calibrated slots)
+    let candidateSlot = null;
+    const preferredSlots = {
+      'KRISHNA HOSTEL': ['K-04', 'K-28', 'K-12'],
+      'South Block': ['S-04', 'S-02', 'S-01', 'S-05', 'S-07'],
+      'North Block': ['N-05', 'N-01', 'N-02', 'N-04', 'N-07']
+    };
+    const prefs = preferredSlots[z.name] || [];
+
+    if (Array.isArray(z.slots) && z.slots.length > 0) {
+      for (const pref of prefs) {
+        const found = z.slots.find(s => s.slotNumber === pref && s.status === 'AVAILABLE' && (!s.isReservedForFaculty || isFacultyOrAdmin));
+        if (found) {
+          candidateSlot = found.slotNumber;
+          break;
+        }
+      }
+      if (!candidateSlot) {
+        const availDbSlot = z.slots.find(s => s.status === 'AVAILABLE' && (!s.isReservedForFaculty || isFacultyOrAdmin));
+        if (availDbSlot) {
+          candidateSlot = availDbSlot.slotNumber;
+        }
+      }
+    }
+
+    if (!candidateSlot) {
+      const pfx = meta.slotPrefix;
+      candidateSlot = `${pfx}-04`;
+    }
+
+    // Dynamic calibrated proximity and vacancy scoring:
+    let baseScore = 60;
+    if (meta.distanceMeters <= 80) baseScore = 87;
+    else if (meta.distanceMeters <= 120) baseScore = 85;
+    else if (meta.distanceMeters <= 180) baseScore = 80;
+    else if (meta.distanceMeters <= 220) baseScore = 70;
+
+    const vacancyRatio = available / total;
+    const evBonus = meta.hasEvCharger ? 4 : 0;
+    const dynamicScore = Math.min(96, Math.max(65, Math.round(baseScore + (vacancyRatio * 8) + evBonus)));
+
+    return {
+      zoneId: z.id,
+      zoneName: z.name,
+      slotNumber: candidateSlot,
+      distanceMeters: meta.distanceMeters,
+      score: dynamicScore,
+      availableSlots: available,
+      totalSlots: total,
+      occupancyPercent: occupancyPercent,
+      hasEvCharger: meta.hasEvCharger,
+      reason: `${meta.distanceMeters}m from Academic Block • ${vacantPercent}% vacant${meta.hasEvCharger ? ' • EV Charger available' : ''}`
+    };
+  });
+
+  scoredRecommendations.sort((a, b) => b.score - a.score);
+  return scoredRecommendations.slice(0, 3);
+}
+
+/**
+ * Deterministic Parking Recommendation Engine (Synchronous fallback)
  */
 function calculateBestZoneRecommendation(zones, userRole) {
   if (!Array.isArray(zones) || zones.length === 0) {
@@ -610,6 +806,9 @@ function calculateBestZoneRecommendation(zones, userRole) {
   const eligible = zones.filter(z => {
     if (z.status !== 'Active') return false;
     if (z.isFacultyOnly && !['FACULTY', 'ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
+      return false;
+    }
+    if ((z.name || '').toLowerCase().includes('faculty') && !['FACULTY', 'ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
       return false;
     }
     return (z.total - z.occupied) > 0;
@@ -625,15 +824,20 @@ function calculateBestZoneRecommendation(zones, userRole) {
   const scored = eligible.map(z => {
     const avail = z.total - z.occupied;
     const availPct = z.total > 0 ? (avail / z.total) : 0;
-    let score = (availPct * 60) + (Math.min(avail, 20) * 2);
+    const meta = CAMPUS_ZONE_METADATA[z.name] || { distanceMeters: 200, hasEvCharger: false, slotPrefix: 'Z' };
+    
+    let score = (availPct * 40) + Math.max(10, 40 - ((meta.distanceMeters - 40) / 7)) + (meta.hasEvCharger ? 5 : 0);
     if (z.isFacultyOnly && ['FACULTY', 'ADMIN'].includes(userRole)) {
-      score += 20;
+      score += 10;
     }
     return {
       name: z.name,
       availableSlots: avail,
       totalSlots: z.total,
       occupancyPercent: `${Math.round((z.occupied / z.total) * 100)}%`,
+      distanceMeters: meta.distanceMeters,
+      hasEvCharger: meta.hasEvCharger,
+      slotNumber: `${meta.slotPrefix}-04`,
       score: Math.round(score)
     };
   });
@@ -643,11 +847,14 @@ function calculateBestZoneRecommendation(zones, userRole) {
 
   return {
     recommendedZone: best.name,
+    recommendedSlot: best.slotNumber,
     availableSlots: best.availableSlots,
     totalSlots: best.totalSlots,
     occupancyPercent: best.occupancyPercent,
+    distanceMeters: best.distanceMeters,
+    hasEvCharger: best.hasEvCharger,
     score: best.score,
-    reason: `${best.name} is recommended with ${best.availableSlots} vacant slots (${best.occupancyPercent} occupied).`
+    reason: `${best.name} (Slot ${best.slotNumber}) is recommended with ${best.availableSlots} vacant slots (${best.occupancyPercent} occupied).`
   };
 }
 
@@ -932,11 +1139,25 @@ async function buildDatabaseContext(prisma, user, intent, userQuery, targetZoneN
       zoneName: b.slot?.zone?.name || 'Zone'
     }));
 
-    // 6. Always query live campus zones
+    // 6. Always query live campus zones & synchronized recommendations
     const zones = await getAllActiveZones(prisma);
     context.parkingZones = zones;
     context.analytics = computeCampusAnalytics(zones);
-    context.recommendation = calculateBestZoneRecommendation(zones, context.userRole);
+    const syncRecs = await getSynchronizedRecommendations({ prisma, userRole: context.userRole, department: context.userInfo.department });
+    context.recommendations = syncRecs;
+    const topRec = syncRecs[0] || null;
+    context.recommendation = topRec ? {
+      recommendedZone: topRec.zoneName,
+      recommendedSlot: topRec.slotNumber,
+      availableSlots: topRec.availableSlots,
+      totalSlots: topRec.totalSlots,
+      occupancyPercent: topRec.occupancyPercent,
+      distanceMeters: topRec.distanceMeters,
+      score: topRec.score,
+      hasEvCharger: topRec.hasEvCharger,
+      reason: topRec.reason,
+      allRecommendations: syncRecs
+    } : calculateBestZoneRecommendation(zones, context.userRole);
 
     // 7. Intent-Specific Ground Truth Facts
     if (intent === 'BOOKING_HOW_TO') {
@@ -1609,24 +1830,24 @@ ${sanitizedMsg}
     }
     else if (intent === 'PARKING_RECOMMENDATION') {
       if (dbContext.recommendation?.recommendedZone) {
+        const rec = dbContext.recommendation;
         const userVehicleNote = dbContext.userVehicles?.[0] ? ` for your **${dbContext.userVehicles[0].brand}** (\`${dbContext.userVehicles[0].plateNumber}\`)` : '';
-        aiResponseText = `**Here is your optimal parking recommendation:** 🚗\n\nBased on real-time sensor occupancy and campus traffic${userVehicleNote}, I recommend **${dbContext.recommendation.recommendedZone}**:\n\n• **Available Vacancy**: **${dbContext.recommendation.availableSlots}** vacant slots (${dbContext.recommendation.occupancyPercent} occupied)\n• **Proximity**: Closest to Academic Blocks & Main Library\n• **Gate Traffic**: Low congestion with minimal wait time\n\nWould you like to reserve a slot in **${dbContext.recommendation.recommendedZone}** right now?`;
+        const evNote = rec.hasEvCharger ? ' • Level-2 EV Charging' : '';
+        aiResponseText = `**Optimal Parking Recommendation:** 🚗\n\nBased on real-time sensor occupancy, shortest walking proximity, and live barrier clearance${userVehicleNote}, I recommend **${rec.recommendedZone}** (Slot **${rec.recommendedSlot}**):\n\n• **Recommended Slot**: **${rec.recommendedSlot}** in **${rec.recommendedZone}**\n• **Real-Time Vacancy**: **${rec.availableSlots}** vacant slots (${rec.occupancyPercent} occupied)\n• **Proximity**: **${rec.distanceMeters}m** from Academic Block (~2 min walk)\n• **AI Match Score**: **${rec.score} / 100**${evNote}\n\nWould you like to reserve slot **${rec.recommendedSlot}** in **${rec.recommendedZone}** right now?`;
       } else {
         aiResponseText = `**Campus Parking Availability Status:** 🚗\n\nAll campus parking zones are currently operating with live vacancy monitoring. You can check individual lot vacancy under **Manage Parking Lots** or ask me for a specific zone!`;
       }
     }
     else if (intent === 'ALTERNATIVE_ZONES') {
-      const allZones = dbContext.alternativeZones || dbContext.parkingZones || [];
-      const eligibleAlternatives = allZones
-        .filter(z => z.status === 'Active' && (!z.isFacultyOnly || ['FACULTY', 'ADMIN', 'SUPER_ADMIN'].includes(userRole)))
-        .sort((a, b) => b.availableSlots - a.availableSlots);
-
-      const topAlt = eligibleAlternatives[0];
-      const altList = eligibleAlternatives.slice(0, 5).map(z => 
-        `• **${z.name}**: **${z.availableSlots}** open bays (${z.occupancyPercent} occupied)`
+      const recs = dbContext.recommendations || [];
+      const alts = recs.length > 1 ? recs.slice(1) : (dbContext.alternativeZones || []).slice(0, 3);
+      
+      const altList = alts.map(a => 
+        `• **${a.zoneName || a.name}** (Slot **${a.slotNumber || 'Available'}**): **${a.availableSlots}** open bays (${a.occupancyPercent} occupied, ${a.distanceMeters || 120}m away, AI Score: ${a.score || 85})`
       ).join('\n');
 
-      aiResponseText = `**Alternative Campus Parking Zones:** 🅿️\n\nHere is the real-time vacancy breakdown across other active campus parking lots:\n\n${altList || '• All campus zones are actively monitored.'}\n\n💡 **Top Alternative**: **${topAlt?.name || 'South Block'}** currently has the most available space with **${topAlt?.availableSlots || 'multiple'}** vacant bays. Would you like to reserve a slot there?`;
+      const topAlt = alts[0];
+      aiResponseText = `**Alternative Campus Parking Zones:** 🅿️\n\nHere is the real-time vacancy breakdown across other active campus parking lots:\n\n${altList || '• All campus zones are actively monitored.'}\n\n💡 **Top Alternative**: **${topAlt?.zoneName || topAlt?.name || 'South Block'}** (Slot **${topAlt?.slotNumber || 'S-04'}**) currently has **${topAlt?.availableSlots || 'multiple'}** vacant bays (${topAlt?.distanceMeters || 120}m away). Would you like to reserve a slot there?`;
     }
     else if (intent === 'ZONE_SPECIFIC_INQUIRY') {
       const z = dbContext.targetZone;
@@ -1690,7 +1911,8 @@ ${sanitizedMsg}
     }
     else if (intent === 'EXPLAIN_RECOMMENDATION') {
       if (dbContext.recommendation?.recommendedZone) {
-        aiResponseText = `**Why ${dbContext.recommendation.recommendedZone} was recommended:** 🎯\n\nI recommended **${dbContext.recommendation.recommendedZone}** using ParkNex's real-time balancing logic:\n\n• **Lowest Occupancy**: Only **${dbContext.recommendation.occupancyPercent}** filled with **${dbContext.recommendation.availableSlots}** vacant bays\n• **Traffic Balance**: Directs vehicles away from congested library zones\n• **Role Compatibility**: Fully permitted for your user role eligibility`;
+        const rec = dbContext.recommendation;
+        aiResponseText = `**Why ${rec.recommendedZone} (Slot ${rec.recommendedSlot}) was recommended:** 🎯\n\nI recommended **${rec.recommendedZone}** using ParkNex's real-time balancing algorithm:\n\n• **Highest Live Vacancy**: **${rec.availableSlots}** open bays (${rec.occupancyPercent} occupied) ensures guaranteed parking without circling.\n• **Optimal Proximity**: Only **${rec.distanceMeters}m** walking distance from Academic Block (~2 mins).\n• **AI Quality Score**: **${rec.score} / 100** based on low barrier congestion${rec.hasEvCharger ? ' and Level-2 EV Charging' : ''}.\n• **Role Compatibility**: Fully authorized and open for your **${dbContext.userRole}** status.`;
       } else {
         aiResponseText = `Recommendations are calculated deterministically from real-time slot vacancy percentages, proximity to academic buildings, and current barrier queue times.`;
       }
@@ -1884,5 +2106,7 @@ module.exports = {
   detectIntent,
   verifyAnswerRelevance,
   processAIChat,
-  isPromptInjection
+  isPromptInjection,
+  getSynchronizedRecommendations,
+  CAMPUS_ZONE_METADATA
 };

@@ -1,5 +1,26 @@
 [
   {
+    "id": "1792317032703",
+    "type": "EXIT",
+    "text": "🚗 Vehicle KA-05-XY-9876 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792317030699",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792317006122",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1792262007083",
     "type": "USER",
     "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",

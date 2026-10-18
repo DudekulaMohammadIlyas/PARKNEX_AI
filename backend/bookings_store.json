@@ -1,5 +1,26 @@
 [
   {
+    "id": "cd37f625-acbb-41bc-8f33-cabef38a1fae",
+    "userEmail": "student@college.edu",
+    "zoneName": "KRISHNA HOSTEL",
+    "slotNumber": "K-04",
+    "plateNumber": "KA-05-XY-9876",
+    "durationHours": 2,
+    "bookingDate": "2026-10-18",
+    "bookingTime": "03:20 PM",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "K-04",
+      "zone": {
+        "name": "KRISHNA HOSTEL"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "KA-05-XY-9876"
+    },
+    "exitedAt": "2026-10-18T09:50:31.838Z"
+  },
+  {
     "id": "b_1792263510237",
     "userEmail": "mraghavendra6305@gmail.com",
     "zoneName": "KRISHNA HOSTEL",
