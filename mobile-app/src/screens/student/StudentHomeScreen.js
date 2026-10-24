@@ -528,6 +528,11 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           <TouchableOpacity style={{ backgroundColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }} onPress={() => navigation.navigate('History')} activeOpacity={0.8}>
             <Text style={{ color: '#334155', fontWeight: '800', fontSize: 12 }}>Parking History</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={{ backgroundColor: '#EFF6FF', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#BFDBFE' }} onPress={() => navigation.navigate('Feedback')} activeOpacity={0.8}>
+            <Ionicons name="star" size={14} color="#F59E0B" />
+            <Text style={{ color: '#1D4ED8', fontWeight: '900', fontSize: 12 }}>Feedback & Ratings</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         {/* ACTIVE VIOLATION TICKETS WARNING BANNER */}
@@ -732,6 +737,28 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* RATE CAMPUS PARKING & FEEDBACK BANNER */}
+        <TouchableOpacity 
+          style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#BFDBFE', borderLeftWidth: 4, borderLeftColor: '#3B82F6', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          onPress={() => navigation.navigate('Feedback')}
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 8 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(37, 99, 235, 0.1)', justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="star" size={24} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#0F172A' }}>Rate Today's Parking Session</Text>
+              <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 }}>
+                Share feedback on barrier speed, AI advice, or slot vacancy.
+              </Text>
+            </View>
+          </View>
+          <View style={{ backgroundColor: '#2563EB', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>Review →</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* LIVE ZONES AVAILABILITY */}
         <View style={[styles.card, { marginBottom: 20 }]}>

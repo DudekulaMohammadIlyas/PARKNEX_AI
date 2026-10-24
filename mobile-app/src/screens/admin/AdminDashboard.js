@@ -269,6 +269,17 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Ask AI Assistant</Text>
             <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Interactive system GPT queries</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Feedback')}
+            style={{ width: '48%', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 18, borderWidth: 1.5, borderColor: '#BFDBFE', elevation: 2 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(37, 99, 235, 0.12)', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="chatbubbles" size={22} color="#2563EB" />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Feedback Desk</Text>
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Student ratings & inbox</Text>
+          </TouchableOpacity>
         </View>
 
         {/* SYSTEM HEALTH & SUSTAINABILITY SECTION */}

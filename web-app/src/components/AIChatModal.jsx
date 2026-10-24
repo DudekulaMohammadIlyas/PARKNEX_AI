@@ -753,6 +753,31 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
                             <p style={{ margin: '0.25rem 0 0.5rem 0', fontSize: '0.8rem', color: '#CBD5E1' }}>
                               {msg.actionPayload.description}
                             </p>
+                            {msg.actionPayload.target === 'feedback' && (
+                              <button
+                                onClick={() => {
+                                  onClose?.();
+                                  window.location.href = '/feedback';
+                                }}
+                                style={{
+                                  marginTop: '0.25rem',
+                                  padding: '0.45rem 0.85rem',
+                                  backgroundColor: '#3B82F6',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.4rem',
+                                  boxShadow: '0 2px 6px rgba(59, 130, 246, 0.4)'
+                                }}
+                              >
+                                Open Feedback Desk <ArrowRight size={14} />
+                              </button>
+                            )}
                           </div>
                         )}
 

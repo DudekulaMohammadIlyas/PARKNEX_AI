@@ -5,10 +5,12 @@
     "type": "WRONG_PARKING",
     "description": "Reported by Security Officer",
     "penaltyAmount": 500,
-    "status": "PENDING",
+    "status": "RESOLVED",
     "userEmail": "mraghavendra6305@gmail.com",
     "issuedBy": "security@college.edu",
-    "issuedAt": "2026-10-17T17:31:12.215Z"
+    "issuedAt": "2026-10-17T17:31:12.215Z",
+    "resolvedAt": "2026-10-24T04:59:31.852Z",
+    "resolvedBy": "mraghavendra6305@gmail.com"
   },
   {
     "id": "1792255263705",

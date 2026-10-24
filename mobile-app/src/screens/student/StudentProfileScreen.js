@@ -9,7 +9,7 @@ import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
-export default function StudentProfileScreen({ onLogout, user }) {
+export default function StudentProfileScreen({ onLogout, user, navigation }) {
   const [name, setName] = useState(user?.name || 'Student');
   const [email, setEmail] = useState(user?.email || 'student@college.edu');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -157,6 +157,26 @@ export default function StudentProfileScreen({ onLogout, user }) {
             <Text style={styles.primaryBtnText}>Save Profile Changes</Text>
           </TouchableOpacity>
         </View>
+
+        {/* FEEDBACK & RATINGS ACTION CARD */}
+        <TouchableOpacity
+          style={[styles.card, { marginBottom: 20, borderColor: '#BFDBFE', borderWidth: 1.5, backgroundColor: '#EFF6FF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 }]}
+          onPress={() => navigation?.navigate('Feedback')}
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="chatbubbles" size={24} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#1E3A8A' }}>Rate Experience & Feedback</Text>
+              <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600', marginTop: 2 }}>
+                Share your feedback or check official replies
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#2563EB" />
+        </TouchableOpacity>
 
         {/* DANGER ZONE - ACCOUNT DELETION */}
         <View style={[styles.card, { borderColor: '#FCA5A5', borderWidth: 1.5, backgroundColor: '#FEF2F2', marginBottom: 30 }]}>

@@ -1,5 +1,89 @@
 [
   {
+    "id": "1792818480835",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792818323802",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792818284719",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792818233983",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792817971854",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #1792258271914 Resolved for Vehicle AP03CH4591 by mraghavendra6305@gmail.com",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792817949286",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792817879254",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792817835116",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792817724029",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792817677168",
+    "type": "FEEDBACK",
+    "text": "⭐ Feedback submitted: 5★ by mraghavendra6305",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792817079744",
+    "type": "FEEDBACK",
+    "text": "⭐ Feedback submitted: 5★ by Aman Ilyas",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792815752457",
+    "type": "FEEDBACK",
+    "text": "⭐ Feedback submitted: 5★ by Aman Ilyas",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
     "id": "1792317032703",
     "type": "EXIT",
     "text": "🚗 Vehicle KA-05-XY-9876 Exited Campus Barrier Gate",

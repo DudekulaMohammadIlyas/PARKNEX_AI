@@ -24,7 +24,8 @@ import {
   RotateCcw,
   MonitorCheck,
   Trash2,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
@@ -36,6 +37,7 @@ import ManageSlots from './ManageSlots';
 import UserManagement from './UserManagement';
 import Analytics from './Analytics';
 import SettingsPage from './SettingsPage';
+import FeedbackPage from './FeedbackPage';
 import NotificationDrawer from './NotificationDrawer';
 import AIChatModal from './components/AIChatModal';
 
@@ -401,6 +403,9 @@ function App() {
               <a className={`nav-item ${activePage === 'analytics' ? 'active' : ''}`} onClick={() => setActivePage('analytics')}>
                 <TrendingUp size={20} /> Analytics
               </a>
+              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
+                <MessageSquare size={20} /> User Feedback
+              </a>
               <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
                 <Settings size={20} /> System Settings
               </a>
@@ -428,6 +433,9 @@ function App() {
               <a className={`nav-item ${activePage === 'history' ? 'active' : ''}`} onClick={() => setActivePage('history')}>
                 <History size={20} /> Parking History
               </a>
+              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
+                <MessageSquare size={20} /> Feedback & Reviews
+              </a>
               <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
                 <Settings size={20} /> Settings
               </a>
@@ -448,6 +456,9 @@ function App() {
               </a>
               <a className={`nav-item ${activePage === 'incidents' ? 'active' : ''}`} onClick={() => setActivePage('incidents')}>
                 <AlertTriangle size={20} /> Violations & Tickets
+              </a>
+              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
+                <MessageSquare size={20} /> Feedback Desk
               </a>
               <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
                 <Settings size={20} /> Settings
@@ -552,6 +563,7 @@ function App() {
                 {activePage === 'slots' && <ManageSlots occupancy={occupancy} refreshData={refreshData} />}
                 {activePage === 'users' && <UserManagement />}
                 {activePage === 'analytics' && <Analytics />}
+                {activePage === 'feedback' && <FeedbackPage userRole="ADMIN" profile={profile} BACKEND_URL={BACKEND_URL} />}
                 {activePage === 'settings' && <SettingsPage onLogout={confirmLogout} />}
               </>
             )}
@@ -560,6 +572,8 @@ function App() {
             {role === 'STUDENT' && (
               activePage === 'settings' ? (
                 <SettingsPage onLogout={confirmLogout} />
+              ) : activePage === 'feedback' ? (
+                <FeedbackPage userRole="STUDENT" profile={profile} BACKEND_URL={BACKEND_URL} />
               ) : (
                 <StudentDashboard 
                   occupancy={occupancy} 
@@ -576,6 +590,8 @@ function App() {
             {role === 'SECURITY' && (
               activePage === 'settings' ? (
                 <SettingsPage onLogout={confirmLogout} />
+              ) : activePage === 'feedback' ? (
+                <FeedbackPage userRole="SECURITY" profile={profile} BACKEND_URL={BACKEND_URL} />
               ) : (
                 <SecurityDashboard 
                   occupancy={occupancy} 

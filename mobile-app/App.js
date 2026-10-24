@@ -31,6 +31,7 @@ import StudentHistoryScreen from './src/screens/student/StudentHistoryScreen';
 import StudentProfileScreen from './src/screens/student/StudentProfileScreen';
 import StudentBillingScreen from './src/screens/student/StudentBillingScreen';
 import AIChatScreen from './src/screens/student/AIChatScreen';
+import FeedbackScreen from './src/screens/student/FeedbackScreen';
 
 import SecurityDashboard from './src/screens/security/SecurityDashboard';
 import ScanScreen from './src/screens/security/ScanScreen';
@@ -91,6 +92,9 @@ function SecurityStack({ onLogout, user }) {
         {props => <NotificationsScreen {...props} user={user} userRole="SECURITY" />}
       </SecurityStackNav.Screen>
       <SecurityStackNav.Screen name="AIChat" component={AIChatScreen} />
+      <SecurityStackNav.Screen name="Feedback">
+        {props => <FeedbackScreen {...props} user={user} userRole="SECURITY" />}
+      </SecurityStackNav.Screen>
     </SecurityStackNav.Navigator>
   );
 }
@@ -119,6 +123,9 @@ function AdminStack({ onLogout, occupancy, events, user }) {
         {props => <NotificationsScreen {...props} user={user} userRole="ADMIN" />}
       </AdminStackNav.Screen>
       <AdminStackNav.Screen name="AIChat" component={AIChatScreen} />
+      <AdminStackNav.Screen name="Feedback">
+        {props => <FeedbackScreen {...props} user={user} userRole="ADMIN" />}
+      </AdminStackNav.Screen>
     </AdminStackNav.Navigator>
   );
 }
@@ -159,6 +166,9 @@ function HomeStack({ occupancy, navigation, user }) {
       <HomeStackNav.Screen name="ExitSuccess" component={ExitSuccessScreen} />
       <HomeStackNav.Screen name="History" component={StudentHistoryScreen} />
       <HomeStackNav.Screen name="AIChat" component={AIChatScreen} />
+      <HomeStackNav.Screen name="Feedback">
+        {props => <FeedbackScreen {...props} user={user} userRole="STUDENT" />}
+      </HomeStackNav.Screen>
     </HomeStackNav.Navigator>
   );
 }

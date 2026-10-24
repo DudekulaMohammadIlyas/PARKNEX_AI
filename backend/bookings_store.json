@@ -29,7 +29,12 @@
     "durationHours": 4,
     "bookingDate": "2026-10-17",
     "bookingTime": "00:27",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-10-24T05:04:35.391Z",
+    "exitedAt": "2026-10-24T05:04:35.391Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Web Command Center QR Scanner"
   },
   {
     "id": "b_1792259486982",

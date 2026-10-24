@@ -448,6 +448,25 @@ export default function AIChatScreen({ navigation, route }) {
             <View style={styles.actionCard}>
               <Text style={styles.actionTitle}>⚡ {item.actionPayload.title}</Text>
               <Text style={styles.actionDesc}>{item.actionPayload.description}</Text>
+              {item.actionPayload.target === 'feedback' && (
+                <TouchableOpacity
+                  style={{
+                    marginTop: 8,
+                    backgroundColor: '#2563EB',
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    alignSelf: 'flex-start'
+                  }}
+                  onPress={() => navigation?.navigate('Feedback')}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>
+                    Open Feedback Desk →
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 

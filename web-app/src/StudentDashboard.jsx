@@ -904,6 +904,7 @@ export default function StudentDashboard({
           <button className={`btn ${activeTab === 'map' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('map')}>Campus Map</button>
           <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('billing')}>Passes & Billing</button>
           <button className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('history')}>Parking History</button>
+          <button className={`btn ${activeTab === 'feedback' ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: '24px', fontWeight: '800' }} onClick={() => setActiveTab('feedback')}>Feedback</button>
         </div>
       </div>
 
@@ -1091,6 +1092,47 @@ export default function StudentDashboard({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* FEEDBACK & RATINGS QUICK BANNER */}
+          <div 
+            className="card animate-fade-in" 
+            style={{ 
+              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)', 
+              border: '1px solid rgba(37, 99, 235, 0.2)', 
+              borderRadius: '20px', 
+              padding: '1.25rem 1.75rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              flexWrap: 'wrap', 
+              gap: '1rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              marginBottom: '1rem'
+            }}
+            onClick={() => setActiveTab('feedback')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563EB, #4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' }}>
+                <MessageSquare size={22} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-main)' }}>
+                  How was your campus parking today?
+                </h4>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                  Share quick feedback on barrier clearance, AI suggestions, or parking bays. Your input shapes campus mobility!
+                </p>
+              </div>
+            </div>
+            <button 
+              className="btn btn-primary" 
+              style={{ borderRadius: '12px', padding: '0.6rem 1.25rem', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              onClick={(e) => { e.stopPropagation(); setActiveTab('feedback'); }}
+            >
+              <Sparkles size={15} /> Rate Today's Experience →
+            </button>
           </div>
 
           {/* DYNAMIC LIVE ACCURATE ADMIN ZONES CAPACITY CARDS */}

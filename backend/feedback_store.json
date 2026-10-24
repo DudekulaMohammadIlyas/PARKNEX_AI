@@ -1,0 +1,135 @@
+[
+  {
+    "id": "fb_1792817677164_1imd",
+    "rating": 5,
+    "category": "PARKING_EXPERIENCE",
+    "subject": "Perfect",
+    "comment": "Good",
+    "tags": [
+      "Fast Gate Clearance",
+      "Accurate AI"
+    ],
+    "isAnonymous": false,
+    "userEmail": "mraghavendra6305@gmail.com",
+    "userName": "mraghavendra6305",
+    "userRole": "STUDENT",
+    "sentiment": "POSITIVE",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-24T04:54:37.164Z",
+    "adminReply": "Resolved",
+    "adminRepliedAt": "2026-10-24T04:55:57.806Z",
+    "updatedAt": "2026-10-24T04:55:57.806Z"
+  },
+  {
+    "id": "fb_1792815752454_h8po",
+    "rating": 5,
+    "category": "AI_RECOMMENDATIONS",
+    "subject": "Great Navigation",
+    "comment": "Loved how smoothly slot guidance worked!",
+    "tags": [
+      "Accurate AI",
+      "Smooth UI"
+    ],
+    "isAnonymous": false,
+    "userEmail": "student@college.edu",
+    "userName": "Aman Ilyas",
+    "userRole": "STUDENT",
+    "sentiment": "POSITIVE",
+    "status": "NEW",
+    "createdAt": "2026-10-24T04:22:32.454Z"
+  },
+  {
+    "id": "fb_1",
+    "rating": 5,
+    "category": "PARKING_EXPERIENCE",
+    "subject": "Seamless Entry & Fast Barrier Clearance",
+    "comment": "The ANPR camera recognized my license plate instantly! I parked in Krishna Hostel slot K-04 as suggested by AI and it was super close to my lab.",
+    "tags": [
+      "Fast Gate",
+      "Accurate AI",
+      "Clean Lots"
+    ],
+    "userEmail": "student@college.edu",
+    "userName": "Aman Ilyas",
+    "userRole": "STUDENT",
+    "sentiment": "POSITIVE",
+    "status": "RESOLVED",
+    "adminReply": "Thank you for the wonderful feedback! Glad the barrier clearance was smooth.",
+    "adminRepliedAt": "2026-10-23T10:15:00.000Z",
+    "createdAt": "2026-10-23T08:30:00.000Z"
+  },
+  {
+    "id": "fb_2",
+    "rating": 5,
+    "category": "AI_RECOMMENDATIONS",
+    "subject": "Very accurate vacancy prediction",
+    "comment": "AI suggested South Block Slot S-04 when Krishna Hostel was filling up. Saved me at least 10 minutes circling.",
+    "tags": [
+      "Accurate AI",
+      "Saved Time"
+    ],
+    "userEmail": "priya@college.edu",
+    "userName": "Priya Sharma",
+    "userRole": "STUDENT",
+    "sentiment": "POSITIVE",
+    "status": "RESOLVED",
+    "adminReply": "Awesome to hear! We continue optimizing the balancing algorithm.",
+    "adminRepliedAt": "2026-10-22T14:20:00.000Z",
+    "createdAt": "2026-10-22T11:45:00.000Z"
+  },
+  {
+    "id": "fb_3",
+    "rating": 5,
+    "category": "GATE_BARRIER",
+    "subject": "FastTag clearance worked flawlessly",
+    "comment": "Tested my registered RFID tag at North Gate 2. Barrier opened in under a second without rolling down the window.",
+    "tags": [
+      "Fast Gate",
+      "High Security"
+    ],
+    "userEmail": "faculty@college.edu",
+    "userName": "Dr. Ramesh Babu",
+    "userRole": "FACULTY",
+    "sentiment": "POSITIVE",
+    "status": "RESOLVED",
+    "adminReply": "Appreciate your input, Professor. RFID readers are calibrated weekly.",
+    "adminRepliedAt": "2026-10-21T16:00:00.000Z",
+    "createdAt": "2026-10-21T09:10:00.000Z"
+  },
+  {
+    "id": "fb_4",
+    "rating": 4,
+    "category": "APP_USABILITY",
+    "subject": "Smooth UI and Live Counter",
+    "comment": "The live occupancy bar and instant slot reservation work very fast. Digital pass QR code is easy to show.",
+    "tags": [
+      "Smooth UI",
+      "Accurate AI"
+    ],
+    "userEmail": "vikram@college.edu",
+    "userName": "Vikram Reddy",
+    "userRole": "STUDENT",
+    "sentiment": "POSITIVE",
+    "status": "NEW",
+    "createdAt": "2026-10-20T14:15:00.000Z"
+  },
+  {
+    "id": "fb_5",
+    "rating": 3,
+    "category": "FACILITY_SECURITY",
+    "subject": "Need more EV charging stations near Central Library",
+    "comment": "Love the booking app but would be great to have 4 more Level-2 EV charging points near Central Library.",
+    "tags": [
+      "More EV Bays Needed",
+      "Feature Request"
+    ],
+    "userEmail": "rahul@college.edu",
+    "userName": "Rahul Verma",
+    "userRole": "STUDENT",
+    "sentiment": "NEUTRAL",
+    "status": "UNDER_REVIEW",
+    "adminReply": "Noted! Campus Infrastructure team has scheduled 6 new EV charging bays for next month.",
+    "adminRepliedAt": "2026-10-19T11:30:00.000Z",
+    "createdAt": "2026-10-19T07:20:00.000Z"
+  }
+]

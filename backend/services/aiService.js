@@ -236,12 +236,27 @@ function detectIntent(userQuery, previousContext = null) {
     };
   }
 
-  // 4. PARKING_PRICING (rates, fees, tariffs, is it free)
+  // 4. FEEDBACK_AND_REVIEWS (feedback, review, reviews, rate experience, suggestion, complain, rating, how to give feedback)
+  const feedbackKeywords = [
+    'feedback', 'review', 'reviews', 'rate experience', 'rate today', 'rating', 'ratings', 
+    'suggestion', 'suggestions', 'complain', 'complaint', 'complaints', 'how to give feedback',
+    'leave feedback', 'give feedback', 'submit feedback', 'star rating', 'share feedback',
+    'feedback form', 'feedback page', 'where to give feedback', 'where to rate'
+  ];
+  if (feedbackKeywords.some(k => q.includes(k))) {
+    return {
+      intent: 'FEEDBACK_AND_REVIEWS',
+      confidence: 0.98,
+      intentSource: 'RULES_AND_SEMANTIC_MATCH'
+    };
+  }
+
+  // 5. PARKING_PRICING (rates, fees, tariffs, is it free)
   const pricingKeywords = [
     'fee', 'fees', 'free', 'cost', 'costs', 'charge', 'charges', 'rate', 'rates', 
     'tariff', 'tariffs', 'price', 'pricing', 'how much', 'pay', 'payment', 'how much to park'
   ];
-  if (pricingKeywords.some(k => q.includes(k)) && (q.includes('park') || q.includes('slot') || q.includes('booking') || q.includes('fee') || q.includes('cost') || q.includes('rate') || q.includes('charge') || q.includes('free') || q.includes('price') || q.includes('tariff'))) {
+  if (!q.includes('feedback') && !q.includes('review') && pricingKeywords.some(k => q.includes(k)) && (q.includes('park') || q.includes('slot') || q.includes('booking') || q.includes('fee') || q.includes('cost') || q.includes('rate') || q.includes('charge') || q.includes('free') || q.includes('price') || q.includes('tariff'))) {
     return {
       intent: 'PARKING_PRICING',
       confidence: 0.96,
@@ -1217,6 +1232,16 @@ async function buildDatabaseContext(prisma, user, intent, userQuery, targetZoneN
         };
       }
     }
+    else if (intent === 'FEEDBACK_AND_REVIEWS') {
+      context.groundTruthFacts = {
+        webSubmission: 'Left sidebar "Feedback & Reviews" or Dashboard "Rate Today\'s Experience" banner',
+        mobileSubmission: 'Home tab "Feedback & Ratings" pill or Profile "Rate Experience & Feedback"',
+        ratingScale: '1 to 5 Stars (Poor to Exceptional)',
+        categories: 'Parking Experience, AI Slot Guidance, Gate Barrier/ANPR, Portal Usability, Facility Safety, Feature Request',
+        anonymousOption: 'Students can toggle Anonymous mode to hide identity',
+        adminResponses: 'Campus operations team reviews and posts official responses viewable in My Submissions'
+      };
+    }
     else if (intent === 'PARKING_PRICING') {
       context.groundTruthFacts = {
         studentsRate: '100% Free with registered pass',
@@ -1474,6 +1499,15 @@ function verifyAnswerRelevance(intent, generatedText, dbContext) {
     }
   }
 
+  if (intent === 'FEEDBACK_AND_REVIEWS') {
+    const hasFeedbackFacts = (text.includes('feedback') || text.includes('review') || text.includes('star') || text.includes('rate') || text.includes('category') || text.includes('comment') || text.includes('submission'));
+    if (hasFeedbackFacts && words.length >= 18) {
+      return { status: 'PASS', relevance: 'MATCHED', factsVerified: true };
+    } else {
+      return { status: 'FAIL', relevance: 'INSUFFICIENT_FEEDBACK_FACTS', factsVerified: false, reason: 'Feedback response lacked submission steps or categories' };
+    }
+  }
+
   if (intent === 'PARKING_PRICING') {
     const hasPricingFacts = (text.includes('free') || text.includes('20') || text.includes('₹') || text.includes('rate') || text.includes('fee'));
     if (hasPricingFacts && words.length >= 18) {
@@ -1669,6 +1703,16 @@ ${sanitizedMsg}
 
 ### Response:`;
   }
+  else if (intent === 'FEEDBACK_AND_REVIEWS') {
+    systemPrompt = `### System:
+You are ParkNex AI. Fact: Users can submit 1-5 star reviews, feedback, and suggestions across 6 categories (Parking Experience, AI Slot Guidance, Gate Barrier/ANPR, Portal Usability, Facility Safety, and Feature Requests) on Web ("Feedback & Reviews" in sidebar or "Rate Today's Experience" card) and Mobile ("Feedback & Ratings" pill or "Rate Experience & Feedback" in Profile). Students can submit anonymously or track official administrative replies in "My Submissions".
+Respond in a clean, structured GPT format with bullet points detailing how to submit feedback on Web and Mobile, categories, anonymous options, and response tracking.
+
+### User:
+${sanitizedMsg}
+
+### Response:`;
+  }
   else if (intent === 'PARKING_PRICING') {
     systemPrompt = `### System:
 You are ParkNex AI. Fact: Students & Faculty park 100% free with active permits. Visitors pay ₹20/hr with first 30 mins free (max ₹120/day). UPI & FastTag accepted at barriers.
@@ -1740,6 +1784,7 @@ ${sanitizedMsg}
   let verification = { status: 'PASS', relevance: 'MATCHED', factsVerified: true };
 
   const FACTUAL_GROUNDED_INTENTS = new Set([
+    'FEEDBACK_AND_REVIEWS',
     'BOOKING_HOW_TO',
     'PARKING_RECOMMENDATION',
     'ALTERNATIVE_ZONES',
@@ -1860,6 +1905,9 @@ ${sanitizedMsg}
         const zonesList = (dbContext.parkingZones || []).slice(0, 4).map(zn => `• **${zn.name}**: ${zn.availableSlots} open bays`).join('\n');
         aiResponseText = `**Campus Zone Status Overview:** 📍\n\nHere is current live vacancy across key campus zones:\n\n${zonesList}\n\nYou can ask me about any specific zone (e.g., *"What about Zone B?"* or *"Is South Block available?"*)!`;
       }
+    }
+    else if (intent === 'FEEDBACK_AND_REVIEWS') {
+      aiResponseText = `**How to Give Campus Parking Feedback & Reviews:** ⭐💬\n\nWe value your suggestions to optimize parking bay availability, gate barrier speed, and AI guidance accuracy!\n\n• 💻 **On the Web App**:\n  - Click **"Feedback & Reviews"** in the left sidebar menu (or click the **"Rate Today's Experience"** banner on your Overview Dashboard).\n  - Select your rating from **1 to 5 Stars** (Poor to Exceptional).\n  - Choose a category: *Parking Experience, AI Slot Guidance, Gate Barrier & ANPR, Portal Usability, Facility & Safety, or Feature Request*.\n  - Add tags like *#FastGateClearance* or *#CleanParkingBays*, enter your review, and toggle **Submit Anonymously** if desired.\n  - Track official operations replies in the **"My Submissions"** tab!\n\n• 📱 **On the Mobile App**:\n  - Tap the **"Feedback & Ratings"** pill on your Home screen, or navigate to **Profile ➔ "Rate Experience & Feedback"**.\n  - Fill out your rating, tags, and comments, then tap **"Submit Campus Feedback"**.\n\n• 🛡️ **Campus Operations Desk**:\n  - Administrators review all submissions in real-time and post official status responses (*Under Review, Resolved*), which notify you directly in your notification drawer.`;
     }
     else if (intent === 'PARKING_PRICING') {
       aiResponseText = `**ParkNex Campus Parking Tariff & Fee Structure:** 💳\n\n• 🎓 **Enrolled Students**: **100% Free** with registered vehicle permit.\n• 🏫 **Faculty & Staff**: **Free** in designated Faculty & Staff lots.\n• 🚙 **Visitors & Guests**:\n  - **First 30 minutes**: Free grace period\n  - **Standard Rate**: ₹20 / hour\n  - **Daily Maximum Cap**: ₹120 / day\n• ⚡ **Payment Modes**: Contactless UPI, FastTag, and QR pass checkout at gate barriers.\n• 🚫 **No Hidden Surcharges**: Transparent billing logged directly to your account.`;
@@ -2030,6 +2078,13 @@ ${sanitizedMsg}
       'Check my active booking',
       'What are the parking timings?'
     ];
+  } else if (intent === 'FEEDBACK_AND_REVIEWS') {
+    suggestions = [
+      'Where should I park right now?',
+      'How does the gate barrier open?',
+      'Check my active booking',
+      'How does slot booking work?'
+    ];
   } else if (userRole === 'SECURITY') {
     suggestions = [
       'Show active security incidents',
@@ -2061,6 +2116,13 @@ ${sanitizedMsg}
       title: 'Cancel Active Booking',
       description: `Confirm cancellation for booking ${dbContext.userActiveBookings[0].id} in ${dbContext.userActiveBookings[0].zoneName}?`,
       bookingId: dbContext.userActiveBookings[0].id
+    };
+  } else if (intent === 'FEEDBACK_AND_REVIEWS') {
+    actionPayload = {
+      type: 'NAVIGATE_FEEDBACK',
+      title: 'Open Feedback & Reviews',
+      description: 'Would you like to open the campus feedback submission form?',
+      target: 'feedback'
     };
   }
 
