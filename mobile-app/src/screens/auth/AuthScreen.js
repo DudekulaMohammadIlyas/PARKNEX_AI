@@ -15,7 +15,13 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
-import config, { smartApiRequest } from '../../../config';
+import config, { 
+  smartApiRequest, 
+  getBackendUrl, 
+  setCustomBackendIp, 
+  testBackendConnection, 
+  CURRENT_WIFI_IP 
+} from '../../../config';
 import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
@@ -30,6 +36,13 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState('STUDENT');
 
+  // Network / Server IP state
+  const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
+  const [serverIpInput, setServerIpInput] = useState(CURRENT_WIFI_IP);
+  const [networkTestStatus, setNetworkTestStatus] = useState(null); // null | 'testing' | 'success' | 'failed'
+  const [networkTestMsg, setNetworkTestMsg] = useState('');
+  const [activeServerDisplay, setActiveServerDisplay] = useState(getBackendUrl());
+
   // Forgot / Reset Password state
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -39,6 +52,35 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [resetCode, setResetCode] = useState('');
+
+  const handleTestConnection = async (ipToTest) => {
+    setNetworkTestStatus('testing');
+    setNetworkTestMsg('Checking connection to server...');
+    const target = ipToTest 
+      ? (ipToTest.startsWith('http') ? ipToTest : `http://${ipToTest}:5000/api`) 
+      : getBackendUrl();
+    const result = await testBackendConnection(target);
+    if (result.success) {
+      setNetworkTestStatus('success');
+      setNetworkTestMsg('Connected successfully! Server is online.');
+    } else {
+      setNetworkTestStatus('failed');
+      setNetworkTestMsg(`Could not connect: ${result.error || 'Connection timed out'}`);
+    }
+  };
+
+  const handleSaveServerIp = async () => {
+    try {
+      const formatted = await setCustomBackendIp(serverIpInput);
+      setActiveServerDisplay(getBackendUrl());
+      setNetworkTestStatus('success');
+      setNetworkTestMsg(`Server target saved.`);
+      Alert.alert('Server Configured', `Backend URL set to:\n${formatted || `http://${CURRENT_WIFI_IP}:5000/api`}`);
+      setIsNetworkModalOpen(false);
+    } catch (e) {
+      Alert.alert('Configuration Error', e.message);
+    }
+  };
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
@@ -58,6 +100,7 @@ export default function AuthScreen({ onLoginSuccess }) {
           });
 
           if (res.data?.success && res.data?.user) {
+            setActiveServerDisplay(getBackendUrl());
             if (onLoginSuccess) {
               onLoginSuccess(res.data.user, res.data.token);
             }
@@ -65,8 +108,28 @@ export default function AuthScreen({ onLoginSuccess }) {
           }
           Alert.alert('Authentication Failed', res.data?.error || 'Invalid email or password.');
         } catch (backendErr) {
-          const errorMessage = backendErr.response?.data?.error || backendErr.response?.data?.message || backendErr.message || 'Invalid email or password.';
-          Alert.alert('Login Failed', errorMessage);
+          const isNetError = !backendErr.response || (backendErr.message && backendErr.message.toLowerCase().includes('network'));
+          if (isNetError) {
+            Alert.alert(
+              'Network Connection Failed',
+              `Unable to connect to ParkNex backend at ${getBackendUrl()}.\n\nEnsure your mobile device is connected to the same Wi-Fi network (${CURRENT_WIFI_IP}).`,
+              [
+                { 
+                  text: 'Configure Server IP', 
+                  onPress: () => { 
+                    setServerIpInput(CURRENT_WIFI_IP); 
+                    setNetworkTestStatus(null); 
+                    setNetworkTestMsg(''); 
+                    setIsNetworkModalOpen(true); 
+                  } 
+                },
+                { text: 'OK', style: 'cancel' }
+              ]
+            );
+          } else {
+            const errorMessage = backendErr.response?.data?.error || backendErr.response?.data?.message || backendErr.message || 'Invalid email or password.';
+            Alert.alert('Login Failed', errorMessage);
+          }
         }
       } else {
         // Register flow
@@ -280,6 +343,36 @@ export default function AuthScreen({ onLoginSuccess }) {
             {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
           </Text>
         </TouchableOpacity>
+
+        {/* Server & Network IP Configuration Badge */}
+        <TouchableOpacity
+          onPress={() => {
+            setNetworkTestStatus(null);
+            setNetworkTestMsg('');
+            setServerIpInput(CURRENT_WIFI_IP);
+            setIsNetworkModalOpen(true);
+          }}
+          activeOpacity={0.7}
+          style={{
+            marginTop: 18,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#F8FAFC',
+            paddingVertical: 7,
+            paddingHorizontal: 14,
+            borderRadius: 20,
+            alignSelf: 'center',
+            borderWidth: 1,
+            borderColor: '#E2E8F0'
+          }}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 7 }} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>
+            Server: {activeServerDisplay.replace('http://', '').replace('/api', '')}
+          </Text>
+          <Ionicons name="settings-outline" size={13} color="#64748B" style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
       </View>
 
       {/* FORGOT & RESET PASSWORD MODAL WITH KEYBOARD AVOIDANCE & PADDING */}
@@ -412,6 +505,156 @@ export default function AuthScreen({ onLoginSuccess }) {
 
             </View>
           </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* SERVER / NETWORK CONFIGURATION MODAL */}
+      <Modal
+        visible={isNetworkModalOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsNetworkModalOpen(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <View style={{ 
+            backgroundColor: COLORS.white, 
+            borderRadius: 24, 
+            paddingHorizontal: 24, 
+            paddingVertical: 24, 
+            width: '90%', 
+            maxWidth: 380,
+            elevation: 10,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.25,
+            shadowRadius: 16
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                <Ionicons name="wifi-outline" size={20} color="#2563EB" />
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text }}>Network Setup</Text>
+                <Text style={{ fontSize: 12, color: COLORS.textMuted }}>Backend Server IP Connection</Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18, marginBottom: 14 }}>
+              If your Wi-Fi network changed, enter your computer's IPv4 address below so this mobile device can reach the server.
+            </Text>
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 6 }}>
+              Backend IPv4 Address or URL
+            </Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 10, fontSize: 14 }]}
+              placeholder="e.g. 10.183.174.205"
+              value={serverIpInput}
+              onChangeText={setServerIpInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+              <TouchableOpacity
+                onPress={() => setServerIpInput(CURRENT_WIFI_IP)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 7,
+                  backgroundColor: '#EFF6FF',
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#BFDBFE'
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563EB' }}>
+                  Use Active Wi-Fi IP
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setServerIpInput('localhost')}
+                style={{
+                  paddingVertical: 7,
+                  paddingHorizontal: 12,
+                  backgroundColor: '#F1F5F9',
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1'
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>
+                  Localhost
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Test Connection Button */}
+            <TouchableOpacity
+              onPress={() => handleTestConnection(serverIpInput)}
+              disabled={networkTestStatus === 'testing'}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingVertical: 10,
+                backgroundColor: '#F8FAFC',
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#E2E8F0',
+                marginBottom: 12
+              }}
+            >
+              {networkTestStatus === 'testing' ? (
+                <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 8 }} />
+              ) : (
+                <Ionicons 
+                  name={networkTestStatus === 'success' ? 'checkmark-circle' : networkTestStatus === 'failed' ? 'alert-circle' : 'pulse-outline'} 
+                  size={16} 
+                  color={networkTestStatus === 'success' ? '#10B981' : networkTestStatus === 'failed' ? '#EF4444' : '#2563EB'} 
+                  style={{ marginRight: 6 }} 
+                />
+              )}
+              <Text style={{ 
+                fontSize: 12, 
+                fontWeight: '700', 
+                color: networkTestStatus === 'success' ? '#10B981' : networkTestStatus === 'failed' ? '#EF4444' : '#2563EB' 
+              }}>
+                {networkTestStatus === 'testing' ? 'Testing Connection...' : 'Test Server Connectivity'}
+              </Text>
+            </TouchableOpacity>
+
+            {networkTestMsg ? (
+              <Text style={{ 
+                fontSize: 11, 
+                fontWeight: '600', 
+                marginBottom: 12, 
+                textAlign: 'center',
+                color: networkTestStatus === 'success' ? '#10B981' : '#EF4444'
+              }}>
+                {networkTestMsg}
+              </Text>
+            ) : null}
+
+            {/* Save & Apply Button */}
+            <TouchableOpacity
+              onPress={handleSaveServerIp}
+              style={[styles.primaryBtn, { paddingVertical: 12, borderRadius: 12, marginBottom: 8 }]}
+            >
+              <Text style={styles.primaryBtnText}>Save & Connect</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsNetworkModalOpen(false)}
+              style={{ paddingVertical: 8, alignItems: 'center' }}
+            >
+              <Text style={{ color: COLORS.textMuted, fontWeight: '700', fontSize: 13 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 

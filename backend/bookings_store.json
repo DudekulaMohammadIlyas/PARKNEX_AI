@@ -1,5 +1,26 @@
 [
   {
+    "id": "3e2b28e8-45ed-4fd2-bfc9-ebe7c5ae6a05",
+    "userEmail": "test_sync@college.edu",
+    "zoneName": "Zone A",
+    "slotNumber": "A-01",
+    "plateNumber": "KA-01-TEST",
+    "durationHours": 2,
+    "bookingDate": "2026-10-25",
+    "bookingTime": "10:00 AM",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "A-01",
+      "zone": {
+        "name": "Zone A"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "KA-01-TEST"
+    },
+    "exitedAt": "2026-10-25T17:32:39.089Z"
+  },
+  {
     "id": "cd37f625-acbb-41bc-8f33-cabef38a1fae",
     "userEmail": "student@college.edu",
     "zoneName": "KRISHNA HOSTEL",
@@ -162,7 +183,10 @@
     "durationHours": 3,
     "bookingDate": "2026-10-11",
     "bookingTime": "12:32 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.034Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789668917688",
@@ -187,7 +211,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "11:45 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789668895481",
@@ -198,7 +225,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "11:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789668884357",
@@ -209,7 +239,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "11:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665849101",
@@ -248,7 +281,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:45 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665298140",
@@ -259,7 +295,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665290877",
@@ -270,7 +309,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665290809",
@@ -295,7 +337,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665277041",
@@ -306,7 +351,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789665269445",
@@ -317,7 +365,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:44 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789664175960",
@@ -342,7 +393,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:26 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789664160382",
@@ -353,7 +407,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:26 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789664151029",
@@ -364,7 +421,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:25 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789663531572",
@@ -389,7 +449,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:15 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789663514060",
@@ -400,7 +463,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:15 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789663505543",
@@ -411,7 +477,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:15 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789662696938",
@@ -436,7 +505,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789662676075",
@@ -447,7 +519,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789662664925",
@@ -458,7 +533,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "10:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789651895731",
@@ -483,7 +561,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "07:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789651877148",
@@ -494,7 +575,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "07:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789651865999",
@@ -505,7 +589,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "07:01 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789640850804",
@@ -544,7 +631,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:57 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789640830753",
@@ -555,7 +645,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:57 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789640003392",
@@ -580,7 +673,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:43 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639990493",
@@ -591,7 +687,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:43 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639983923",
@@ -602,7 +701,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:43 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639278968",
@@ -627,7 +729,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:31 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639266164",
@@ -638,7 +743,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:31 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639259732",
@@ -649,7 +757,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:30 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639099379",
@@ -674,7 +785,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:28 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639086280",
@@ -685,7 +799,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:28 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1789639078826",
@@ -696,7 +813,10 @@
     "durationHours": 4,
     "bookingDate": "2026-09-17",
     "bookingTime": "03:27 PM",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1788757157611",
@@ -719,7 +839,10 @@
     "durationHours": 8,
     "bookingDate": "2026-08-29",
     "bookingTime": "11:54",
-    "status": "CONFIRMED"
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "exitedAt": "2026-10-25T17:27:29.035Z",
+    "remarks": "Auto-exited: Session expired / Stale test cleanup"
   },
   {
     "id": "b_1787906410131",

@@ -114,18 +114,18 @@ async function main() {
   // 7. Seed Campus Parking Zones
   console.log('🗺️ Seeding all 12 Campus Parking Zones...');
   const zonesData = [
-    { name: 'Faculty Parking', total: 100, occupied: 10, type: 'Faculty Only', status: 'Active' },
-    { name: 'South Block', total: 150, occupied: 50, type: 'Mixed', status: 'Active' },
-    { name: 'Zone B', total: 80, occupied: 78, type: '4-Wheeler', status: 'Active' },
-    { name: 'KRISHNA HOSTEL', total: 150, occupied: 50, type: 'Hostel Block', status: 'Active' },
-    { name: 'HOSPITAL PARKING', total: 200, occupied: 80, type: 'Mixed', status: 'Active' },
-    { name: 'Zone C', total: 200, occupied: 110, type: '2-Wheeler', status: 'Active' },
-    { name: 'Zone A', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
-    { name: 'Visitor Parking', total: 50, occupied: 10, type: 'Visitor Only', status: 'Active' },
-    { name: 'Scad', total: 75, occupied: 1, type: 'Mixed', status: 'Active' },
+    { name: 'Faculty Parking', total: 100, occupied: 0, type: 'Faculty Only', status: 'Active' },
+    { name: 'South Block', total: 150, occupied: 0, type: 'Mixed', status: 'Active' },
+    { name: 'Zone B', total: 80, occupied: 0, type: '4-Wheeler', status: 'Active' },
+    { name: 'KRISHNA HOSTEL', total: 150, occupied: 0, type: 'Hostel Block', status: 'Active' },
+    { name: 'HOSPITAL PARKING', total: 200, occupied: 0, type: 'Mixed', status: 'Active' },
+    { name: 'Zone C', total: 200, occupied: 0, type: '2-Wheeler', status: 'Active' },
+    { name: 'Zone A', total: 120, occupied: 0, type: 'Academic', status: 'Active' },
+    { name: 'Visitor Parking', total: 50, occupied: 0, type: 'Visitor Only', status: 'Active' },
+    { name: 'Scad', total: 75, occupied: 0, type: 'Mixed', status: 'Active' },
     { name: 'Near Temple', total: 60, occupied: 0, type: 'Mixed', status: 'Active' },
-    { name: 'Faculty Block Parking', total: 100, occupied: 15, type: 'Faculty Only', status: 'Active' },
-    { name: 'North Block', total: 200, occupied: 80, type: 'Academic', status: 'Active' }
+    { name: 'Faculty Block Parking', total: 100, occupied: 0, type: 'Faculty Only', status: 'Active' },
+    { name: 'North Block', total: 200, occupied: 0, type: 'Academic', status: 'Active' }
   ];
 
   for (const z of zonesData) {

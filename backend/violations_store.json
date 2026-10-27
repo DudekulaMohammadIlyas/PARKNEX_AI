@@ -18,7 +18,9 @@
     "type": "WRONG_PARKING",
     "description": "Maintainance ",
     "penaltyAmount": 200,
-    "status": "PENDING"
+    "status": "RESOLVED",
+    "resolvedAt": "2026-10-25T17:44:54.390Z",
+    "resolvedBy": "security@college.edu"
   },
   {
     "id": "151016c1-e3be-45ba-b74d-a21acbff9857",

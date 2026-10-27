@@ -296,7 +296,9 @@ export default function StudentDashboard({
         const fetchedZones = res.data.map(z => ({
           id: z.id,
           name: z.name,
-          total: z.total || z.capacity || 100,
+          total: Number(z.total || z.capacity || 100),
+          occupied: Number(z.occupied || 0),
+          free: z.free !== undefined ? Number(z.free) : Math.max(0, Number(z.total || 100) - Number(z.occupied || 0)),
           isFacultyOnly: z.isFacultyOnly || z.type === 'FACULTY_ONLY',
           slots: z.slots || []
         }));
@@ -831,6 +833,16 @@ export default function StudentDashboard({
 
   const activeParkedSession = historyList.find(b => b.status === 'CONFIRMED');
 
+  const getGreeting = () => {
+    const curHour = new Date().getHours();
+    if (curHour >= 4 && curHour < 12) return 'Good morning';
+    if (curHour >= 12 && curHour < 17) return 'Good afternoon';
+    if (curHour >= 17 && curHour < 22) return 'Good evening';
+    return 'Welcome';
+  };
+  const studentDisplayName = profile?.name || (userEmail ? (userEmail.includes('@') ? userEmail.split('@')[0] : userEmail) : 'Student');
+  const totalOpenSlots = (adminZones || []).reduce((sum, z) => sum + Math.max(0, (z.total || 0) - (z.occupied || 0)), 0) || 144;
+
   return (
     <div className="animate-fade-in" style={{ position: 'relative' }}>
       <style>{`
@@ -865,26 +877,27 @@ export default function StudentDashboard({
       `}</style>
       
       {/* HEADER PANEL WITH REAL-TIME CALENDAR & CLOCK TICKER */}
-      <div className="section-header" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="section-header" style={{ flexWrap: 'wrap', gap: '1.25rem', marginBottom: '2rem', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.75rem', fontWeight: '900', color: '#0f172a' }}>
-            Welcome Back, {profile?.name || (userEmail ? userEmail.split('@')[0] : 'User')}{' '}
-            <span className="animate-sparkle-glow">
-              <Sparkles size={22} color="#fbbf24" />
+          <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+            {getGreeting()}, {studentDisplayName}!{' '}
+            <span className="animate-sparkle-glow" style={{ display: 'inline-flex' }}>
+              <Sparkles size={24} color="#fbbf24" />
             </span>
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span>
-                {(profile?.department && profile?.academicTerm) ? `${profile.department} • ${profile.academicTerm}` : 'Academic Profile Incomplete (Click Edit Profile Info to set)'}
-              </span>
-              {onEditProfile && (
-                <button onClick={onEditProfile} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' }}>
-                  ✏️ Edit Profile Info
-                </button>
-              )}
-            </p>
-            <span className="badge" style={{ background: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: '800', fontSize: '0.82rem', padding: '0.4rem 0.85rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#EEF2FF', color: '#4338CA', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', border: '1px solid #C7D2FE' }}>
+              🎓 {profile?.department ? `${profile.department}${profile?.academicTerm ? ` • ${profile.academicTerm}` : ''}` : 'Campus Student Parking Member'}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#ECFDF5', color: '#065F46', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', border: '1px solid #A7F3D0' }}>
+              🟢 Permit Active • Fast ANPR Ready
+            </span>
+            {onEditProfile && (
+              <button onClick={onEditProfile} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline', padding: '0.2rem 0.4rem' }}>
+                ✏️ Edit Profile Info
+              </button>
+            )}
+            <span className="badge" style={{ background: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: '800', fontSize: '0.82rem', padding: '0.35rem 0.85rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span className="animate-clock-pulse">
                 <Clock size={14} color="#2563eb" />
               </span>
@@ -911,6 +924,106 @@ export default function StudentDashboard({
       {/* ================= 1. OVERVIEW TAB ================= */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* CAMPUS WELCOME & REAL-TIME PARKING READINESS HERO CARD */}
+          <div className="card animate-fade-in" style={{
+            background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #1E293B 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.35)',
+            borderRadius: '24px',
+            padding: '2rem 2.25rem',
+            color: '#FFFFFF',
+            boxShadow: '0 12px 35px rgba(15, 23, 42, 0.25)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Background subtle glow effect */}
+            <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            
+            {/* Top row badge & live gate clearance indicator */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#A5B4FC', border: '1px solid rgba(165, 180, 252, 0.3)', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', letterSpacing: '0.5px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={14} color="#A5B4FC" /> ParkNex AI Campus Hub
+                </span>
+                <span style={{ background: 'rgba(16, 185, 129, 0.18)', color: '#6EE7B7', border: '1px solid rgba(16, 185, 129, 0.35)', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                  ANPR Barrier Gates 1 & 2 Active
+                </span>
+              </div>
+              <span style={{ fontSize: '0.82rem', color: '#94A3B8', fontWeight: '700' }}>
+                Term: 2026 Academic Session • Student Priority Pass
+              </span>
+            </div>
+
+            {/* Main Welcome Message */}
+            <div style={{ maxWidth: '850px', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#FFFFFF', margin: '0 0 0.5rem 0', letterSpacing: '-0.01em' }}>
+                Welcome to your Campus Parking Hub, {studentDisplayName}!
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#CBD5E1', lineHeight: '1.6', fontWeight: '500' }}>
+                Automated barrier clearance is enabled for your verified vehicles. Real-time slot guidance, AI-assisted parking recommendations, and digital FastPass clearance are synchronized across campus gates.
+              </p>
+            </div>
+
+            {/* Quick Metrics Bar with Ample Padding */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '1rem 1.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Live Campus Bays</span>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38BDF8', marginTop: '0.2rem' }}>
+                  {totalOpenSlots} Open
+                </div>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700' }}>Across {adminZones.length || 9} Campus Lots</span>
+              </div>
+
+              <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '1rem 1.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Registered Vehicles</span>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#34D399', marginTop: '0.2rem' }}>
+                  {vehicles.length} {vehicles.length === 1 ? 'Vehicle' : 'Vehicles'}
+                </div>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700' }}>Fast ANPR Auto-Clearance</span>
+              </div>
+
+              <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '1rem 1.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Digital FastPass</span>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#FBBF24', marginTop: '0.2rem' }}>
+                  {daysRemaining} Days Left
+                </div>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700' }}>Active until {passValidityDate}</span>
+              </div>
+            </div>
+
+            {/* Quick Actions Row */}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setActiveTab('book')} 
+                style={{ borderRadius: '14px', padding: '0.7rem 1.4rem', fontWeight: '900', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', border: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.35)' }}
+              >
+                <Zap size={17} /> Reserve a Bay Now
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => setActiveTab('map')} 
+                style={{ borderRadius: '14px', padding: '0.7rem 1.3rem', fontWeight: '800', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.18)', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <MapIcon size={17} /> Live Campus Map
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => setIsChatOpen(true)} 
+                style={{ borderRadius: '14px', padding: '0.7rem 1.3rem', fontWeight: '800', background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)', border: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)' }}
+              >
+                <Bot size={17} /> Ask AI Assistant
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => setActiveTab('billing')} 
+                style={{ borderRadius: '14px', padding: '0.7rem 1.3rem', fontWeight: '800', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.18)', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <QrIcon size={17} /> Digital Pass & Billing
+              </button>
+            </div>
+          </div>
           
           {/* ACTIVE VIOLATIONS & FINES WARNING CARD */}
           {myViolations.some(v => v.status === 'PENDING') && (

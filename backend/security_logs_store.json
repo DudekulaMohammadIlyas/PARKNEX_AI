@@ -1,5 +1,110 @@
 [
   {
+    "id": "1792950388541",
+    "type": "USER",
+    "text": "🔑 User Login: mdilyas1024 (mdilyas1024@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792950344508",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792950324705",
+    "type": "ENTRY",
+    "text": "👤 Visitor Gate Clearance Granted for Rahul Sharma (KA-03-MB-5555)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792950324691",
+    "type": "ENTRY",
+    "text": "👤 Visitor Gate Clearance Granted for ID #2",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792950294393",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #1792255263705 Resolved for Vehicle AP10DF2325 by security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792950294363",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #1792255263705 Marked Resolved by Officer",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792950277693",
+    "type": "ENTRY",
+    "text": "🚪 Entrance Gate 02 Barrier LOCKED / CLOSED by Security Officer",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1792950276648",
+    "type": "ENTRY",
+    "text": "🚪 Entrance Gate 02 Barrier RELEASED / OPENED by Security Officer",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792950242460",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792950094823",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792949560233",
+    "type": "EXIT",
+    "text": "🚗 Vehicle KA-09-ZZ-9999 Exited Campus Barrier Gate",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1792946400569",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792946146650",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792946143373",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1792946125693",
+    "type": "USER",
+    "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1792818480835",
     "type": "USER",
     "text": "🔑 User Login: mraghavendra6305 (mraghavendra6305@gmail.com)",

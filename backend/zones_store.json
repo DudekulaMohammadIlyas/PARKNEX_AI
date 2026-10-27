@@ -3,7 +3,7 @@
     "id": "z1",
     "name": "Faculty Parking",
     "total": 100,
-    "occupied": 10,
+    "occupied": 0,
     "type": "Faculty Only",
     "status": "Active"
   },
@@ -11,7 +11,7 @@
     "id": "z2",
     "name": "South Block",
     "total": 150,
-    "occupied": 49,
+    "occupied": 0,
     "type": "Mixed",
     "status": "Active"
   },
@@ -19,7 +19,7 @@
     "id": "z3",
     "name": "Central Library",
     "total": 80,
-    "occupied": 75,
+    "occupied": 0,
     "type": "4-Wheeler",
     "status": "Active"
   },
@@ -27,7 +27,7 @@
     "id": "z4",
     "name": "KRISHNA HOSTEL",
     "total": 150,
-    "occupied": 48,
+    "occupied": 0,
     "type": "Hostel Block",
     "status": "Active"
   },
@@ -35,7 +35,7 @@
     "id": "z5",
     "name": "HOSPITAL PARKING",
     "total": 200,
-    "occupied": 80,
+    "occupied": 0,
     "type": "Mixed",
     "status": "Active"
   },
@@ -43,7 +43,7 @@
     "id": "z6",
     "name": "Hostel Complex",
     "total": 200,
-    "occupied": 109,
+    "occupied": 0,
     "type": "2-Wheeler",
     "status": "Active"
   },
@@ -51,7 +51,7 @@
     "id": "z7",
     "name": "CS Academic Block",
     "total": 120,
-    "occupied": 45,
+    "occupied": 0,
     "type": "Academic",
     "status": "Active"
   },
@@ -59,7 +59,7 @@
     "id": "z8",
     "name": "Visitor Parking",
     "total": 50,
-    "occupied": 10,
+    "occupied": 0,
     "type": "Visitor Only",
     "status": "Active"
   },

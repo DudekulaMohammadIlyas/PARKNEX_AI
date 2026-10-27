@@ -41,7 +41,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: `👋 Hi ${userProfile?.name || userName}! I am your ParkNex AI Assistant. Ask me "Where should I park?", "Find my car", or "Show my pass".` }
+    { sender: 'ai', text: `👋 Hi ${userProfile?.name || userName || 'there'}! I am your ParkNex AI Assistant. Ask me "Where should I park right now?", "Check my active pass", or "How does slot booking work?".` }
   ]);
 
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
@@ -371,6 +371,18 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
     };
   }, [sparkleAnim, clockPulseAnim]);
 
+  const getGreeting = () => {
+    const curHour = new Date().getHours();
+    if (curHour >= 4 && curHour < 12) return { text: 'Good morning', emoji: '☀️' };
+    if (curHour >= 12 && curHour < 17) return { text: 'Good afternoon', emoji: '🌤️' };
+    if (curHour >= 17 && curHour < 22) return { text: 'Good evening', emoji: '🌆' };
+    return { text: 'Welcome', emoji: '✨' };
+  };
+
+  const studentDisplayName = userProfile?.name || user?.name || (userEmail.includes('@') ? userEmail.split('@')[0] : 'Student');
+  const totalOpenBays = (campusZones || []).reduce((sum, z) => sum + Math.max(0, (z.total || 0) - (z.occupied || 0)), 0);
+  const totalLots = campusZones?.length || 9;
+
   const topPick = (recommendations && recommendations[0]) || { 
     slotNumber: 'K-04', 
     zoneName: 'KRISHNA HOSTEL', 
@@ -430,18 +442,18 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 120 }}>
         
         {/* WELCOME BACK HEADER */}
         <View style={{ marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1, paddingRight: 8 }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -0.4 }}>
-                Welcome Back, {userProfile?.name || user?.name || (userEmail.includes('@') ? userEmail.split('@')[0] : 'User')}
+              <Text style={{ fontSize: 23, fontWeight: '900', color: '#0F172A', letterSpacing: -0.4 }}>
+                {getGreeting().text}, {studentDisplayName}
               </Text>
               <Animated.Text 
                 style={{ 
-                  fontSize: 22, 
+                  fontSize: 21, 
                   marginLeft: 6,
                   opacity: sparkleAnim,
                   transform: [
@@ -454,12 +466,21 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
                   ],
                 }}
               >
-                ✨
+                {getGreeting().emoji}
               </Animated.Text>
             </View>
-            <Text style={{ fontSize: 12, color: (!userProfile?.department || !userProfile?.academicTerm) ? '#475569' : '#64748B', fontWeight: '700', marginTop: 4 }}>
-              {(userProfile?.department && userProfile?.academicTerm) ? `${userProfile.department} • ${userProfile.academicTerm}` : 'Academic Profile Incomplete (Tap Profile)'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#4338CA' }}>
+                  🎓 {userProfile?.department ? `${userProfile.department}${userProfile?.academicTerm ? ` • ${userProfile.academicTerm}` : ''}` : 'Campus Student Member'}
+                </Text>
+              </View>
+              <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3.5, borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46' }}>
+                  🟢 Permit Active
+                </Text>
+              </View>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity 
@@ -476,7 +497,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </TouchableOpacity>
             <TouchableOpacity 
               style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
-              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })}
+              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: studentDisplayName })}
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
@@ -484,14 +505,95 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           </View>
         </View>
 
-        {/* LIVE CLOCK & DATE PILL */}
-        <View style={{ backgroundColor: 'rgba(37, 99, 235, 0.08)', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: '#BFDBFE', borderWidth: 1 }}>
-          <Animated.View style={{ opacity: clockPulseAnim }}>
-            <Ionicons name="time" size={16} color="#2563EB" />
-          </Animated.View>
-          <Text style={{ fontSize: 12, fontWeight: '800', color: '#1D4ED8' }}>
-            LIVE CLOCK: {liveTime} ({liveDate})
+        {/* CAMPUS WELCOME & REAL-TIME PARKING READINESS HERO BANNER */}
+        <View style={{
+          backgroundColor: '#0F172A',
+          borderRadius: 22,
+          padding: 18,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: '#1E293B',
+          shadowColor: '#0F172A',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.22,
+          shadowRadius: 12,
+          elevation: 5,
+        }}>
+          {/* Top Ticker Row */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(16, 185, 129, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+              <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10B981' }} />
+              <Text style={{ fontSize: 11, fontWeight: '900', color: '#6EE7B7', letterSpacing: 0.4 }}>
+                ANPR GATES 1 & 2 ACTIVE
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(59, 130, 246, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+              <Animated.View style={{ opacity: clockPulseAnim }}>
+                <Ionicons name="time" size={12} color="#93C5FD" />
+              </Animated.View>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#BFDBFE' }}>
+                {liveTime} • {liveDate}
+              </Text>
+            </View>
+          </View>
+
+          {/* Welcome Message */}
+          <Text style={{ fontSize: 16, fontWeight: '900', color: '#FFFFFF', marginBottom: 5, letterSpacing: -0.2 }}>
+            Smart Campus Parking Hub Ready
           </Text>
+          <Text style={{ fontSize: 12, color: '#94A3B8', lineHeight: 18, fontWeight: '600', marginBottom: 14 }}>
+            Automated barrier clearance is active for your registered vehicles. Instant slot navigation and AI spot finder are standing by for your arrival.
+          </Text>
+
+          {/* Quick Real-Time Metrics Strip */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase' }}>Available Bays</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#38BDF8', marginTop: 2 }}>{totalOpenBays}</Text>
+              <Text style={{ fontSize: 9.5, color: '#64748B', fontWeight: '700' }}>across {totalLots} lots</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase' }}>My Vehicles</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#34D399', marginTop: 2 }}>{vehicles.length}</Text>
+              <Text style={{ fontSize: 9.5, color: '#64748B', fontWeight: '700' }}>ANPR Verified</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase' }}>FastPass QR</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#FBBF24', marginTop: 2 }}>Ready</Text>
+              <Text style={{ fontSize: 9.5, color: '#64748B', fontWeight: '700' }}>Instant Entry</Text>
+            </View>
+          </View>
+
+          {/* Quick Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+              onPress={() => navigation.navigate('Map')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="map" size={15} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 12 }}>Reserve Bay</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.1)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)' }}
+              onPress={() => navigation.navigate('Pass')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="qr-code-outline" size={15} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 12 }}>Digital Pass</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: studentDisplayName })}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="robot" size={15} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 12 }}>AI</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* INTERACTIVE NAVIGATION PILL TABS */}
@@ -763,26 +865,44 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         {/* LIVE ZONES AVAILABILITY */}
         <View style={[styles.card, { marginBottom: 20 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>Live Campus Zones</Text>
-            <Ionicons name="location" size={20} color={COLORS.primary} />
+            <View>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: COLORS.text }}>Live Campus Zones</Text>
+              <Text style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: '700', marginTop: 2 }}>
+                Real-Time Synchronized Vacancy Across Campus
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10B981' }} />
+              <Text style={{ fontSize: 11, fontWeight: '900', color: '#047857' }}>LIVE SYNC</Text>
+            </View>
           </View>
 
           {campusZones.map((z, idx) => {
-            const tot = z.total || z.capacity || 100;
-            const occ = z.occupied || 0;
+            const tot = Number(z.total || z.capacity || 100);
+            const occ = Number(z.occupied || 0);
             const free = Math.max(0, tot - occ);
-            const ratio = occ / tot;
-            const color = ratio > 0.9 ? COLORS.danger : ratio > 0.7 ? COLORS.warning : COLORS.success;
+            const ratio = tot > 0 ? occ / tot : 0;
+            const color = ratio >= 0.9 ? COLORS.danger : ratio >= 0.7 ? COLORS.warning : '#10B981';
+
             return (
-              <View key={z.id || idx} style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              <View key={z.id || idx} style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={{ fontWeight: '700', fontSize: 13, color: COLORS.text }}>{z.name}</Text>
-                  <Text style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: '600' }}>
-                    {free} / {tot} Free
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 12, color: occ > 0 ? (ratio >= 0.9 ? '#DC2626' : '#2563EB') : '#10B981', fontWeight: '800' }}>
+                      {free} / {tot} Free
+                    </Text>
+                    {occ === 0 && (
+                      <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 6, borderWidth: 1, borderColor: '#A7F3D0' }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#065F46' }}>100% FREE</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <View style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ width: `${Math.min(100, ratio * 100)}%`, height: '100%', backgroundColor: color }} />
+                  {occ > 0 ? (
+                    <View style={{ width: `${Math.min(100, Math.max(4, ratio * 100))}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
+                  ) : null}
                 </View>
               </View>
             );

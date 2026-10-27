@@ -1974,19 +1974,41 @@ app.post('/api/system/settings', async (req, res) => {
 // ================= ZONES & SLOTS ENDPOINTS ================= //
 
 let initialZonesStore = [
-  { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 10, type: 'Faculty Only', status: 'Active' },
-  { id: 'z2', name: 'South Block', total: 150, occupied: 50, type: 'Mixed', status: 'Active' },
-  { id: 'z3', name: 'Central Library', total: 80, occupied: 78, type: '4-Wheeler', status: 'Active' },
-  { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 50, type: 'Hostel Block', status: 'Active' },
-  { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 80, type: 'Mixed', status: 'Active' },
-  { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 110, type: '2-Wheeler', status: 'Active' },
-  { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
-  { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 10, type: 'Visitor Only', status: 'Active' },
-  { id: 'z9', name: 'Scad', total: 75, occupied: 1, type: 'Mixed', status: 'Active' }
+  { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0, type: 'Faculty Only', status: 'Active' },
+  { id: 'z2', name: 'South Block', total: 150, occupied: 0, type: 'Mixed', status: 'Active' },
+  { id: 'z3', name: 'Central Library', total: 80, occupied: 0, type: '4-Wheeler', status: 'Active' },
+  { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0, type: 'Hostel Block', status: 'Active' },
+  { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0, type: 'Mixed', status: 'Active' },
+  { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0, type: '2-Wheeler', status: 'Active' },
+  { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0, type: 'Academic', status: 'Active' },
+  { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 0, type: 'Visitor Only', status: 'Active' },
+  { id: 'z9', name: 'Scad', total: 75, occupied: 0, type: 'Mixed', status: 'Active' }
 ];
+
+// Helper to retrieve currently active, non-expired parking bookings
+const getRealtimeActiveBookings = () => {
+  try {
+    const fileBookings = loadJSONStore(BOOKINGS_FILE, []);
+    const now = new Date();
+    return fileBookings.filter(b => {
+      if (b.status !== 'CONFIRMED' && b.status !== 'PARKED') return false;
+      if (b.exitedAt || b.releaseStatus === 'RELEASED') return false;
+      if (b.bookingDate) {
+        const bDate = new Date(b.bookingDate);
+        const diffHours = (now - bDate) / (1000 * 60 * 60);
+        if (diffHours > 24) return false; // Stale session auto-expired
+      }
+      return true;
+    });
+  } catch (e) {
+    return [];
+  }
+};
 
 app.get('/api/zones', async (req, res) => {
   try {
+    const activeBookings = getRealtimeActiveBookings();
+
     const dbZones = await prisma.zone.findMany({
       include: { slots: true },
       orderBy: { name: 'asc' }
@@ -1994,19 +2016,39 @@ app.get('/api/zones', async (req, res) => {
 
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
 
+    let allZones = [];
     if (Array.isArray(dbZones) && dbZones.length > 0) {
-      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase()));
-      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase()));
-      return res.json([...dbZones, ...fileOnly]);
+      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase().trim()));
+      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase().trim()));
+      allZones = [...dbZones, ...fileOnly];
+    } else if (Array.isArray(fileZones) && fileZones.length > 0) {
+      allZones = fileZones;
+    } else {
+      allZones = initialZonesStore;
     }
 
-    if (Array.isArray(fileZones) && fileZones.length > 0) {
-      return res.json(fileZones);
-    }
+    // Synchronize accurate occupancy: count actual active bookings for each zone
+    const synchronizedZones = allZones.map(z => {
+      const zName = (z.name || '').toLowerCase().trim();
+      const realOccupied = activeBookings.filter(b => {
+        const bZone = (b.zoneName || b.zone || b.slot?.zone?.name || '').toLowerCase().trim();
+        return bZone === zName || bZone === `zone ${zName}` || zName === `zone ${bZone}`;
+      }).length;
+
+      const total = Number(z.total || z.capacity || 100);
+      return {
+        ...z,
+        total,
+        occupied: Math.min(total, realOccupied),
+        free: Math.max(0, total - realOccupied)
+      };
+    });
+
+    return res.json(synchronizedZones);
   } catch (error) {
     console.warn("DB zones query fallback:", error.message);
+    res.json(initialZonesStore.map(z => ({ ...z, occupied: 0, free: z.total })));
   }
-  res.json(initialZonesStore);
 });
 
 app.post('/api/zones', async (req, res) => {

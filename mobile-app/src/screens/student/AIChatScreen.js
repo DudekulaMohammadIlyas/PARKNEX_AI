@@ -10,7 +10,8 @@ import {
   Platform,
   StyleSheet,
   SafeAreaView,
-  ScrollView
+  ScrollView,
+  StatusBar
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -150,15 +151,34 @@ function formatContextSummary(cs) {
   return String(cs);
 }
 
+function generateWelcomeMessage(name, role) {
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const cleanName = (name && name !== 'User' && name !== 'Student User') ? name : '';
+
+  if (role === 'SECURITY') {
+    return `**${timeGreeting}${cleanName ? `, Officer ${cleanName}` : ''}!** 🛡️\n\nI am your **ParkNex Security AI Assistant**, synchronized with live gate barriers and ANPR vision.\n\nHere is how I can assist your patrol & gate duty:\n• 🔍 **Security Incidents**: *"Show active security incidents"*\n• 🚧 **Barrier Clearance**: *"Check Main Gate barrier status"*\n• ⚠️ **Zone Congestion**: *"Which lots are over 90% full?"*\n• 🚫 **Violations**: *"List unauthorized vehicle entries or overstays"*\n\n💬 *Enter a command below or tap a quick prompt.*`;
+  }
+
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'CAMPUS_ADMIN') {
+    return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** ⚙️\n\nI am your **ParkNex Operations AI**, connected to campus-wide analytics, slot sensors, and student telemetry.\n\nHere is what I can analyze for you today:\n• 📊 **Campus Overview**: *"Summarize today's parking utilization"*\n• ⚠️ **Capacity Alerts**: *"Which zone requires administrative attention?"*\n• 🕒 **Peak Hours**: *"Show peak arrival and departure times"*\n• ⭐ **Student Feedback**: *"How do students rate parking this week?"*\n\n💬 *Ask for an analytics summary or tap a suggestion below.*`;
+  }
+
+  return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** 👋 Welcome to your **ParkNex Campus AI Assistant**.\n\nI'm here to make campus parking effortless with real-time updates:\n\n• 🅿️ **Live Vacancy Guidance**: *"Where should I park right now?"*\n• 🎟️ **Slot Reservations**: *"How does slot booking work?"*\n• 🎫 **Active Passes & Entry**: *"Check my active booking & QR pass"*\n• 💳 **Permits & Tariffs**: *"Is parking free for students?"*\n• ⭐ **Feedback & Reviews**: *"How do I submit parking feedback?"*\n\n💬 *Type your question below, or tap any quick suggestion to get started!*`;
+}
+
 export default function AIChatScreen({ navigation, route }) {
   const userRole = route?.params?.userRole || 'STUDENT';
-  const userName = route?.params?.userName || 'User';
+  const userName = route?.params?.userName || '';
+  const initialName = (userName && userName !== 'User' && userName !== 'Student User') 
+    ? userName 
+    : (route?.params?.user?.name || '');
 
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       sender: 'ai',
-      text: `**Hello ${userName}!** 👋 I'm your local **ParkNex AI Assistant** powered by Ollama.\n\nI can help you with:\n• 🅿️ **Parking Recommendations**: *"Where should I park right now?"*\n• 🎟️ **Slot Booking**: *"How does slot booking work?"*\n• 🚘 **Booking Verification**: *"Check my active booking"*\n• 🚗 **Vehicles**: *"What vehicles are linked to my account?"*`,
+      text: generateWelcomeMessage(initialName, userRole),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       meta: {
         ollamaUsed: true,
@@ -210,6 +230,16 @@ export default function AIChatScreen({ navigation, route }) {
       if (userStr) {
         const parsed = JSON.parse(userStr);
         setCurrentUser(parsed);
+        const resolvedName = parsed.name || (parsed.email ? parsed.email.split('@')[0] : userName);
+        setMessages(prev => {
+          if (prev.length === 1 && prev[0].id === 'welcome') {
+            return [{
+              ...prev[0],
+              text: generateWelcomeMessage(resolvedName, parsed.role || userRole)
+            }];
+          }
+          return prev;
+        });
       }
       if (token) {
         setAuthToken(token);
@@ -524,35 +554,71 @@ export default function AIChatScreen({ navigation, route }) {
   const isOllamaOnline = healthStatus?.status === 'ONLINE' || healthStatus?.ollamaService === 'ONLINE';
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#FFFFFF" 
+        translucent={Platform.OS === 'android'} 
+      />
+
+      {/* Header with Safe Area Top Padding & Elevation */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#1E293B" />
+        <TouchableOpacity 
+          style={styles.backBtn} 
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={22} color="#1E293B" />
         </TouchableOpacity>
+
         <View style={styles.headerTitleContainer}>
-          <View style={styles.titleBadgeRow}>
-            <Text style={styles.headerTitle}>ParkNex AI Assistant</Text>
-            <View style={[styles.ollamaBadge, { backgroundColor: isOllamaOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderColor: isOllamaOnline ? '#34D399' : '#F87171' }]}>
-              <Text style={[styles.ollamaBadgeText, { color: isOllamaOnline ? '#059669' : '#DC2626' }]}>
-                {isOllamaOnline ? `Online (${healthStatus?.activeModel || 'smollm:135m'})` : 'Offline'}
-              </Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            ParkNex AI Assistant
+          </Text>
+          <View style={styles.headerStatusRow}>
+            <View style={[styles.statusDot, { backgroundColor: isOllamaOnline ? '#10B981' : '#EF4444' }]} />
+            <Text style={[styles.headerStatusText, { color: isOllamaOnline ? '#059669' : '#DC2626' }]}>
+              {isOllamaOnline ? 'Ollama Online' : 'Offline Mode'}
+            </Text>
+            <View style={styles.modelTag}>
+              <Text style={styles.modelTagText}>{healthStatus?.activeModel || 'smollm:135m'}</Text>
             </View>
           </View>
-          <Text style={styles.headerSub}>Role: {userRole} • Backend: Connected • DB Context: Connected</Text>
         </View>
-        <TouchableOpacity style={styles.clearBtn} onPress={() => { setMessages([messages[0]]); setExpandedDetails({}); }}>
-          <MaterialCommunityIcons name="delete-outline" size={22} color="#64748B" />
+
+        <TouchableOpacity 
+          style={styles.clearBtn} 
+          onPress={() => { 
+            const resolvedName = currentUser?.name || userName;
+            setMessages([{
+              id: 'welcome',
+              sender: 'ai',
+              text: generateWelcomeMessage(resolvedName, currentUser?.role || userRole),
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              meta: {
+                ollamaUsed: true,
+                modelUsed: 'smollm:135m',
+                intent: 'WELCOME_ASSISTANT',
+                processingTimeMs: 12
+              },
+              contextSummary: 'Session reset with current user profile'
+            }]); 
+            setExpandedDetails({}); 
+          }}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="delete-outline" size={20} color="#64748B" />
         </TouchableOpacity>
       </View>
 
-      {/* Connection Subbar */}
-      <View style={styles.subbar}>
-        <View style={styles.dotRow}>
-          <View style={[styles.statusDot, { backgroundColor: isOllamaOnline ? '#10B981' : '#EF4444' }]} />
-          <Text style={styles.subbarStatus}>{isOllamaOnline ? 'Ollama Online' : 'Ollama Offline'}</Text>
+      {/* Modern Telemetry Strip */}
+      <View style={styles.telemetryBanner}>
+        <View style={styles.telemetryBannerContent}>
+          <MaterialCommunityIcons name="shield-check" size={14} color="#2563EB" />
+          <Text style={styles.telemetryBannerText} numberOfLines={1}>
+            Campus Grounded • Role: {userRole} • Live Bays Verified
+          </Text>
         </View>
-        <Text style={styles.subbarMeta}>Model: {healthStatus?.activeModel || 'smollm:135m'}</Text>
       </View>
 
       {/* Message List */}
@@ -610,7 +676,7 @@ export default function AIChatScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -623,77 +689,99 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 42) : 14,
+    paddingBottom: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    elevation: 2
-  },
-  subbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 16,
-    paddingVertical: 6
-  },
-  dotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4
-  },
-  subbarStatus: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#34D399'
-  },
-  subbarMeta: {
-    fontSize: 11,
-    color: '#CBD5E1'
+    elevation: 3,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
   backBtn: {
-    padding: 6,
-    marginRight: 6
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitleContainer: {
-    flex: 1
-  },
-  titleBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
+    flex: 1,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A'
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  ollamaBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 1
+  headerStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 6,
   },
-  ollamaBadgeText: {
-    fontSize: 10,
-    fontWeight: '700'
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  headerSub: {
+  headerStatusText: {
     fontSize: 11,
-    color: '#64748B',
-    marginTop: 2
+    fontWeight: '700',
+  },
+  modelTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  modelTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   clearBtn: {
-    padding: 6
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  telemetryBanner: {
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+  telemetryBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  telemetryBannerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E40AF',
+    flex: 1,
   },
   listContent: {
-    padding: 16,
-    gap: 12
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 12,
   },
   msgRow: {
     flexDirection: 'row',
@@ -826,58 +914,73 @@ const styles = StyleSheet.create({
   },
   suggestionsWrapper: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9'
   },
   chipsContainer: {
-    paddingHorizontal: 12,
-    gap: 8
+    paddingHorizontal: 16,
+    gap: 10
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#CBD5E1'
+    borderColor: '#BFDBFE',
+    elevation: 1,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2
   },
   chipText: {
     fontSize: 12,
-    color: '#2563EB',
-    fontWeight: '500'
+    color: '#1D4ED8',
+    fontWeight: '700'
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    gap: 8
+    gap: 10
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     fontSize: 14,
-    color: '#0F172A'
+    color: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#2563EB',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4
   },
   sendBtnDisabled: {
-    backgroundColor: '#94A3B8'
+    backgroundColor: '#CBD5E1',
+    elevation: 0
   }
 });
 

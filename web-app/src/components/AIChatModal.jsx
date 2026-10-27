@@ -112,13 +112,30 @@ function FormattedMessage({ text, isStreaming }) {
   );
 }
 
+function generateWebWelcomeMessage(currentUser) {
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const cleanName = currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : '');
+  const role = currentUser?.role || 'STUDENT';
+
+  if (role === 'SECURITY') {
+    return `**${timeGreeting}${cleanName ? `, Officer ${cleanName}` : ''}!** 🛡️\n\nI am your **ParkNex Security AI Assistant**, synchronized with live gate barriers and ANPR vision.\n\nHere is how I can assist your patrol & gate duty:\n• 🔍 **Security Incidents**: *"Show active security incidents"*\n• 🚧 **Barrier Clearance**: *"Check Main Gate barrier status"*\n• ⚠️ **Zone Congestion**: *"Which parking lots are over 90% full?"*\n• 🚫 **Violations**: *"List unauthorized vehicle entries or overstays"*\n\n💬 *Enter a command below or click a suggestion.*`;
+  }
+
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'CAMPUS_ADMIN') {
+    return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** ⚙️\n\nI am your **ParkNex Operations AI**, connected to campus-wide analytics, slot sensors, and student telemetry.\n\nHere is what I can analyze for you today:\n• 📊 **Campus Overview**: *"Summarize today's parking utilization"*\n• ⚠️ **Capacity Alerts**: *"Which zone requires administrative attention?"*\n• 🕒 **Peak Hours**: *"Show peak arrival and departure times"*\n• ⭐ **Student Feedback**: *"How do students rate parking this week?"*\n\n💬 *Ask for an analytics summary or click a suggestion below.*`;
+  }
+
+  return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** 👋 Welcome to your **ParkNex Campus AI Assistant**.\n\nI'm here to make campus parking effortless with real-time updates:\n\n• 🅿️ **Live Vacancy Guidance**: *"Where should I park right now?"*\n• 🎟️ **Slot Reservations**: *"How does slot booking work?"*\n• 🎫 **Active Passes & Entry**: *"Check my active booking & QR pass"*\n• 💳 **Permits & Tariffs**: *"Is parking free for students?"*\n• ⭐ **Feedback & Reviews**: *"How do I submit parking feedback?"*\n\n💬 *Type your question below, or click any quick suggestion to get started!*`;
+}
+
 export default function AIChatModal({ isOpen, onClose, currentUser }) {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'demo'
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       sender: 'ai',
-      text: `**Hello ${currentUser?.name || 'there'}!** 👋 I am your **ParkNex AI Assistant** powered by local Ollama.\n\nI can assist you with:\n• 🅿️ **Real-Time Vacancy**: *"Where should I park right now?"*\n• 🎟️ **Slot Reservations**: *"How does slot booking work?"*\n• 🚘 **Active Passes**: *"Check my active booking"*\n• 🚗 **Vehicles**: *"What vehicles are linked to my account?"*`,
+      text: generateWebWelcomeMessage(currentUser),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       meta: {
         ollamaUsed: true,
@@ -369,9 +386,9 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
   const handleClearChat = () => {
     setMessages([
       {
-        id: 'welcome_cleared',
+        id: 'welcome',
         sender: 'ai',
-        text: `Chat cleared! How can I assist you with ParkNex AI today?`,
+        text: generateWebWelcomeMessage(currentUser),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         meta: {
           ollamaUsed: true,
