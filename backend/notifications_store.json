@@ -1,5 +1,20 @@
 [
   {
+    "id": "da800202-52cb-44f1-8906-218848e2b57c",
+    "title": "🎟️ Parking Booking Confirmed",
+    "message": "Your booking for Faculty Parking (F-05) is confirmed for vehicle AP21AA9999.",
+    "category": "BOOKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": "78e79462-64d0-420e-929b-75b7ff99526d",
+    "userEmail": "faculty@college.edu",
+    "targetRole": "STUDENT",
+    "relatedEntity": "5f203ab2-5aca-459b-9805-0760bb9ad5ff",
+    "deepLink": "StudentBookScreen",
+    "metadata": null,
+    "createdAt": "2026-10-27T16:21:00.848Z"
+  },
+  {
     "id": "d293d144-e7ae-4537-8d95-8446f568882d",
     "title": "🎟️ Parking Booking Confirmed",
     "message": "Your booking for Zone A (A-01) is confirmed for vehicle KA-01-TEST.",

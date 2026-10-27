@@ -1,5 +1,25 @@
 [
   {
+    "id": "5f203ab2-5aca-459b-9805-0760bb9ad5ff",
+    "userEmail": "faculty@college.edu",
+    "zoneName": "Faculty Parking",
+    "slotNumber": "F-05",
+    "plateNumber": "AP21AA9999",
+    "durationHours": 4,
+    "bookingDate": "2026-10-27",
+    "bookingTime": "09:51 PM",
+    "status": "CONFIRMED",
+    "slot": {
+      "slotNumber": "F-05",
+      "zone": {
+        "name": "Faculty Parking"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP21AA9999"
+    }
+  },
+  {
     "id": "3e2b28e8-45ed-4fd2-bfc9-ebe7c5ae6a05",
     "userEmail": "test_sync@college.edu",
     "zoneName": "Zone A",

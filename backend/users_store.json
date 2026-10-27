@@ -45,12 +45,15 @@
   {
     "id": "a9d94f98-4d34-49c3-a196-3546dbcd58e3",
     "email": "mraghavendra6305@gmail.com",
-    "name": "mraghavendra6305",
+    "name": "raghavendra",
     "role": "STUDENT",
     "passwordHash": "$2b$10$IWiLn4zM8OCplEh6H9q.LeGboqzxnfvsdEF7NB95S.JG2SukEy.4O",
     "rawPassword": "123456789",
     "lastLogin": "2026-08-28T04:24:17.213Z",
-    "createdAt": "2026-08-28T03:50:42.742Z"
+    "createdAt": "2026-08-28T03:50:42.742Z",
+    "phone": "9875874123",
+    "department": "AIML",
+    "academicTerm": "2023 batch"
   },
   {
     "id": "e36daf42-afe3-4302-ba3d-093606af46fa",
@@ -80,7 +83,7 @@
     "lastLogin": "2026-08-28T08:38:33.264Z"
   },
   {
-    "id": "u_faculty",
+    "id": "78e79462-64d0-420e-929b-75b7ff99526d",
     "email": "faculty@college.edu",
     "name": "Dr. Smith",
     "role": "FACULTY",
@@ -282,5 +285,16 @@
     "passwordChangedAt": null,
     "createdAt": "2026-10-17T18:12:28.252Z",
     "updatedAt": "2026-10-17T18:12:28.252Z"
+  },
+  {
+    "id": "691302cf-1dfe-4b3f-bfd9-366b10125ac9",
+    "email": "sandeepkumarnv2026.sse@saveetha.com",
+    "name": "sandeepkumar",
+    "role": "STUDENT",
+    "passwordHash": "$2b$10$QTehrPgk6rS6jO.ODZMIw.VnxaXrs850YD3jdAEgdxPJpWC.NGXlO",
+    "passwordChangedAt": "2026-10-27T15:52:22.806Z",
+    "phone": "8527419632",
+    "department": "CSE",
+    "academicTerm": "Fall 2024 - Spring 2028"
   }
 ]

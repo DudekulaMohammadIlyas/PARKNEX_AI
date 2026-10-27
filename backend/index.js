@@ -736,11 +736,21 @@ app.post('/api/bookings', async (req, res) => {
       user = await prisma.user.findFirst().catch(() => null);
     }
 
+    const isTargetZoneFacultyOnly = chosenZoneName.toLowerCase().includes('faculty') || chosenZoneName.toLowerCase().includes('staff');
+    const userRole = (user?.role || req.user?.role || req.body?.userRole || req.body?.role || 'STUDENT').toUpperCase();
+
+    if (isTargetZoneFacultyOnly && userRole !== 'FACULTY' && userRole !== 'STAFF' && userRole !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access Denied: This parking zone is exclusively reserved for University Faculty & Staff members.'
+      });
+    }
+
     if (user) {
       let zone = await prisma.zone.findFirst({ where: { name: chosenZoneName } }).catch(() => null);
       if (!zone) {
         zone = await prisma.zone.create({
-          data: { name: chosenZoneName, total: 100, occupied: 0, status: 'Active' }
+          data: { name: chosenZoneName, total: 100, occupied: 0, status: 'Active', isFacultyOnly: isTargetZoneFacultyOnly }
         }).catch(() => null);
       }
 
@@ -2007,6 +2017,7 @@ const getRealtimeActiveBookings = () => {
 
 app.get('/api/zones', async (req, res) => {
   try {
+    const requesterRole = (req.query.role || req.user?.role || '').toUpperCase();
     const activeBookings = getRealtimeActiveBookings();
 
     const dbZones = await prisma.zone.findMany({
@@ -2036,15 +2047,23 @@ app.get('/api/zones', async (req, res) => {
       }).length;
 
       const total = Number(z.total || z.capacity || 100);
+      const isFaculty = Boolean(z.isFacultyOnly || zName.includes('faculty') || zName.includes('staff') || z.type === 'Faculty Only' || z.type === 'FACULTY_ONLY');
+
       return {
         ...z,
         total,
         occupied: Math.min(total, realOccupied),
-        free: Math.max(0, total - realOccupied)
+        free: Math.max(0, total - realOccupied),
+        isFacultyOnly: isFaculty
       };
     });
 
-    return res.json(synchronizedZones);
+    let resultZones = synchronizedZones;
+    if (requesterRole === 'STUDENT') {
+      resultZones = synchronizedZones.filter(z => !z.isFacultyOnly);
+    }
+
+    return res.json(resultZones);
   } catch (error) {
     console.warn("DB zones query fallback:", error.message);
     res.json(initialZonesStore.map(z => ({ ...z, occupied: 0, free: z.total })));

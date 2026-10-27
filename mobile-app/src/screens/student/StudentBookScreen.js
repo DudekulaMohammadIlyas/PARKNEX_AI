@@ -38,10 +38,9 @@ export default function StudentBookScreen({ navigation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [zonesList, setZonesList] = useState([
-    { id: 'z1', name: 'Faculty Parking', capacity: 100, isFaculty: true },
+    { id: 'z4', name: 'KRISHNA HOSTEL', capacity: 150, isFaculty: false },
     { id: 'z2', name: 'South Block', capacity: 150, isFaculty: false },
     { id: 'z3', name: 'Central Library', capacity: 80, isFaculty: false },
-    { id: 'z4', name: 'KRISHNA HOSTEL', capacity: 150, isFaculty: false },
     { id: 'z5', name: 'HOSPITAL PARKING', capacity: 200, isFaculty: false },
     { id: 'z6', name: 'Hostel Complex', capacity: 200, isFaculty: false },
     { id: 'z7', name: 'CS Academic Block', capacity: 120, isFaculty: false },
@@ -58,14 +57,24 @@ export default function StudentBookScreen({ navigation }) {
   useEffect(() => {
     const fetchZonesApi = async () => {
       try {
-        const res = await smartApiRequest('get', '/zones');
+        const storedUser = await AsyncStorage.getItem('@parknex_user');
+        const userObj = storedUser ? JSON.parse(storedUser) : { role: 'STUDENT' };
+        const role = (userObj?.role || 'STUDENT').toUpperCase();
+        const isStaff = role === 'FACULTY' || role === 'STAFF';
+
+        const res = await smartApiRequest('get', `/zones?role=${encodeURIComponent(role)}`);
         if (Array.isArray(res.data) && res.data.length > 0) {
-          setZonesList(res.data.map(z => ({
+          const mapped = res.data.map(z => ({
             id: z.id,
             name: z.name,
             capacity: z.capacity || z.total || 100,
-            isFaculty: z.isFaculty || z.name?.toLowerCase().includes('faculty')
-          })));
+            isFaculty: z.isFaculty || z.isFacultyOnly || z.name?.toLowerCase().includes('faculty') || z.name?.toLowerCase().includes('staff')
+          }));
+          const filtered = isStaff ? mapped : mapped.filter(z => !z.isFaculty);
+          setZonesList(filtered);
+          if (!isStaff && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
+            setSelectedZone(filtered[0]?.name || 'KRISHNA HOSTEL');
+          }
         }
       } catch (e) {}
     };
@@ -188,6 +197,16 @@ export default function StudentBookScreen({ navigation }) {
       return;
     }
 
+    const userEmail = user?.email || 'student@college.edu';
+    const userRole = (user?.role || 'STUDENT').toUpperCase();
+    const isStaff = userRole === 'FACULTY' || userRole === 'STAFF';
+    const isTargetFaculty = selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff');
+
+    if (isTargetFaculty && !isStaff) {
+      Alert.alert('Access Restricted 🛑', 'This parking zone is reserved exclusively for Faculty and Staff members.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const newBookingRecord = {
@@ -201,7 +220,6 @@ export default function StudentBookScreen({ navigation }) {
       status: 'CONFIRMED'
     };
 
-    const userEmail = user?.email || 'student@college.edu';
     try {
       await smartApiRequest('post', '/bookings', {
         slotNumber: selectedSlot,
@@ -209,6 +227,8 @@ export default function StudentBookScreen({ navigation }) {
         plateNumber: targetPlate,
         vehiclePlate: targetPlate,
         userEmail: userEmail,
+        userRole: userRole,
+        role: userRole,
         bookingDate,
         bookingTime,
         durationHours
@@ -301,7 +321,11 @@ export default function StudentBookScreen({ navigation }) {
                 }}
               >
                 <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.text }}>{z.name}</Text>
-                <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{z.capacity} Total Slots</Text>
+                {z.isFaculty ? (
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#D97706', marginTop: 2 }}>⭐ STAFF EXCLUSIVE</Text>
+                ) : (
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{z.capacity} Total Slots</Text>
+                )}
               </TouchableOpacity>
             )
           })}

@@ -3,7 +3,7 @@
     "id": "z1",
     "name": "Faculty Parking",
     "total": 100,
-    "occupied": 0,
+    "occupied": 1,
     "type": "Faculty Only",
     "status": "Active"
   },

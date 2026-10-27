@@ -13,13 +13,14 @@ const BACKEND_URL = config.BACKEND_URL;
 export default function StudentMapScreen() {
   const [selectedZone, setSelectedZone] = useState('KRISHNA HOSTEL');
   const [zones, setZones] = useState([
-    'Faculty Parking', 'South Block', 'Central Library', 'KRISHNA HOSTEL',
+    'KRISHNA HOSTEL', 'South Block', 'Central Library',
     'HOSPITAL PARKING', 'Hostel Complex', 'CS Academic Block', 'Visitor Parking', 'Scad'
   ]);
   const [rawZoneObjs, setRawZoneObjs] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [currentUserEmail, setCurrentUserEmail] = useState('student@college.edu');
+  const [userRole, setUserRole] = useState('STUDENT');
   const [vehicles, setVehicles] = useState([]);
   
   // Slot Modal Booking State
@@ -33,12 +34,18 @@ export default function StudentMapScreen() {
     const fetchMapData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu' };
+        const userObj = storedUser ? JSON.parse(storedUser) : { email: 'student@college.edu', role: 'STUDENT' };
         const userEmail = userObj.email || 'student@college.edu';
-        if (isMounted) setCurrentUserEmail(userEmail);
+        const role = (userObj.role || 'STUDENT').toUpperCase();
+        const isStaffOrFaculty = role === 'FACULTY' || role === 'STAFF';
+
+        if (isMounted) {
+          setCurrentUserEmail(userEmail);
+          setUserRole(role);
+        }
 
         const [zoneRes, bookRes, allBookRes, vehRes] = await Promise.allSettled([
-          smartApiRequest('get', '/zones'),
+          smartApiRequest('get', `/zones?role=${encodeURIComponent(role)}`),
           smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', '/bookings/all'),
           smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`)
@@ -46,8 +53,14 @@ export default function StudentMapScreen() {
 
         if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0 && isMounted) {
           setRawZoneObjs(zoneRes.value.data);
-          const names = zoneRes.value.data.map(z => z.name);
+          const filtered = isStaffOrFaculty
+            ? zoneRes.value.data
+            : zoneRes.value.data.filter(z => !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
+          const names = filtered.map(z => z.name);
           setZones(names);
+          if (!isStaffOrFaculty && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
+            setSelectedZone(names[0] || 'KRISHNA HOSTEL');
+          }
         }
 
         if (bookRes.status === 'fulfilled' && Array.isArray(bookRes.value.data) && isMounted) {
@@ -124,6 +137,9 @@ export default function StudentMapScreen() {
       .map(b => b.slotNumber || b.slot?.slotNumber)
   );
 
+  const isStaffOrFaculty = userRole === 'FACULTY' || userRole === 'STAFF';
+  const isZoneFacultyOnly = selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff') || selectedZoneObj?.isFacultyOnly;
+
   const slots = Array.from({ length: totalCount }, (_, i) => {
     const numStr = (i + 1).toString().padStart(2, '0');
     const id = `${prefix}${numStr}`;
@@ -136,11 +152,17 @@ export default function StudentMapScreen() {
     }
 
     const hasEV = i % 4 === 3;
-    const isFacultyOnly = i < 2;
+    // Dedicated staff zone is restricted to non-staff. Regular campus zones have ALL slots available to students!
+    const isFacultyOnly = isZoneFacultyOnly && !isStaffOrFaculty;
     return { id, status, hasEV, isFacultyOnly };
   });
 
   const handleSlotPress = (slot) => {
+    if (slot.isFacultyOnly || (isZoneFacultyOnly && !isStaffOrFaculty)) {
+      Alert.alert('Staff Only Zone 🛑', `${selectedZone} is exclusively reserved for Faculty and Staff members.`);
+      return;
+    }
+
     if (slot.status === 'Occupied') {
       Alert.alert('Slot Occupied 🛑', `Slot ${slot.id} in ${selectedZone} is currently reserved by another vehicle.`);
       return;
@@ -157,6 +179,11 @@ export default function StudentMapScreen() {
 
   const handleConfirmMapBooking = async () => {
     if (!selectedSlotForBooking) return;
+
+    if (isZoneFacultyOnly && !isStaffOrFaculty) {
+      Alert.alert('Access Restricted 🛑', 'This parking zone is exclusively reserved for Faculty and Staff members.');
+      return;
+    }
 
     if (!selectedVehiclePlate || vehicles.length === 0) {
       Alert.alert('No Registered Vehicle 🚗', 'You must register a vehicle plate before reserving a slot. Please add your vehicle under My Vehicles first.');
@@ -181,6 +208,8 @@ export default function StudentMapScreen() {
     try {
       await smartApiRequest('post', '/bookings', {
         userEmail: currentUserEmail,
+        userRole: userRole,
+        role: userRole,
         zoneName: selectedZone,
         slotNumber: selectedSlotForBooking.id,
         plateNumber: selectedVehiclePlate,

@@ -20,17 +20,16 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [recommendations, setRecommendations] = useState([
     { slotNumber: 'C-04', zoneName: 'Central Library', score: 96, reason: '80m from CS Block • 96% vacant • EV Charger' },
     { slotNumber: 'H-08', zoneName: 'Hostel Complex', score: 91, reason: '140m from CS Block • 100% vacant • High security' },
-    { slotNumber: 'F-15', zoneName: 'Faculty Parking', score: 85, reason: '190m from CS Block • Wide shade cover' }
+    { slotNumber: 'K-12', zoneName: 'KRISHNA HOSTEL', score: 88, reason: 'Near Main Gate • 85% vacant' }
   ]);
   const [vehicleLocation, setVehicleLocation] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [activeBooking, setActiveBooking] = useState(null);
 
   const [campusZones, setCampusZones] = useState([
-    { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0 },
+    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0 },
     { id: 'z2', name: 'South Block', total: 150, occupied: 0 },
     { id: 'z3', name: 'Central Library', total: 80, occupied: 0 },
-    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0 },
     { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0 },
     { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0 },
     { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0 },
@@ -81,15 +80,17 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
     try {
       const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
       const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
+      const effectiveRole = (userProfile?.role || user?.role || 'STUDENT').toUpperCase();
+      const isStaffOrFaculty = effectiveRole === 'FACULTY' || effectiveRole === 'STAFF';
 
       const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes, violRes] = await Promise.allSettled([
         smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
-        smartApiRequest('get', `/zones`),
+        smartApiRequest('get', `/zones?role=${encodeURIComponent(effectiveRole)}`),
         smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/users/profile?email=${encodeURIComponent(userEmail)}`),
-        smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=STUDENT`),
+        smartApiRequest('get', `/notifications?email=${encodeURIComponent(userEmail)}&role=${encodeURIComponent(effectiveRole)}`),
         smartApiRequest('get', `/violations/my-violations?email=${encodeURIComponent(userEmail)}`)
       ]);
 
@@ -110,10 +111,18 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         setDigitalPass(passRes.value.data);
       }
       if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations)) {
-        setRecommendations(recRes.value.data.recommendations);
+        const rawRecs = recRes.value.data.recommendations;
+        const filteredRecs = isStaffOrFaculty
+          ? rawRecs
+          : rawRecs.filter(r => !r.zoneName.toLowerCase().includes('faculty') && !r.zoneName.toLowerCase().includes('staff'));
+        setRecommendations(filteredRecs);
       }
       if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
-        setCampusZones(zoneRes.value.data);
+        const rawZones = zoneRes.value.data;
+        const filteredZones = isStaffOrFaculty
+          ? rawZones
+          : rawZones.filter(z => !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
+        setCampusZones(filteredZones);
       }
 
       // Process notifications for unread count badge & real-time toast alert

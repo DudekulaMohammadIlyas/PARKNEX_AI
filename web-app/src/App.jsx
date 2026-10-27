@@ -428,8 +428,8 @@ function App() {
             </>
           )}
 
-          {/* STUDENT ROLE NAVIGATION */}
-          {role === 'STUDENT' && (
+          {/* STUDENT & FACULTY/STAFF ROLE NAVIGATION */}
+          {(role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF') && (
             <>
               <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
                 <LayoutGrid size={20} /> Overview
@@ -584,17 +584,18 @@ function App() {
               </>
             )}
 
-            {/* STUDENT PORTAL VIEWS */}
-            {role === 'STUDENT' && (
+            {/* STUDENT & FACULTY/STAFF PORTAL VIEWS */}
+            {(role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF') && (
               activePage === 'settings' ? (
                 <SettingsPage onLogout={confirmLogout} />
               ) : activePage === 'feedback' ? (
-                <FeedbackPage userRole="STUDENT" profile={profile} BACKEND_URL={BACKEND_URL} />
+                <FeedbackPage userRole={role} profile={profile} BACKEND_URL={BACKEND_URL} />
               ) : (
                 <StudentDashboard 
                   occupancy={occupancy} 
                   BACKEND_URL={BACKEND_URL} 
                   profile={profile} 
+                  userRole={role}
                   onEditProfile={openProfileModal}
                   activeTab={activePage === 'dashboard' ? 'overview' : activePage}
                   setActiveTab={setActivePage}
