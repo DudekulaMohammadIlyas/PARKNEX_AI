@@ -3442,21 +3442,43 @@ app.get('/api/campus/map', async (req, res) => {
 
 app.get('/api/occupancy', async (req, res) => {
   try {
+    const activeBookings = getRealtimeActiveBookings();
     const dbZones = await prisma.zone.findMany().catch(() => []);
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
 
-    let zones = fileZones;
+    let rawZones = fileZones;
     if (Array.isArray(dbZones) && dbZones.length > 0) {
-      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase()));
-      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase()));
-      zones = [...dbZones, ...fileOnly];
+      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase().trim()));
+      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase().trim()));
+      rawZones = [...dbZones, ...fileOnly];
     }
 
     let totalSlots = 0, occupiedSlots = 0;
-    zones.forEach(z => { totalSlots += Number(z.total || 100); occupiedSlots += Number(z.occupied || 20); });
-    res.json({ totalSlots, occupiedSlots, totalOccupied: occupiedSlots, zones });
+    const synchronizedZones = rawZones.map(z => {
+      const zName = (z.name || '').toLowerCase().trim();
+      const realOccupied = activeBookings.filter(b => {
+        const bZone = (b.zoneName || b.zone || b.slot?.zone?.name || '').toLowerCase().trim();
+        return bZone === zName || bZone === `zone ${zName}` || zName === `zone ${bZone}`;
+      }).length;
+
+      const total = Number(z.total || z.capacity || 100);
+      const occupied = Math.min(total, realOccupied);
+      const free = Math.max(0, total - occupied);
+
+      totalSlots += total;
+      occupiedSlots += occupied;
+
+      return {
+        ...z,
+        total,
+        occupied,
+        free
+      };
+    });
+
+    res.json({ totalSlots, occupiedSlots, totalOccupied: occupiedSlots, zones: synchronizedZones });
   } catch (error) {
-    res.json({ totalSlots: 1000, occupiedSlots: 350, totalOccupied: 350, zones: initialZonesStore });
+    res.json({ totalSlots: 1000, occupiedSlots: 0, totalOccupied: 0, zones: initialZonesStore.map(z => ({ ...z, occupied: 0, free: z.total })) });
   }
 });
 

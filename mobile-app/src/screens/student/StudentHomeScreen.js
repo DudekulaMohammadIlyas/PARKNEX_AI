@@ -27,15 +27,15 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const [activeBooking, setActiveBooking] = useState(null);
 
   const [campusZones, setCampusZones] = useState([
-    { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 10 },
-    { id: 'z2', name: 'South Block', total: 150, occupied: 50 },
-    { id: 'z3', name: 'Central Library', total: 80, occupied: 78 },
-    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 50 },
-    { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 80 },
-    { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 110 },
-    { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 45 },
-    { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 10 },
-    { id: 'z9', name: 'Scad', total: 75, occupied: 1 }
+    { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0 },
+    { id: 'z2', name: 'South Block', total: 150, occupied: 0 },
+    { id: 'z3', name: 'Central Library', total: 80, occupied: 0 },
+    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0 },
+    { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0 },
+    { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0 },
+    { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0 },
+    { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 0 },
+    { id: 'z9', name: 'Scad', total: 75, occupied: 0 }
   ]);
   const [isFindVehicleOpen, setIsFindVehicleOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);

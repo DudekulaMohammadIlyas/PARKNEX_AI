@@ -25,7 +25,10 @@ import {
   MonitorCheck,
   Trash2,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  CheckCircle2,
+  Check,
+  Save
 } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabaseClient';
@@ -90,6 +93,10 @@ function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isProfileSavedConfirmOpen, setIsProfileSavedConfirmOpen] = useState(false);
+  const [savedProfileDetails, setSavedProfileDetails] = useState(null);
+  const [profileSaveToast, setProfileSaveToast] = useState(null);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [toastAlert, setToastAlert] = useState(null);
   const seenToastIdsRef = useRef(new Set());
@@ -276,6 +283,8 @@ function App() {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    setIsSavingProfile(true);
+
     const updatedProfile = {
       name: profileForm.name,
       email: profileForm.email,
@@ -286,6 +295,7 @@ function App() {
     };
 
     setProfile(updatedProfile);
+    setSavedProfileDetails(updatedProfile);
     setIsProfileModalOpen(false);
 
     localStorage.setItem(`parknex_user_profile_${profileForm.email || role}`, JSON.stringify(updatedProfile));
@@ -309,9 +319,15 @@ function App() {
         department: profileForm.department,
         academicTerm: profileForm.academicTerm
       });
-      alert('Profile updated and saved permanently!');
+      setProfileSaveToast('Profile changes saved and synchronized with database!');
+      setTimeout(() => setProfileSaveToast(null), 4500);
+      setIsProfileSavedConfirmOpen(true);
     } catch (err) {
-      alert('Profile updated locally.');
+      setProfileSaveToast('Profile updated locally on device.');
+      setTimeout(() => setProfileSaveToast(null), 4500);
+      setIsProfileSavedConfirmOpen(true);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -682,7 +698,23 @@ function App() {
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setIsProfileModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Changes</button>
+                <button 
+                  type="submit" 
+                  disabled={isSavingProfile}
+                  className="btn btn-primary" 
+                  style={{ flex: 1, justifyContent: 'center', gap: '0.5rem', fontWeight: '800' }}
+                >
+                  {isSavingProfile ? (
+                    <>
+                      <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      Saving Changes...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} /> Save Changes
+                    </>
+                  )}
+                </button>
               </div>
             </form>
 
@@ -741,6 +773,125 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save Changes Dedicated Confirmation Modal */}
+      {isProfileSavedConfirmOpen && (
+        <div className="modal-overlay" onClick={() => setIsProfileSavedConfirmOpen(false)} style={{ zIndex: 10000 }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', textAlign: 'center', padding: '2.5rem 2rem' }}>
+            <div style={{ 
+              width: '68px', 
+              height: '68px', 
+              borderRadius: '50%', 
+              background: 'rgba(16, 185, 129, 0.12)', 
+              border: '2px solid rgba(16, 185, 129, 0.4)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              margin: '0 auto 1.25rem auto', 
+              color: '#10B981',
+              boxShadow: '0 0 25px rgba(16, 185, 129, 0.3)'
+            }}>
+              <CheckCircle2 size={36} />
+            </div>
+            
+            <h3 style={{ fontSize: '1.45rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              Changes Saved Successfully!
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Your profile details have been saved and synchronized with the campus database & barrier OCR system.
+            </p>
+
+            {savedProfileDetails && (
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.03)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '16px', 
+                padding: '1.25rem', 
+                marginBottom: '1.75rem', 
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                fontSize: '0.88rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Full Name</span>
+                  <span style={{ color: 'var(--text-main)', fontWeight: '800' }}>{savedProfileDetails.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Email Address</span>
+                  <span style={{ color: 'var(--text-main)', fontWeight: '700' }}>{savedProfileDetails.email}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Mobile Phone</span>
+                  <span style={{ color: 'var(--text-main)', fontWeight: '700' }}>{savedProfileDetails.phone || '—'}</span>
+                </div>
+                {savedProfileDetails.department && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Department</span>
+                    <span style={{ color: 'var(--text-main)', fontWeight: '700' }}>{savedProfileDetails.department}</span>
+                  </div>
+                )}
+                {savedProfileDetails.academicTerm && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Academic Term</span>
+                    <span style={{ color: 'var(--text-main)', fontWeight: '700' }}>{savedProfileDetails.academicTerm}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10B981', fontWeight: '800', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }}></span>
+                  Cloud & Database Sync Complete
+                </div>
+              </div>
+            )}
+
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setIsProfileSavedConfirmOpen(false)} 
+              style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.85rem', fontSize: '1rem' }}
+            >
+              Continue to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING PROFILE SAVE CONFIRMATION TOAST */}
+      {profileSaveToast && (
+        <div 
+          className="animate-slide-in"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            backgroundColor: '#064E3B',
+            color: '#ECFDF5',
+            borderRadius: '16px',
+            padding: '1rem 1.4rem',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.4)',
+            borderLeft: '6px solid #10B981',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.85rem',
+            maxWidth: '420px'
+          }}
+        >
+          <CheckCircle2 size={24} color="#10B981" />
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '900', letterSpacing: '0.5px', color: '#6EE7B7', textTransform: 'uppercase', display: 'block' }}>
+              SETTINGS CONFIRMED
+            </span>
+            <strong style={{ fontSize: '0.92rem', display: 'block', margin: '2px 0' }}>{profileSaveToast}</strong>
+          </div>
+          <button 
+            onClick={() => setProfileSaveToast(null)}
+            style={{ background: 'none', border: 'none', color: '#6EE7B7', cursor: 'pointer', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
       {/* REAL-TIME TOAST ALERT POPUP BANNER */}

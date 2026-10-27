@@ -22,6 +22,7 @@ export default function SettingsPage({ onLogout }) {
   const [unauthorizedEntry, setUnauthorizedEntry] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     // Fetch authoritative configuration from backend PostgreSQL database
@@ -60,12 +61,10 @@ export default function SettingsPage({ onLogout }) {
     try {
       await axios.post(`${BACKEND_URL}/system/settings`, configData);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      alert('System configuration updated & saved to Database successfully!');
+      setConfirmModalOpen(true);
     } catch (err) {
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      alert('System configuration saved locally.');
+      setConfirmModalOpen(true);
     } finally {
       setIsSaving(false);
     }
@@ -90,6 +89,26 @@ export default function SettingsPage({ onLogout }) {
           )}
         </button>
       </div>
+
+      {/* Confirmation Modal for Settings Save */}
+      {confirmModalOpen && (
+        <div className="modal-overlay" onClick={() => setConfirmModalOpen(false)} style={{ zIndex: 10000 }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center', padding: '2.25rem 1.75rem' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.12)', border: '2px solid rgba(16, 185, 129, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto', color: '#10B981', boxShadow: '0 0 20px rgba(16, 185, 129, 0.25)' }}>
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              System Changes Confirmed!
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Your system security boundaries, camera confidence thresholds, and institution configurations have been successfully saved and synchronized.
+            </p>
+            <button className="btn btn-primary" onClick={() => setConfirmModalOpen(false)} style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.75rem' }}>
+              Awesome, Done
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         

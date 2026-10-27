@@ -9,15 +9,15 @@ import { COLORS } from '../../theme/colors';
 const BACKEND_URL = config.BACKEND_URL;
 
 const defaultZones = [
-  { id: 'z1', name: 'Faculty Parking', capacity: '100 Slots', total: 100, occupied: 10, type: 'Faculty Only', status: 'Active' },
-  { id: 'z2', name: 'South Block', capacity: '150 Slots', total: 150, occupied: 50, type: 'Mixed', status: 'Active' },
-  { id: 'z3', name: 'Central Library', capacity: '80 Slots', total: 80, occupied: 78, type: '4-Wheeler', status: 'Active' },
-  { id: 'z4', name: 'KRISHNA HOSTEL', capacity: '150 Slots', total: 150, occupied: 50, type: 'Hostel Block', status: 'Active' },
-  { id: 'z5', name: 'HOSPITAL PARKING', capacity: '200 Slots', total: 200, occupied: 80, type: 'Mixed', status: 'Active' },
-  { id: 'z6', name: 'Hostel Complex', capacity: '200 Slots', total: 200, occupied: 110, type: '2-Wheeler', status: 'Active' },
-  { id: 'z7', name: 'CS Academic Block', capacity: '120 Slots', total: 120, occupied: 45, type: 'Academic', status: 'Active' },
-  { id: 'z8', name: 'Visitor Parking', capacity: '50 Slots', total: 50, occupied: 10, type: 'Visitor Only', status: 'Active' },
-  { id: 'z9', name: 'Scad', capacity: '75 Slots', total: 75, occupied: 1, type: 'Mixed', status: 'Active' }
+  { id: 'z1', name: 'Faculty Parking', capacity: '100 Slots', total: 100, occupied: 0, type: 'Faculty Only', status: 'Active' },
+  { id: 'z2', name: 'South Block', capacity: '150 Slots', total: 150, occupied: 0, type: 'Mixed', status: 'Active' },
+  { id: 'z3', name: 'Central Library', capacity: '80 Slots', total: 80, occupied: 0, type: '4-Wheeler', status: 'Active' },
+  { id: 'z4', name: 'KRISHNA HOSTEL', capacity: '150 Slots', total: 150, occupied: 0, type: 'Hostel Block', status: 'Active' },
+  { id: 'z5', name: 'HOSPITAL PARKING', capacity: '200 Slots', total: 200, occupied: 0, type: 'Mixed', status: 'Active' },
+  { id: 'z6', name: 'Hostel Complex', capacity: '200 Slots', total: 200, occupied: 0, type: '2-Wheeler', status: 'Active' },
+  { id: 'z7', name: 'CS Academic Block', capacity: '120 Slots', total: 120, occupied: 0, type: 'Academic', status: 'Active' },
+  { id: 'z8', name: 'Visitor Parking', capacity: '50 Slots', total: 50, occupied: 0, type: 'Visitor Only', status: 'Active' },
+  { id: 'z9', name: 'Scad', capacity: '75 Slots', total: 75, occupied: 0, type: 'Mixed', status: 'Active' }
 ];
 
 export default function ManageZonesScreen({ navigation }) {

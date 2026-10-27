@@ -131,6 +131,9 @@ export default function AdminDashboard({ occupancy, events }) {
     designation: ''
   });
 
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [userUpdateSuccessModal, setUserUpdateSuccessModal] = useState(null);
+
   // Enterprise System Logs & Backups
   const [auditLogs, setAuditLogs] = useState([
     { id: '1', action: 'USER_LOGIN', user: 'admin@college.edu', role: 'ADMIN', details: 'Successful portal login', timestamp: 'Just now', status: 'SUCCESS' },
@@ -229,6 +232,7 @@ export default function AdminDashboard({ occupancy, events }) {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     if (!selectedUserForEdit) return;
+    setIsUpdatingUser(true);
 
     const updated = usersList.map(u => 
       u.id === selectedUserForEdit.id ? { ...u, ...userForm } : u
@@ -241,8 +245,9 @@ export default function AdminDashboard({ occupancy, events }) {
       await axios.put(`${BACKEND_URL}/users/${selectedUserForEdit.id}`, userForm);
     } catch (err) {}
 
-    alert(`✅ User permissions for ${userForm.name} updated successfully!`);
+    setIsUpdatingUser(false);
     setIsEditUserModalOpen(false);
+    setUserUpdateSuccessModal({ ...userForm });
     setSelectedUserForEdit(null);
   };
 
@@ -861,9 +866,36 @@ export default function AdminDashboard({ occupancy, events }) {
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setIsEditUserModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Changes</button>
+                <button 
+                  type="submit" 
+                  disabled={isUpdatingUser}
+                  className="btn btn-primary" 
+                  style={{ flex: 1, justifyContent: 'center', gap: '0.5rem', fontWeight: '800' }}
+                >
+                  {isUpdatingUser ? 'Saving Changes...' : 'Save Changes'}
+                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Update Confirmation Modal */}
+      {userUpdateSuccessModal && (
+        <div className="modal-overlay" onClick={() => setUserUpdateSuccessModal(null)} style={{ zIndex: 10000 }}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center', padding: '2.25rem 1.75rem' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.12)', border: '2px solid rgba(16, 185, 129, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto', color: '#10B981', boxShadow: '0 0 20px rgba(16, 185, 129, 0.25)' }}>
+              <CheckCircle size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              User Permissions Updated!
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Account role and clearance credentials for <strong>{userUpdateSuccessModal.name}</strong> ({userUpdateSuccessModal.role}) have been successfully saved to the campus database.
+            </p>
+            <button className="btn btn-primary" onClick={() => setUserUpdateSuccessModal(null)} style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.75rem' }}>
+              Awesome, Done
+            </button>
           </div>
         </div>
       )}

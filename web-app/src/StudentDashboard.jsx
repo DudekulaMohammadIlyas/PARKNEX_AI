@@ -139,20 +139,20 @@ export default function StudentDashboard({
 
   // Admin-Created Campus Zones Registry State
   const [adminZones, setAdminZones] = useState([
-    { id: 'z1', name: 'Faculty Parking', total: 100, isFacultyOnly: true },
-    { id: 'z2', name: 'South Block', total: 150 },
-    { id: 'z3', name: 'Central Library', total: 80, isFacultyOnly: true },
-    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150 },
-    { id: 'z5', name: 'HOSPITAL PARKING', total: 200 },
-    { id: 'z6', name: 'Hostel Complex', total: 200 },
-    { id: 'z7', name: 'CS Academic Block', total: 120 },
-    { id: 'z8', name: 'Visitor Parking', total: 50 },
-    { id: 'z9', name: 'Scad', total: 75 }
+    { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0, free: 100, isFacultyOnly: true },
+    { id: 'z2', name: 'South Block', total: 150, occupied: 0, free: 150 },
+    { id: 'z3', name: 'Central Library', total: 80, occupied: 0, free: 80, isFacultyOnly: true },
+    { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0, free: 150 },
+    { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0, free: 200 },
+    { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0, free: 200 },
+    { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0, free: 120 },
+    { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 0, free: 50 },
+    { id: 'z9', name: 'Scad', total: 75, occupied: 0, free: 75 }
   ]);
 
   // Distinct & Dynamic AI Recommendations State (Unique slots across zones, NO repetition)
   const [aiRecommendations, setAiRecommendations] = useState([
-    { zoneName: 'KRISHNA HOSTEL', slotNumber: 'K-04', distanceMeters: 80, availableSlots: 144, score: 96, reason: '80m from Academic Block • 96% vacant • EV Charger available' },
+    { zoneName: 'KRISHNA HOSTEL', slotNumber: 'K-04', distanceMeters: 80, availableSlots: 150, score: 96, reason: '80m from Academic Block • 100% vacant • EV Charger available' },
     { zoneName: 'HOSPITAL PARKING', slotNumber: 'H-08', distanceMeters: 140, availableSlots: 200, score: 91, reason: '140m from CS Block • 100% vacant • High security area' },
     { zoneName: 'North Block', slotNumber: 'N-15', distanceMeters: 190, availableSlots: 200, score: 85, reason: '190m from North Block • Wide shade cover' }
   ]);
@@ -503,20 +503,14 @@ export default function StudentDashboard({
 
   // Compute ACCURATE free slots count dynamically for any zone
   const getAccurateZoneOccupancy = (zoneObj) => {
-    const zoneName = zoneObj.name;
-    const totalCapacity = zoneObj.total || 100;
-    
-    // Count ONLY active CONFIRMED bookings for this zone
-    const activeConfirmedCount = historyList.filter(b => 
-      (b.zone === zoneName || b.zone === `Zone ${zoneName}`) && 
-      b.status === 'CONFIRMED'
-    ).length;
+    const totalCapacity = Number(zoneObj.total || zoneObj.capacity || 100);
+    const occupiedCount = Number(zoneObj.occupied !== undefined ? zoneObj.occupied : 0);
+    const freeSlots = zoneObj.free !== undefined ? Number(zoneObj.free) : Math.max(0, totalCapacity - occupiedCount);
 
-    const freeSlots = Math.max(0, totalCapacity - activeConfirmedCount);
     return {
       freeSlots,
       totalCapacity,
-      occupiedCount: activeConfirmedCount
+      occupiedCount
     };
   };
 
@@ -841,7 +835,7 @@ export default function StudentDashboard({
     return 'Welcome';
   };
   const studentDisplayName = profile?.name || (userEmail ? (userEmail.includes('@') ? userEmail.split('@')[0] : userEmail) : 'Student');
-  const totalOpenSlots = (adminZones || []).reduce((sum, z) => sum + Math.max(0, (z.total || 0) - (z.occupied || 0)), 0) || 144;
+  const totalOpenSlots = (adminZones || []).reduce((sum, z) => sum + Math.max(0, (z.free !== undefined ? Number(z.free) : (Number(z.total || 0) - Number(z.occupied || 0)))), 0);
 
   return (
     <div className="animate-fade-in" style={{ position: 'relative' }}>
