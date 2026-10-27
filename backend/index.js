@@ -736,13 +736,22 @@ app.post('/api/bookings', async (req, res) => {
       user = await prisma.user.findFirst().catch(() => null);
     }
 
-    const isTargetZoneFacultyOnly = chosenZoneName.toLowerCase().includes('faculty') || chosenZoneName.toLowerCase().includes('staff');
-    const userRole = (user?.role || req.user?.role || req.body?.userRole || req.body?.role || 'STUDENT').toUpperCase();
+    const isTargetZoneStaffOnly = chosenZoneName.toLowerCase().includes('staff') || chosenZoneName.toLowerCase().includes('faculty');
+    const userRole = (req.body?.userRole || req.body?.role || req.user?.role || user?.role || 'STUDENT').toUpperCase();
 
-    if (isTargetZoneFacultyOnly && userRole !== 'FACULTY' && userRole !== 'STAFF' && userRole !== 'ADMIN') {
+    // 1. Students are prohibited from reserving in dedicated Staff zones
+    if (isTargetZoneStaffOnly && userRole === 'STUDENT') {
       return res.status(403).json({
         success: false,
-        error: 'Access Denied: This parking zone is exclusively reserved for University Faculty & Staff members.'
+        error: 'Access Denied: Students are not permitted to reserve slots in dedicated Staff zones.'
+      });
+    }
+
+    // 2. Staff members MUST park ONLY in their allocated Staff zones and cannot book in normal student zones
+    if (!isTargetZoneStaffOnly && (userRole === 'STAFF' || userRole === 'FACULTY')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access Denied: Staff members must park exclusively in designated Staff Parking zones and cannot book in general student zones.'
       });
     }
 
@@ -750,7 +759,7 @@ app.post('/api/bookings', async (req, res) => {
       let zone = await prisma.zone.findFirst({ where: { name: chosenZoneName } }).catch(() => null);
       if (!zone) {
         zone = await prisma.zone.create({
-          data: { name: chosenZoneName, total: 100, occupied: 0, status: 'Active', isFacultyOnly: isTargetZoneFacultyOnly }
+          data: { name: chosenZoneName, total: 100, occupied: 0, status: 'Active', isFacultyOnly: isTargetZoneStaffOnly }
         }).catch(() => null);
       }
 
@@ -1984,7 +1993,7 @@ app.post('/api/system/settings', async (req, res) => {
 // ================= ZONES & SLOTS ENDPOINTS ================= //
 
 let initialZonesStore = [
-  { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0, type: 'Faculty Only', status: 'Active' },
+  { id: 'z1', name: 'Staff Parking', total: 100, occupied: 0, type: 'Staff Only', status: 'Active', isStaffOnly: true },
   { id: 'z2', name: 'South Block', total: 150, occupied: 0, type: 'Mixed', status: 'Active' },
   { id: 'z3', name: 'Central Library', total: 80, occupied: 0, type: '4-Wheeler', status: 'Active' },
   { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0, type: 'Hostel Block', status: 'Active' },
@@ -2027,40 +2036,64 @@ app.get('/api/zones', async (req, res) => {
 
     const fileZones = loadJSONStore(ZONES_FILE, initialZonesStore);
 
-    let allZones = [];
+    const normalizeZoneName = (n) => {
+      const lower = (n || '').toLowerCase().trim();
+      if (lower === 'faculty parking' || lower === 'staff parking') return 'Staff Parking';
+      if (lower === 'faculty block parking' || lower === 'staff block parking') return 'Staff Block Parking';
+      return (n || '').trim();
+    };
+
+    let allZonesRaw = [];
     if (Array.isArray(dbZones) && dbZones.length > 0) {
-      const dbNames = new Set(dbZones.map(z => (z.name || '').toLowerCase().trim()));
-      const fileOnly = (fileZones || []).filter(fz => !dbNames.has((fz.name || '').toLowerCase().trim()));
-      allZones = [...dbZones, ...fileOnly];
+      allZonesRaw = [...dbZones, ...(fileZones || [])];
     } else if (Array.isArray(fileZones) && fileZones.length > 0) {
-      allZones = fileZones;
+      allZonesRaw = fileZones;
     } else {
-      allZones = initialZonesStore;
+      allZonesRaw = initialZonesStore;
+    }
+
+    const seenNames = new Set();
+    const allZones = [];
+    for (const z of allZonesRaw) {
+      const norm = normalizeZoneName(z.name);
+      if (!seenNames.has(norm.toLowerCase())) {
+        seenNames.add(norm.toLowerCase());
+        allZones.push({ ...z, name: norm });
+      }
     }
 
     // Synchronize accurate occupancy: count actual active bookings for each zone
     const synchronizedZones = allZones.map(z => {
-      const zName = (z.name || '').toLowerCase().trim();
+      const displayName = normalizeZoneName(z.name);
+      const zName = displayName.toLowerCase();
+
       const realOccupied = activeBookings.filter(b => {
         const bZone = (b.zoneName || b.zone || b.slot?.zone?.name || '').toLowerCase().trim();
-        return bZone === zName || bZone === `zone ${zName}` || zName === `zone ${bZone}`;
+        return bZone === zName || bZone === `zone ${zName}` || zName === `zone ${bZone}` ||
+               (zName.includes('staff') && (bZone.includes('staff') || bZone.includes('faculty')));
       }).length;
 
       const total = Number(z.total || z.capacity || 100);
-      const isFaculty = Boolean(z.isFacultyOnly || zName.includes('faculty') || zName.includes('staff') || z.type === 'Faculty Only' || z.type === 'FACULTY_ONLY');
+      const isStaffZone = Boolean(z.isStaffOnly || zName.includes('staff') || zName.includes('faculty') || z.type === 'Staff Only' || z.type === 'Faculty Only' || z.type === 'STAFF_ONLY');
 
       return {
         ...z,
+        name: displayName,
         total,
         occupied: Math.min(total, realOccupied),
         free: Math.max(0, total - realOccupied),
-        isFacultyOnly: isFaculty
+        isStaffOnly: isStaffZone,
+        isFacultyOnly: isStaffZone
       };
     });
 
     let resultZones = synchronizedZones;
     if (requesterRole === 'STUDENT') {
-      resultZones = synchronizedZones.filter(z => !z.isFacultyOnly);
+      // Students ONLY see general campus zones
+      resultZones = synchronizedZones.filter(z => !z.isStaffOnly);
+    } else if (requesterRole === 'STAFF' || requesterRole === 'FACULTY') {
+      // Staff members ONLY see their allocated Staff Parking zone(s)
+      resultZones = synchronizedZones.filter(z => z.isStaffOnly);
     }
 
     return res.json(resultZones);

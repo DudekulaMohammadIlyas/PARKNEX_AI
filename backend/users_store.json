@@ -296,5 +296,22 @@
     "phone": "8527419632",
     "department": "CSE",
     "academicTerm": "Fall 2024 - Spring 2028"
+  },
+  {
+    "id": "c99966b1-1f4d-484a-8760-b535da300807",
+    "email": "faculty1@gmail.com",
+    "password": "$2b$10$6IfNTNdjj1Dbiqccku4lGerQhJmeGF5N4ehLSVAgPZ34Ag521OnDG",
+    "role": "FACULTY",
+    "name": "Dr john",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": null,
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-27T16:27:01.336Z",
+    "updatedAt": "2026-10-27T16:27:01.336Z"
   }
 ]

@@ -1,5 +1,35 @@
 [
   {
+    "id": "93ba4c6e-16bf-40c1-81af-c234e72aa0d9",
+    "title": "🎟️ Parking Booking Confirmed",
+    "message": "Your booking for Staff Parking (SP-02) is confirmed for vehicle KA-01-XX-9999.",
+    "category": "BOOKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": null,
+    "userEmail": "staff@college.edu",
+    "targetRole": "STUDENT",
+    "relatedEntity": "5b49f7bc-1e29-4147-ac0e-6ee8aa5c29c8",
+    "deepLink": "StudentBookScreen",
+    "metadata": null,
+    "createdAt": "2026-10-27T16:57:55.344Z"
+  },
+  {
+    "id": "007e1df7-6d7a-45b1-96c5-782b7e21c552",
+    "title": "🎟️ Parking Booking Confirmed",
+    "message": "Your booking for KRISHNA HOSTEL (K-05) is confirmed for vehicle AP21AA5555.",
+    "category": "BOOKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": null,
+    "userEmail": "staff@college.edu",
+    "targetRole": "STUDENT",
+    "relatedEntity": "5f40c9a7-dbc6-451e-a8ed-48549357890e",
+    "deepLink": "StudentBookScreen",
+    "metadata": null,
+    "createdAt": "2026-10-27T16:53:50.890Z"
+  },
+  {
     "id": "da800202-52cb-44f1-8906-218848e2b57c",
     "title": "🎟️ Parking Booking Confirmed",
     "message": "Your booking for Faculty Parking (F-05) is confirmed for vehicle AP21AA9999.",

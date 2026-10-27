@@ -307,7 +307,7 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
                   style={{ paddingLeft: '1rem', cursor: 'pointer', color: 'var(--text-main)', backgroundColor: 'var(--bg-sidebar)' }}
                 >
                   <option value="STUDENT" style={{ backgroundColor: 'var(--bg-sidebar)' }}>Student</option>
-                  <option value="FACULTY" style={{ backgroundColor: 'var(--bg-sidebar)' }}>Faculty / Staff Member</option>
+                  <option value="STAFF" style={{ backgroundColor: 'var(--bg-sidebar)' }}>Staff Member</option>
                   <option value="SECURITY" style={{ backgroundColor: 'var(--bg-sidebar)' }}>Security Officer</option>
                   <option value="ADMIN" style={{ backgroundColor: 'var(--bg-sidebar)' }}>Campus Administrator</option>
                 </select>

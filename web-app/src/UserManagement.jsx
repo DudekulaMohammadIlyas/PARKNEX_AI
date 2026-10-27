@@ -231,7 +231,7 @@ export default function UserManagement() {
         
         {/* Interactive Role Filter Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-          {['All', 'Student', 'Faculty', 'Security', 'Admin'].map((role) => (
+          {['All', 'Student', 'Staff', 'Security', 'Admin'].map((role) => (
             <button
               key={role}
               onClick={() => setSelectedRoleFilter(role)}
@@ -287,7 +287,7 @@ export default function UserManagement() {
                 border: '1.5px solid #334155'
               }}
             >
-              {['All', 'Student', 'Faculty', 'Security', 'Admin'].map((role) => (
+              {['All', 'Student', 'Staff', 'Security', 'Admin'].map((role) => (
                 <button 
                   key={role} 
                   style={{ 
@@ -448,7 +448,7 @@ export default function UserManagement() {
                     style={{ paddingLeft: '1rem', color: 'var(--text-main)', backgroundColor: 'var(--bg-sidebar)', cursor: 'pointer' }}
                   >
                     <option style={{ backgroundColor: 'var(--bg-sidebar)' }}>Student</option>
-                    <option style={{ backgroundColor: 'var(--bg-sidebar)' }}>Faculty</option>
+                    <option style={{ backgroundColor: 'var(--bg-sidebar)' }}>Staff</option>
                     <option style={{ backgroundColor: 'var(--bg-sidebar)' }}>Security</option>
                     <option style={{ backgroundColor: 'var(--bg-sidebar)' }}>Admin</option>
                   </select>

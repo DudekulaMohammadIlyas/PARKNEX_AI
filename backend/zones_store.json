@@ -1,11 +1,12 @@
 [
   {
     "id": "z1",
-    "name": "Faculty Parking",
+    "name": "Staff Parking",
     "total": 100,
     "occupied": 1,
-    "type": "Faculty Only",
-    "status": "Active"
+    "type": "Staff Only",
+    "status": "Active",
+    "isStaffOnly": true
   },
   {
     "id": "z2",
@@ -27,7 +28,7 @@
     "id": "z4",
     "name": "KRISHNA HOSTEL",
     "total": 150,
-    "occupied": 0,
+    "occupied": 1,
     "type": "Hostel Block",
     "status": "Active"
   },

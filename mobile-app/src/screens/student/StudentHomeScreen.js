@@ -113,15 +113,15 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
       if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations)) {
         const rawRecs = recRes.value.data.recommendations;
         const filteredRecs = isStaffOrFaculty
-          ? rawRecs
+          ? rawRecs.filter(r => r.zoneName.toLowerCase().includes('staff') || r.zoneName.toLowerCase().includes('faculty'))
           : rawRecs.filter(r => !r.zoneName.toLowerCase().includes('faculty') && !r.zoneName.toLowerCase().includes('staff'));
-        setRecommendations(filteredRecs);
+        setRecommendations(filteredRecs.length > 0 ? filteredRecs : (isStaffOrFaculty ? [{ slotNumber: 'SP-01', zoneName: 'Staff Parking', score: 98, reason: 'Staff Exclusive • Guaranteed Space' }] : rawRecs));
       }
       if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
         const rawZones = zoneRes.value.data;
         const filteredZones = isStaffOrFaculty
-          ? rawZones
-          : rawZones.filter(z => !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
+          ? rawZones.filter(z => z.isStaffOnly || z.isFacultyOnly || z.name.toLowerCase().includes('staff') || z.name.toLowerCase().includes('faculty'))
+          : rawZones.filter(z => !z.isStaffOnly && !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
         setCampusZones(filteredZones);
       }
 
@@ -797,16 +797,16 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#3 RECOMMENDATION</Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>86% Match</Text>
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot FB-15 (Faculty Block)</Text>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot K-22 (KRISHNA HOSTEL)</Text>
             <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
-              200m from CS Block • 85% vacant
+              210m from Library • 88% vacant • Covered shade
             </Text>
             <TouchableOpacity 
               style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
               onPress={() => navigation.navigate('Book')}
               activeOpacity={0.8}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot FB-15</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot K-22</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </ScrollView>

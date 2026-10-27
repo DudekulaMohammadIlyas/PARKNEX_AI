@@ -68,12 +68,18 @@ export default function StudentBookScreen({ navigation }) {
             id: z.id,
             name: z.name,
             capacity: z.capacity || z.total || 100,
-            isFaculty: z.isFaculty || z.isFacultyOnly || z.name?.toLowerCase().includes('faculty') || z.name?.toLowerCase().includes('staff')
+            isStaff: z.isStaffOnly || z.isFacultyOnly || z.isFaculty || z.name?.toLowerCase().includes('staff') || z.name?.toLowerCase().includes('faculty')
           }));
-          const filtered = isStaff ? mapped : mapped.filter(z => !z.isFaculty);
+          const filtered = isStaff 
+            ? mapped.filter(z => z.isStaff)
+            : mapped.filter(z => !z.isStaff);
           setZonesList(filtered);
-          if (!isStaff && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
+          if (isStaff && (!selectedZone.toLowerCase().includes('staff') && !selectedZone.toLowerCase().includes('faculty'))) {
+            setSelectedZone(filtered[0]?.name || 'Staff Parking');
+            setSelectedSlot('SP-01');
+          } else if (!isStaff && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
             setSelectedZone(filtered[0]?.name || 'KRISHNA HOSTEL');
+            setSelectedSlot('K-04');
           }
         }
       } catch (e) {}
@@ -200,10 +206,15 @@ export default function StudentBookScreen({ navigation }) {
     const userEmail = user?.email || 'student@college.edu';
     const userRole = (user?.role || 'STUDENT').toUpperCase();
     const isStaff = userRole === 'FACULTY' || userRole === 'STAFF';
-    const isTargetFaculty = selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff');
+    const isTargetStaff = selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff');
 
-    if (isTargetFaculty && !isStaff) {
-      Alert.alert('Access Restricted 🛑', 'This parking zone is reserved exclusively for Faculty and Staff members.');
+    if (isTargetStaff && !isStaff) {
+      Alert.alert('Access Restricted 🛑', 'This parking zone is reserved exclusively for Staff members.');
+      return;
+    }
+
+    if (!isTargetStaff && isStaff) {
+      Alert.alert('Access Restricted 🛑', 'Staff members must park exclusively in designated Staff Parking zones and cannot book in general student zones.');
       return;
     }
 
@@ -306,9 +317,10 @@ export default function StudentBookScreen({ navigation }) {
                 onPress={() => {
                   setSelectedZone(z.name);
                   if (z.name === 'KRISHNA HOSTEL') setSelectedSlot('K-04');
+                  else if (z.name.includes('Staff') || z.name.includes('Faculty')) setSelectedSlot('SP-01');
                   else if (z.name.includes('Zone A')) setSelectedSlot('A-08');
                   else if (z.name.includes('Zone B')) setSelectedSlot('B-12');
-                  else setSelectedSlot('C-01');
+                  else setSelectedSlot(`${z.name.charAt(0).toUpperCase()}-01`);
                 }}
                 style={{
                   flex: 1,
@@ -347,6 +359,8 @@ export default function StudentBookScreen({ navigation }) {
                 const cap = selectedZoneObj?.capacity || 30;
                 let p = 'A-';
                 if (selectedZone.includes('KRISHNA')) p = 'K-';
+                else if (selectedZone.includes('Staff Block') || selectedZone.includes('Faculty Block')) p = 'SB-';
+                else if (selectedZone.includes('Staff') || selectedZone.includes('Faculty')) p = 'SP-';
                 else if (selectedZone.includes('Zone A')) p = 'A-';
                 else if (selectedZone.includes('Zone B')) p = 'B-';
                 else if (selectedZone.includes('Zone C')) p = 'C-';

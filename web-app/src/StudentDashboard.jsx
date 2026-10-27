@@ -94,7 +94,8 @@ export default function StudentDashboard({
   setActiveTab: propSetActiveTab 
 }) {
   const effectiveRole = (userRole || profile?.role || 'STUDENT').toUpperCase();
-  const isStaffOrFaculty = effectiveRole === 'FACULTY' || effectiveRole === 'STAFF';
+  const isStaffMember = effectiveRole === 'STAFF' || effectiveRole === 'FACULTY';
+  const isStaffOrFaculty = isStaffMember;
 
   const [localActiveTab, setLocalActiveTab] = useState('overview');
   const activeTab = propActiveTab || localActiveTab;
@@ -141,25 +142,25 @@ export default function StudentDashboard({
   // Parking Violations & Fines State
   const [myViolations, setMyViolations] = useState([]);
 
-  // Admin-Created Campus Zones Registry State (Role-scoped)
+  // Admin-Created Campus Zones Registry State (Role-scoped initial state)
   const [adminZones, setAdminZones] = useState(() => {
     const studentDefaultZones = [
-      { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0, free: 150, isFacultyOnly: false },
-      { id: 'z2', name: 'South Block', total: 150, occupied: 0, free: 150, isFacultyOnly: false },
-      { id: 'z3', name: 'Central Library', total: 80, occupied: 0, free: 80, isFacultyOnly: false },
-      { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0, free: 200, isFacultyOnly: false },
-      { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0, free: 200, isFacultyOnly: false },
-      { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0, free: 120, isFacultyOnly: false },
-      { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 0, free: 50, isFacultyOnly: false },
-      { id: 'z9', name: 'Scad', total: 75, occupied: 0, free: 75, isFacultyOnly: false }
+      { id: 'z4', name: 'KRISHNA HOSTEL', total: 150, occupied: 0, free: 150, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z2', name: 'South Block', total: 150, occupied: 0, free: 150, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z3', name: 'Central Library', total: 80, occupied: 0, free: 80, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z5', name: 'HOSPITAL PARKING', total: 200, occupied: 0, free: 200, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z6', name: 'Hostel Complex', total: 200, occupied: 0, free: 200, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z7', name: 'CS Academic Block', total: 120, occupied: 0, free: 120, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z8', name: 'Visitor Parking', total: 50, occupied: 0, free: 50, isStaffOnly: false, isFacultyOnly: false },
+      { id: 'z9', name: 'Scad', total: 75, occupied: 0, free: 75, isStaffOnly: false, isFacultyOnly: false }
     ];
 
     const staffExclusiveZones = [
-      { id: 'z1', name: 'Faculty Parking', total: 100, occupied: 0, free: 100, isFacultyOnly: true },
-      { id: 'z10', name: 'Faculty Block Parking', total: 100, occupied: 0, free: 100, isFacultyOnly: true }
+      { id: 'z1', name: 'Staff Parking', total: 100, occupied: 0, free: 100, isStaffOnly: true, isFacultyOnly: true }
     ];
 
-    return isStaffOrFaculty ? [...staffExclusiveZones, ...studentDefaultZones] : studentDefaultZones;
+    // Staff ONLY see their designated staff zone; Students ONLY see student zones
+    return isStaffMember ? staffExclusiveZones : studentDefaultZones;
   });
 
   // Distinct & Dynamic AI Recommendations State (Unique slots across zones, NO repetition)
@@ -253,8 +254,8 @@ export default function StudentDashboard({
   const [bookingDate, setBookingDate] = useState(() => getTodayDateStr());
   const [bookingTime, setBookingTime] = useState(() => getCurrentTimeStr());
   const [durationHours, setDurationHours] = useState(4);
-  const [selectedZone, setSelectedZone] = useState(() => isStaffOrFaculty ? 'Faculty Parking' : 'KRISHNA HOSTEL');
-  const [selectedSlot, setSelectedSlot] = useState(() => isStaffOrFaculty ? 'FP-01' : 'K-04');
+  const [selectedZone, setSelectedZone] = useState(() => isStaffMember ? 'Staff Parking' : 'KRISHNA HOSTEL');
+  const [selectedSlot, setSelectedSlot] = useState(() => isStaffMember ? 'SP-01' : 'K-04');
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
 
   // PERSISTED History list state (SCOPED TO LOGGED-IN USER EMAIL)
@@ -298,27 +299,42 @@ export default function StudentDashboard({
   }, [receiptsList, userEmail]);
 
   // Selected map zone state
-  const [activeMapZone, setActiveMapZone] = useState(() => isStaffOrFaculty ? 'Faculty Parking' : 'KRISHNA HOSTEL');
+  const [activeMapZone, setActiveMapZone] = useState(() => isStaffMember ? 'Staff Parking' : 'KRISHNA HOSTEL');
 
-  // Filtered zones for display & booking selection based on active user role
+  // Strict mutual exclusivity:
+  // - Staff members ONLY see their allocated Staff zones ("staff only should park only in their respected allocated zones, they should not and unable to park in normal zones")
+  // - Students ONLY see normal student campus zones (staff zones hidden)
   const displayedZones = (adminZones || []).filter(z => {
-    const isFac = z.isFacultyOnly || (z.name || '').toLowerCase().includes('faculty') || z.type === 'Faculty Only';
-    if (!isStaffOrFaculty && isFac) return false; // Staff zones only reflect in staff logins!
-    return true;
+    const isStaffZone = z.isStaffOnly || z.isFacultyOnly || (z.name || '').toLowerCase().includes('staff') || (z.name || '').toLowerCase().includes('faculty') || z.type === 'Staff Only' || z.type === 'Faculty Only' || z.type === 'STAFF_ONLY';
+    if (isStaffMember) {
+      return isStaffZone;
+    } else {
+      return !isStaffZone;
+    }
   });
 
   const selectableZones = displayedZones;
 
-  // Prevent student from having a staff zone selected
+  // Keep selection strictly constrained to role-permitted zones
   useEffect(() => {
-    if (!isStaffOrFaculty && selectedZone.toLowerCase().includes('faculty')) {
-      setSelectedZone('KRISHNA HOSTEL');
-      setSelectedSlot('K-04');
+    if (isStaffMember) {
+      if (!selectedZone.toLowerCase().includes('staff') && !selectedZone.toLowerCase().includes('faculty')) {
+        setSelectedZone('Staff Parking');
+        setSelectedSlot('SP-01');
+      }
+      if (!activeMapZone.toLowerCase().includes('staff') && !activeMapZone.toLowerCase().includes('faculty')) {
+        setActiveMapZone('Staff Parking');
+      }
+    } else {
+      if (selectedZone.toLowerCase().includes('staff') || selectedZone.toLowerCase().includes('faculty')) {
+        setSelectedZone('KRISHNA HOSTEL');
+        setSelectedSlot('K-04');
+      }
+      if (activeMapZone.toLowerCase().includes('staff') || activeMapZone.toLowerCase().includes('faculty')) {
+        setActiveMapZone('KRISHNA HOSTEL');
+      }
     }
-    if (!isStaffOrFaculty && activeMapZone.toLowerCase().includes('faculty')) {
-      setActiveMapZone('KRISHNA HOSTEL');
-    }
-  }, [isStaffOrFaculty, selectedZone, activeMapZone]);
+  }, [isStaffMember, selectedZone, activeMapZone]);
 
   // Fetch admin-created zones dynamically from PostgreSQL backend with role scoping
   const fetchAdminZonesAndSlots = async () => {
@@ -331,7 +347,8 @@ export default function StudentDashboard({
           total: Number(z.total || z.capacity || 100),
           occupied: Number(z.occupied || 0),
           free: z.free !== undefined ? Number(z.free) : Math.max(0, Number(z.total || 100) - Number(z.occupied || 0)),
-          isFacultyOnly: Boolean(z.isFacultyOnly || (z.name || '').toLowerCase().includes('faculty') || z.type === 'Faculty Only' || z.type === 'FACULTY_ONLY'),
+          isStaffOnly: Boolean(z.isStaffOnly || z.isFacultyOnly || (z.name || '').toLowerCase().includes('staff') || (z.name || '').toLowerCase().includes('faculty') || z.type === 'Staff Only' || z.type === 'Faculty Only' || z.type === 'STAFF_ONLY'),
+          isFacultyOnly: Boolean(z.isStaffOnly || z.isFacultyOnly || (z.name || '').toLowerCase().includes('staff') || (z.name || '').toLowerCase().includes('faculty')),
           slots: z.slots || []
         }));
         setAdminZones(fetchedZones);
@@ -493,8 +510,9 @@ export default function StudentDashboard({
     const targetAdminZone = adminZones.find(z => z.name === zoneNameStr || z.name?.toLowerCase() === zoneNameStr?.toLowerCase());
     
     let prefix = zoneNameStr.split(' ')[0].charAt(0).toUpperCase();
-    if (zoneNameStr.startsWith('Faculty Block')) prefix = 'FB';
-    else if (zoneNameStr.startsWith('Faculty Parking')) prefix = 'FP';
+    if (zoneNameStr.startsWith('Staff Block') || zoneNameStr.startsWith('Faculty Block')) prefix = 'SB';
+    else if (zoneNameStr.startsWith('Staff Parking') || zoneNameStr.startsWith('Faculty Parking')) prefix = 'SP';
+    else if (zoneNameStr.startsWith('Staff')) prefix = 'SP';
     else if (zoneNameStr.startsWith('CS Academic')) prefix = 'CS';
     else if (zoneNameStr.startsWith('Central Library')) prefix = 'CL';
     else if (zoneNameStr.startsWith('Hostel Complex')) prefix = 'HC';
@@ -508,7 +526,7 @@ export default function StudentDashboard({
     const count = targetAdminZone?.total || (zoneNameStr === 'KRISHNA HOSTEL' ? 150 : zoneNameStr === 'HOSPITAL PARKING' || zoneNameStr === 'Hostel Complex' ? 200 : 100);
     const slots = [];
 
-    const isZoneFacultyOnly = Boolean(targetAdminZone?.isFacultyOnly || zoneNameStr.toLowerCase().includes('faculty'));
+    const isZoneStaffOnly = Boolean(targetAdminZone?.isStaffOnly || targetAdminZone?.isFacultyOnly || zoneNameStr.toLowerCase().includes('staff') || zoneNameStr.toLowerCase().includes('faculty'));
 
     for (let i = 1; i <= count; i++) {
       const numStr = `${prefix}-${String(i).padStart(2, '0')}`;
@@ -523,9 +541,9 @@ export default function StudentDashboard({
       let st = 'AVAILABLE';
       if (isBookedForSelectedDate) {
         st = 'OCCUPIED'; // Turn RED / TAKEN ONLY when CONFIRMED
-      } else if (isZoneFacultyOnly) {
+      } else if (isZoneStaffOnly) {
         // Dedicated Staff Zone: 100% available to Staff, but blocked as STAFF ONLY for non-staff
-        st = isStaffOrFaculty ? 'AVAILABLE' : 'FACULTY';
+        st = isStaffMember ? 'AVAILABLE' : 'STAFF';
       }
 
       slots.push({
@@ -644,13 +662,24 @@ export default function StudentDashboard({
       return;
     }
 
-    // Role-based staff zone reservation protection
-    const isTargetZoneFacultyOnly = selectedZone.toLowerCase().includes('faculty') || 
-      adminZones.find(z => z.name === selectedZone)?.isFacultyOnly;
+    // Role-based staff zone reservation protection:
+    // - Students cannot book in Staff zones
+    // - Staff members CAN ONLY book in Staff zones (they cannot and are unable to park in normal zones)
+    const targetZoneObj = adminZones.find(z => z.name === selectedZone);
+    const isTargetZoneStaffOnly = selectedZone.toLowerCase().includes('staff') || 
+      selectedZone.toLowerCase().includes('faculty') || 
+      targetZoneObj?.isStaffOnly ||
+      targetZoneObj?.isFacultyOnly;
 
-    if (isTargetZoneFacultyOnly && !isStaffOrFaculty) {
-      alert(`⛔ Access Denied!\n\nZone "${selectedZone}" is a dedicated Staff/Faculty parking area. Students are not permitted to reserve slots here. Please select an authorized student campus zone.`);
+    if (isTargetZoneStaffOnly && !isStaffMember) {
+      alert(`⛔ Access Denied!\n\nZone "${selectedZone}" is a dedicated Staff parking area. Students are not permitted to reserve slots here. Please select an authorized student campus zone.`);
       setSelectedZone('KRISHNA HOSTEL');
+      return;
+    }
+
+    if (!isTargetZoneStaffOnly && isStaffMember) {
+      alert(`⛔ Access Denied!\n\nStaff members must park exclusively in dedicated Staff zones (e.g. "Staff Parking"). You are not permitted to book parking in general student zones.`);
+      setSelectedZone('Staff Parking');
       return;
     }
 
@@ -880,7 +909,7 @@ export default function StudentDashboard({
     if (curHour >= 17 && curHour < 22) return 'Good evening';
     return 'Welcome';
   };
-  const studentDisplayName = profile?.name || (userEmail ? (userEmail.includes('@') ? userEmail.split('@')[0] : userEmail) : (isStaffOrFaculty ? 'Faculty Member' : 'Student'));
+  const studentDisplayName = profile?.name || (userEmail ? (userEmail.includes('@') ? userEmail.split('@')[0] : userEmail) : (isStaffMember ? 'Staff Member' : 'Student'));
   const totalOpenSlots = (displayedZones || []).reduce((sum, z) => sum + Math.max(0, (z.free !== undefined ? Number(z.free) : (Number(z.total || 0) - Number(z.occupied || 0)))), 0);
 
   return (
@@ -1293,10 +1322,10 @@ export default function StudentDashboard({
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                  <MapPin size={20} color="var(--primary)" /> {isStaffOrFaculty ? 'Campus Zones & Dedicated Staff Zone' : 'Campus Parking Zones & Live Vacancies'} ({displayedZones.length} Zones)
+                  <MapPin size={20} color="var(--primary)" /> {isStaffMember ? 'Allocated Staff Parking Zone' : 'Campus Parking Zones & Live Vacancies'} ({displayedZones.length} Zone{displayedZones.length === 1 ? '' : 's'})
                 </h3>
-                <span style={{ fontSize: '0.75rem', color: isStaffOrFaculty ? '#a855f7' : 'var(--text-muted)', fontWeight: '800' }}>
-                  {isStaffOrFaculty ? '⭐ Staff Access Active' : 'Student Permitted Zones'}
+                <span style={{ fontSize: '0.75rem', color: isStaffMember ? '#a855f7' : 'var(--text-muted)', fontWeight: '800' }}>
+                  {isStaffMember ? '⭐ Staff Exclusive Allocated Zone' : 'Student Permitted Zones'}
                 </span>
               </div>
 
@@ -1305,11 +1334,12 @@ export default function StudentDashboard({
                   const { freeSlots, totalCapacity, occupiedCount } = getAccurateZoneOccupancy(zone);
                   const ratio = occupiedCount / (totalCapacity || 1);
                   const color = ratio > 0.9 ? 'var(--danger)' : ratio > 0.7 ? 'var(--warning)' : 'var(--success)';
+                  const isStaffOnlyZone = zone.isStaffOnly || zone.isFacultyOnly;
                   return (
-                    <div key={zone.id || zone.name} style={{ padding: '1.25rem', background: zone.isFacultyOnly ? 'rgba(168, 85, 247, 0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '16px', border: zone.isFacultyOnly ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid var(--border)' }}>
+                    <div key={zone.id || zone.name} style={{ padding: '1.25rem', background: isStaffOnlyZone ? 'rgba(168, 85, 247, 0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '16px', border: isStaffOnlyZone ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <span style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text-main)' }}>{zone.name}</span>
-                        {zone.isFacultyOnly && <span className="badge badge-warning" style={{ fontSize: '0.65rem', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.4)' }}>⭐ STAFF ONLY</span>}
+                        {isStaffOnlyZone && <span className="badge badge-warning" style={{ fontSize: '0.65rem', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.4)' }}>⭐ STAFF ONLY</span>}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
                         <strong style={{ color: color }}>{freeSlots}</strong> / {totalCapacity} Free Slots
@@ -1417,7 +1447,7 @@ export default function StudentDashboard({
                 {/* DYNAMIC ADMIN ZONES SELECT DROPDOWN (ROLE SCOPED) */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {isStaffOrFaculty ? 'Select Zone (Dedicated Staff & General Zones)' : 'Select Parking Zone (Student Permitted)'}
+                    {isStaffMember ? 'Select Allocated Staff Zone (Staff Exclusive)' : 'Select Parking Zone (Student Permitted)'}
                   </label>
                   <select 
                     value={selectedZone} 
@@ -1433,7 +1463,7 @@ export default function StudentDashboard({
                   >
                     {selectableZones.map(z => (
                       <option key={z.id || z.name} value={z.name} style={{ backgroundColor: 'var(--bg-sidebar)' }}>
-                        {z.name} ({z.total} Slots{z.isFacultyOnly ? ' ⭐ Staff Exclusive' : ''})
+                        {z.name} ({z.total} Slots{z.isStaffOnly || z.isFacultyOnly ? ' ⭐ Staff Allocated' : ''})
                       </option>
                     ))}
                   </select>
@@ -1503,7 +1533,7 @@ export default function StudentDashboard({
                   <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', fontWeight: '700' }}>
                     <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>● Available</span>
                     <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>● Occupied / Booked</span>
-                    {isStaffOrFaculty ? (
+                    {isStaffMember ? (
                       <span style={{ color: '#a855f7', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>⭐ Staff Priority</span>
                     ) : (
                       <span style={{ color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>🔒 Staff Only</span>
@@ -1516,7 +1546,7 @@ export default function StudentDashboard({
                   {getSlotsForZone(selectedZone).map((slotItem) => {
                     const isSelected = selectedSlot === slotItem.number;
                     const isAvailable = slotItem.status === 'AVAILABLE';
-                    const isFaculty = slotItem.status === 'FACULTY';
+                    const isStaffOnlySlot = slotItem.status === 'STAFF' || slotItem.status === 'FACULTY';
                     const isOccupied = slotItem.status === 'OCCUPIED';
 
                     return (
@@ -1528,9 +1558,9 @@ export default function StudentDashboard({
                         style={{
                           padding: '0.9rem 0.6rem',
                           borderRadius: '14px',
-                          border: isSelected ? '2px solid #6366f1' : isAvailable ? '1px solid rgba(16,185,129,0.4)' : isFaculty ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(239,68,68,0.4)',
-                          background: isSelected ? 'linear-gradient(135deg, rgba(99,102,241,0.4) 0%, rgba(168,85,247,0.4) 100%)' : isAvailable ? 'rgba(16,185,129,0.06)' : isFaculty ? 'rgba(168,85,247,0.06)' : 'rgba(239,68,68,0.12)',
-                          color: isSelected ? '#ffffff' : isAvailable ? '#34d399' : isFaculty ? '#c084fc' : '#fca5a5',
+                          border: isSelected ? '2px solid #6366f1' : isAvailable ? '1px solid rgba(16,185,129,0.4)' : isStaffOnlySlot ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(239,68,68,0.4)',
+                          background: isSelected ? 'linear-gradient(135deg, rgba(99,102,241,0.4) 0%, rgba(168,85,247,0.4) 100%)' : isAvailable ? 'rgba(16,185,129,0.06)' : isStaffOnlySlot ? 'rgba(168,85,247,0.06)' : 'rgba(239,68,68,0.12)',
+                          color: isSelected ? '#ffffff' : isAvailable ? '#34d399' : isStaffOnlySlot ? '#c084fc' : '#fca5a5',
                           cursor: isAvailable ? 'pointer' : 'not-allowed',
                           display: 'flex',
                           flexDirection: 'column',
@@ -1547,7 +1577,7 @@ export default function StudentDashboard({
                           {slotItem.ev && <Zap size={14} color="#06b6d4" />}
                         </div>
                         <span style={{ fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                          {isSelected ? 'SELECTED' : isAvailable ? 'FREE' : isFaculty ? 'STAFF ONLY' : 'TAKEN'}
+                          {isSelected ? 'SELECTED' : isAvailable ? 'FREE' : isStaffOnlySlot ? 'STAFF ONLY' : 'TAKEN'}
                         </span>
                       </button>
                     );
@@ -1672,18 +1702,18 @@ export default function StudentDashboard({
                   <MapIcon color="var(--primary)" size={24} /> Interactive Campus Parking Map
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                  {isStaffOrFaculty ? 'Live 2D layout of campus parking zones including Dedicated Staff Area' : 'Live 2D layout of all student-accessible campus parking zones'}
+                  {isStaffMember ? 'Live 2D layout of your designated Staff Parking Zone' : 'Live 2D layout of all student-accessible campus parking zones'}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxHeight: '90px', overflowY: 'auto' }}>
                 {displayedZones.map(z => (
                   <button 
-                    key={z.name}
+                    key={z.name} 
                     className={`btn ${activeMapZone === z.name ? 'btn-primary' : 'btn-outline'}`}
                     style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
                     onClick={() => setActiveMapZone(z.name)}
                   >
-                    {z.name} {z.isFacultyOnly ? '⭐' : ''}
+                    {z.name} {z.isStaffOnly || z.isFacultyOnly ? '⭐' : ''}
                   </button>
                 ))}
               </div>
@@ -1697,10 +1727,11 @@ export default function StudentDashboard({
                 {displayedZones.map((z) => {
                   const { freeSlots, totalCapacity } = getAccurateZoneOccupancy(z);
                   const isSelectedZone = activeMapZone === z.name;
+                  const isStaffOnlyZone = z.isStaffOnly || z.isFacultyOnly;
                   return (
                     <div key={z.id || z.name} style={{ background: isSelectedZone ? 'linear-gradient(135deg, rgba(99,102,241,0.3) 0%, rgba(30,27,75,0.85) 100%)' : '#111827', border: isSelectedZone ? '2px solid #818cf8' : '1px solid rgba(255,255,255,0.15)', borderRadius: '18px', padding: '1.25rem', transition: 'all 0.3s', boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                        <Building color={z.isFacultyOnly ? '#c084fc' : '#818cf8'} size={22} />
+                        <Building color={isStaffOnlyZone ? '#c084fc' : '#818cf8'} size={22} />
                         <h4 style={{ color: '#ffffff', fontWeight: '900', fontSize: '1.1rem', margin: 0, letterSpacing: '0.3px' }}>
                           {z.name}
                         </h4>
@@ -1711,7 +1742,7 @@ export default function StudentDashboard({
                           <span className="badge badge-success" style={{ background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: '800' }}>{freeSlots} FREE SLOTS</span>
                         </div>
                         <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '600' }}>
-                          Total: {totalCapacity} Slots {z.isFacultyOnly ? '⭐ Staff Exclusive' : ''}
+                          Total: {totalCapacity} Slots {isStaffOnlyZone ? '⭐ Staff Exclusive' : ''}
                         </span>
                       </div>
                       <button className="btn btn-primary" style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem', justifyContent: 'center', fontWeight: '800', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', border: 'none' }} onClick={() => { setSelectedZone(z.name); setActiveTab('book'); }}>

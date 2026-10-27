@@ -1,5 +1,19 @@
 [
   {
+    "id": "1793118421514",
+    "type": "USER",
+    "text": "✨ Fresh User Account Created: Dr john (faculty1@gmail.com) as FACULTY",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793118313273",
+    "type": "USER",
+    "text": "🔑 User Login: Dr. Smith (faculty@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1793116380333",
     "type": "USER",
     "text": "✏️ Profile Updated: sandeepkumar (sandeepkumarnv2026.sse@saveetha.com)",

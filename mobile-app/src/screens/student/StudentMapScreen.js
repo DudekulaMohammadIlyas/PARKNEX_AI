@@ -54,11 +54,13 @@ export default function StudentMapScreen() {
         if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0 && isMounted) {
           setRawZoneObjs(zoneRes.value.data);
           const filtered = isStaffOrFaculty
-            ? zoneRes.value.data
-            : zoneRes.value.data.filter(z => !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
+            ? zoneRes.value.data.filter(z => z.isStaffOnly || z.isFacultyOnly || z.name.toLowerCase().includes('staff') || z.name.toLowerCase().includes('faculty'))
+            : zoneRes.value.data.filter(z => !z.isStaffOnly && !z.isFacultyOnly && !z.name.toLowerCase().includes('faculty') && !z.name.toLowerCase().includes('staff'));
           const names = filtered.map(z => z.name);
           setZones(names);
-          if (!isStaffOrFaculty && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
+          if (isStaffOrFaculty && (!selectedZone.toLowerCase().includes('staff') && !selectedZone.toLowerCase().includes('faculty'))) {
+            setSelectedZone(names[0] || 'Staff Parking');
+          } else if (!isStaffOrFaculty && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
             setSelectedZone(names[0] || 'KRISHNA HOSTEL');
           }
         }
@@ -112,8 +114,8 @@ export default function StudentMapScreen() {
   const getZonePrefix = (zName) => {
     if (zName.includes('KRISHNA')) return 'K-';
     if (zName.includes('North')) return 'N-';
-    if (zName.includes('Faculty Block')) return 'FB-';
-    if (zName.includes('Faculty')) return 'F-';
+    if (zName.includes('Staff Block') || zName.includes('Faculty Block')) return 'SB-';
+    if (zName.includes('Staff') || zName.includes('Faculty')) return 'SP-';
     if (zName.includes('Hospital') || zName.includes('HOSPITAL')) return 'H-';
     if (zName.includes('Zone A')) return 'A-';
     if (zName.includes('Zone B')) return 'B-';
@@ -159,7 +161,12 @@ export default function StudentMapScreen() {
 
   const handleSlotPress = (slot) => {
     if (slot.isFacultyOnly || (isZoneFacultyOnly && !isStaffOrFaculty)) {
-      Alert.alert('Staff Only Zone 🛑', `${selectedZone} is exclusively reserved for Faculty and Staff members.`);
+      Alert.alert('Staff Only Zone 🛑', `${selectedZone} is exclusively reserved for Staff members.`);
+      return;
+    }
+
+    if (!isZoneFacultyOnly && isStaffOrFaculty) {
+      Alert.alert('Staff Allocation Notice 🛑', 'Staff members must park exclusively in designated Staff zones and cannot reserve normal student slots.');
       return;
     }
 
@@ -181,7 +188,12 @@ export default function StudentMapScreen() {
     if (!selectedSlotForBooking) return;
 
     if (isZoneFacultyOnly && !isStaffOrFaculty) {
-      Alert.alert('Access Restricted 🛑', 'This parking zone is exclusively reserved for Faculty and Staff members.');
+      Alert.alert('Access Restricted 🛑', 'This parking zone is exclusively reserved for Staff members.');
+      return;
+    }
+
+    if (!isZoneFacultyOnly && isStaffOrFaculty) {
+      Alert.alert('Access Restricted 🛑', 'Staff members must park exclusively in designated Staff Parking zones and cannot book in general student zones.');
       return;
     }
 
