@@ -3,7 +3,7 @@
     "id": "z1",
     "name": "Staff Parking",
     "total": 100,
-    "occupied": 1,
+    "occupied": 2,
     "type": "Staff Only",
     "status": "Active",
     "isStaffOnly": true

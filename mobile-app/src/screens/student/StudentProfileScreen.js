@@ -16,6 +16,9 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
   const [department, setDepartment] = useState(user?.department || '');
   const [academicTerm, setAcademicTerm] = useState(user?.academicTerm || 'Fall 2024 - Spring 2028');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSavedModalVisible, setIsSavedModalVisible] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -41,14 +44,74 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
     fetchProfile();
   }, [user]);
 
-  const handleSaveProfile = async () => {
+  const handleConfirmLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of your ParkNex account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => {
+            if (onLogout) onLogout();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSaveProfilePrompt = () => {
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Please enter your Full Name.');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Validation Error', 'Please enter your Email Address.');
+      return;
+    }
+    Alert.alert(
+      'Confirm Profile Update',
+      'Are you sure you want to save these updated profile details?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save Changes', onPress: executeSaveProfile }
+      ]
+    );
+  };
+
+  const executeSaveProfile = async () => {
+    setIsSaving(true);
     try {
-      const updated = { ...user, name, email, phone, department, academicTerm };
+      const updated = { ...user, name: name.trim(), email: email.trim(), phone: phone.trim(), department: department.trim(), academicTerm: academicTerm.trim() };
       await AsyncStorage.setItem('@parknex_user', JSON.stringify(updated));
-      await smartApiRequest('put', '/users/profile', { name, email, phone, department, academicTerm }).catch(() => null);
-      Alert.alert('Profile Saved', 'Your account and academic details have been updated successfully.');
+      await smartApiRequest('put', '/users/profile', {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        department: department.trim(),
+        academicTerm: academicTerm.trim()
+      }).catch(() => null);
+
+      setSavedSnapshot({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || 'Not set',
+        department: department.trim() || 'General'
+      });
+      setIsSavedModalVisible(true);
+      Alert.alert('Profile Saved ✅', 'Your account and academic details have been updated successfully.');
     } catch (e) {
-      Alert.alert('Saved', 'Profile saved locally.');
+      setSavedSnapshot({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || 'Not set',
+        department: department.trim() || 'General'
+      });
+      setIsSavedModalVisible(true);
+      Alert.alert('Profile Saved Locally ✅', 'Your profile details have been saved to your device cache.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -89,7 +152,7 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={[styles.header, { paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={[styles.greeting, { fontSize: 24 }]}>Account Profile</Text>
-        <TouchableOpacity onPress={onLogout} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+        <TouchableOpacity onPress={handleConfirmLogout} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
           <Text style={{ color: COLORS.danger, fontWeight: '800', fontSize: 13 }}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -153,8 +216,8 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
             onChangeText={setAcademicTerm}
           />
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveProfile}>
-            <Text style={styles.primaryBtnText}>Save Profile Changes</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveProfilePrompt} disabled={isSaving}>
+            <Text style={styles.primaryBtnText}>{isSaving ? 'Saving Changes...' : 'Save Profile Changes'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -201,6 +264,37 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* PROFILE UPDATED CONFIRMATION MODAL */}
+      <Modal visible={isSavedModalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, width: '100%', maxWidth: 360, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 8 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="checkmark-circle" size={44} color="#16A34A" />
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 8 }}>
+              Profile Updated!
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 18, lineHeight: 20 }}>
+              Your account details and preferences have been successfully updated and saved in ParkNex-AI.
+            </Text>
+            {savedSnapshot && (
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, padding: 14, width: '100%', marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#1E293B', marginBottom: 5 }}>👤 Name: {savedSnapshot.name}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginBottom: 5 }}>📧 Email: {savedSnapshot.email}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginBottom: 5 }}>📱 Phone: {savedSnapshot.phone}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B' }}>🏛️ Dept: {savedSnapshot.department}</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={{ backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 14, width: '100%', alignItems: 'center' }}
+              onPress={() => setIsSavedModalVisible(false)}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -303,7 +303,7 @@
     "password": "$2b$10$6IfNTNdjj1Dbiqccku4lGerQhJmeGF5N4ehLSVAgPZ34Ag521OnDG",
     "role": "FACULTY",
     "name": "Dr john",
-    "phone": null,
+    "phone": "9638527412",
     "designation": null,
     "academicYear": null,
     "studentId": null,
@@ -312,6 +312,21 @@
     "pushToken": null,
     "passwordChangedAt": null,
     "createdAt": "2026-10-27T16:27:01.336Z",
-    "updatedAt": "2026-10-27T16:27:01.336Z"
+    "updatedAt": "2026-10-27T16:27:01.336Z",
+    "department": "ECE",
+    "academicTerm": "Fall 2024 - Spring 2028"
+  },
+  {
+    "id": "563cf0c4-4430-4977-be3a-ca1c38432368",
+    "email": "staff@college.edu",
+    "name": "Dr. Ramesh Staff",
+    "role": "STUDENT",
+    "studentId": "STU-2026-441",
+    "passwordHash": "$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe",
+    "phone": "+91 99999 88888",
+    "department": "Computer Science",
+    "academicTerm": "Fall 2024 - Spring 2028",
+    "lastLogin": "2026-10-28T06:20:39.558Z",
+    "createdAt": "2026-10-28T06:20:39.558Z"
   }
 ]

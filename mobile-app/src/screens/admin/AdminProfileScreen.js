@@ -28,11 +28,22 @@ export default function AdminProfileScreen({ navigation, onLogout, user }) {
     setIsEditing(true);
   };
 
-  const handleSavePress = async () => {
+  const handleSavePress = () => {
     if (!tempName.trim() || !tempEmail.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Validation Error', 'Please fill in Name and Email fields.');
       return;
     }
+    Alert.alert(
+      'Confirm Admin Profile Update',
+      'Are you sure you want to save these updated admin profile details?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save Changes', onPress: executeSaveAdminProfile }
+      ]
+    );
+  };
+
+  const executeSaveAdminProfile = async () => {
     setName(tempName);
     setEmail(tempEmail);
     setIsEditing(false);
@@ -40,8 +51,21 @@ export default function AdminProfileScreen({ navigation, onLogout, user }) {
     try {
       await AsyncStorage.setItem('@parknex_user', JSON.stringify({ ...user, name: tempName, email: tempEmail }));
       await smartApiRequest('put', '/users/profile', { name: tempName, email: tempEmail }).catch(() => null);
-      Alert.alert('Success', 'Admin profile updated.');
-    } catch (e) {}
+      Alert.alert('Profile Saved ✅', 'Admin profile credentials updated successfully.');
+    } catch (e) {
+      Alert.alert('Saved Locally ✅', 'Profile updated in device cache.');
+    }
+  };
+
+  const handleConfirmLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of the Admin portal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: () => onLogout && onLogout() }
+      ]
+    );
   };
 
   const handleDeleteAccountPermanently = () => {
@@ -81,7 +105,7 @@ export default function AdminProfileScreen({ navigation, onLogout, user }) {
           <Feather name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5, flex: 1 }}>ParkNex AI Admin</Text>
-        <TouchableOpacity onPress={onLogout} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+        <TouchableOpacity onPress={handleConfirmLogout} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
           <Text style={{ color: COLORS.danger, fontWeight: '800', fontSize: 13 }}>Logout</Text>
         </TouchableOpacity>
       </View>

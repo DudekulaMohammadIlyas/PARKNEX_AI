@@ -19,6 +19,17 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
   const [liveOccupancyPct, setLiveOccupancyPct] = useState('68%');
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
+  const handleConfirmLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of the Admin Dashboard?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: () => onLogout && onLogout() }
+      ]
+    );
+  };
+
   const fetchAdminData = async () => {
     try {
       const [execRes, sustRes, signRes, zoneRes, notifRes] = await Promise.allSettled([
@@ -167,7 +178,7 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
               </TouchableOpacity>
               <TouchableOpacity 
                 style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
-                onPress={onLogout}
+                onPress={handleConfirmLogout}
               >
                 <Ionicons name="log-out" size={20} color="#F87171" />
               </TouchableOpacity>

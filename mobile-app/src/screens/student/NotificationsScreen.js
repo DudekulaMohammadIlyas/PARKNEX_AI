@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicat
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config, { smartApiRequest } from '../../../config';
+import { supabase } from '../../../supabaseClient';
 import { globalStyles as styles } from '../../theme/styles';
 import { COLORS } from '../../theme/colors';
 
@@ -18,7 +19,7 @@ export default function NotificationsScreen({ navigation, route, user, userRole:
   const fetchNotifications = async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      let targetRole = route?.params?.userRole || route?.params?.role || propRole || user?.role || 'STUDENT';
+      let targetRole = route?.params?.userRole || route?.params?.role || '';
       let targetEmail = route?.params?.userEmail || route?.params?.email || user?.email || '';
 
       const [storedUser, storedRole] = await Promise.all([
@@ -30,11 +31,17 @@ export default function NotificationsScreen({ navigation, route, user, userRole:
         try {
           const u = JSON.parse(storedUser);
           if (!targetEmail && u.email) targetEmail = u.email;
-          if (!route?.params?.userRole && !propRole && u.role) targetRole = u.role;
+          if (!targetRole && u.role) targetRole = u.role;
         } catch (e) {}
       }
-      if (storedRole && !route?.params?.userRole && !propRole) {
+      if (storedRole && !targetRole) {
         targetRole = storedRole;
+      }
+      if (!targetRole && propRole) {
+        targetRole = propRole;
+      }
+      if (!targetRole && user?.role) {
+        targetRole = user.role;
       }
 
       const formattedRole = (targetRole || 'STUDENT').toUpperCase();
@@ -59,8 +66,25 @@ export default function NotificationsScreen({ navigation, route, user, userRole:
 
   useEffect(() => {
     fetchNotifications(true);
-    const interval = setInterval(() => fetchNotifications(false), 4000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => fetchNotifications(false), 3000);
+
+    const chName = `notifications-screen-${Date.now()}`;
+    const channel = supabase
+      ?.channel?.(chName)
+      ?.on?.('postgres_changes', { event: '*', schema: 'public', table: 'Notification' }, () => {
+        fetchNotifications(false);
+      });
+
+    if (channel?.subscribe) {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchNotifications(false);
+      });
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (supabase && channel && supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, [route?.params?.userEmail, route?.params?.userRole]);
 
   const handleRefresh = () => {

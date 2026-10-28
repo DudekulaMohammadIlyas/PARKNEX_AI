@@ -1,5 +1,25 @@
 [
   {
+    "id": "daad11c2-621f-4984-8ae6-01eeae27f3b1",
+    "userEmail": "staff@college.edu",
+    "zoneName": "Staff Parking",
+    "slotNumber": "SP-05",
+    "plateNumber": "KA-05-ST-1234",
+    "durationHours": 3,
+    "bookingDate": "2026-10-28",
+    "bookingTime": "11:52 AM",
+    "status": "CONFIRMED",
+    "slot": {
+      "slotNumber": "SP-05",
+      "zone": {
+        "name": "Staff Parking"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "KA-05-ST-1234"
+    }
+  },
+  {
     "id": "5b49f7bc-1e29-4147-ac0e-6ee8aa5c29c8",
     "userEmail": "staff@college.edu",
     "zoneName": "Staff Parking",

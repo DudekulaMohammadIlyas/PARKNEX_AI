@@ -1,5 +1,26 @@
 [
   {
+    "id": "1793168439559",
+    "type": "USER",
+    "text": "✏️ Profile Updated: Dr. Ramesh Staff (staff@college.edu)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793164541770",
+    "type": "USER",
+    "text": "✏️ Profile Updated: Dr john (faculty1@gmail.com)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793164492231",
+    "type": "USER",
+    "text": "🔑 User Login: Dr john (faculty1@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1793118421514",
     "type": "USER",
     "text": "✨ Fresh User Account Created: Dr john (faculty1@gmail.com) as FACULTY",

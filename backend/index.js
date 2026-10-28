@@ -856,9 +856,10 @@ app.post('/api/bookings', async (req, res) => {
   });
   saveJSONStore(ZONES_FILE, updatedZones);
 
+  const notifRole = (userRole === 'STAFF' || userRole === 'FACULTY') ? 'STAFF' : 'STUDENT';
   createNotification({
     userEmail: userEmail,
-    targetRole: 'STUDENT',
+    targetRole: notifRole,
     category: 'BOOKING',
     priority: 'NORMAL',
     title: '🎟️ Parking Booking Confirmed',
@@ -1468,24 +1469,26 @@ app.get('/api/users/profile', async (req, res) => {
 
 app.put('/api/users/profile', async (req, res) => {
   try {
-    const { email, name, phone, department, academicTerm } = req.body;
+    const { email, name, phone, department, academicTerm, designation } = req.body;
     const targetEmail = email || req.user?.email || 'student@college.edu';
     const normEmail = targetEmail.toLowerCase().trim();
 
     usersMemoryStore = loadJSONStore(USERS_FILE, usersMemoryStore);
     let memIdx = usersMemoryStore.findIndex(u => u.email === normEmail);
 
+    const effDept = department !== undefined ? department : designation;
+
     const updatedData = {
       name: name ? name.trim() : undefined,
       phone: phone !== undefined ? phone : undefined,
-      department: department !== undefined ? department : undefined,
+      department: effDept !== undefined ? effDept : undefined,
       academicTerm: academicTerm !== undefined ? academicTerm : undefined
     };
 
     if (memIdx >= 0) {
       if (name) usersMemoryStore[memIdx].name = name.trim();
       if (phone !== undefined) usersMemoryStore[memIdx].phone = phone;
-      if (department !== undefined) usersMemoryStore[memIdx].department = department;
+      if (effDept !== undefined) usersMemoryStore[memIdx].department = effDept;
       if (academicTerm !== undefined) usersMemoryStore[memIdx].academicTerm = academicTerm;
       saveJSONStore(USERS_FILE, usersMemoryStore);
     }
@@ -1497,7 +1500,7 @@ app.put('/api/users/profile', async (req, res) => {
         data: {
           name: name ? name.trim() : undefined,
           phone: phone !== undefined ? phone : undefined,
-          designation: department !== undefined ? department : undefined
+          designation: effDept !== undefined ? effDept : undefined
         }
       }).catch(() => dbUser);
     } else {
@@ -1505,8 +1508,20 @@ app.put('/api/users/profile', async (req, res) => {
     }
 
     const finalName = name ? name.trim() : (memIdx >= 0 ? usersMemoryStore[memIdx].name : (dbUser?.name || normEmail.split('@')[0]));
+    const userRole = (memIdx >= 0 ? usersMemoryStore[memIdx].role : (dbUser?.role || 'STUDENT')).toUpperCase();
 
     addSecurityLogEntry('USER', `✏️ Profile Updated: ${finalName} (${normEmail})`, '#10B981');
+
+    createNotification({
+      userEmail: normEmail,
+      targetRole: (userRole === 'STAFF' || userRole === 'FACULTY') ? 'STAFF' : 'STUDENT',
+      category: 'SYSTEM',
+      priority: 'NORMAL',
+      title: '👤 Profile Details Updated',
+      message: `Your account details for ${finalName} have been updated successfully.`,
+      relatedEntity: normEmail,
+      deepLink: 'StudentProfileScreen'
+    });
 
     return res.json({
       success: true,
@@ -1516,9 +1531,9 @@ app.put('/api/users/profile', async (req, res) => {
         email: normEmail,
         name: finalName,
         phone: phone !== undefined ? phone : (memIdx >= 0 ? usersMemoryStore[memIdx].phone : dbUser?.phone || ''),
-        department: department !== undefined ? department : (memIdx >= 0 ? usersMemoryStore[memIdx].department : dbUser?.designation || ''),
+        department: effDept !== undefined ? effDept : (memIdx >= 0 ? usersMemoryStore[memIdx].department : dbUser?.designation || ''),
         academicTerm: academicTerm !== undefined ? academicTerm : (memIdx >= 0 ? usersMemoryStore[memIdx].academicTerm : 'Fall 2024 - Spring 2028'),
-        role: memIdx >= 0 ? usersMemoryStore[memIdx].role : (dbUser?.role || 'STUDENT')
+        role: userRole
       }
     });
   } catch (error) {
@@ -1645,24 +1660,6 @@ app.put('/api/users/:id', requireRole('ADMIN'), async (req, res) => {
   } catch (error) { handleDatabaseError(res, error, 'update user'); }
 });
 
-app.delete('/api/users/profile', async (req, res) => {
-  const { email } = req.query;
-  const targetEmail = email || req.user?.email;
-
-  try {
-    if (targetEmail) {
-      const user = await prisma.user.findUnique({ where: { email: targetEmail } });
-      if (user) {
-        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
-        return res.json({ success: true, message: 'Account deleted successfully from Database' });
-      }
-    }
-    res.json({ success: true, message: 'Account deleted locally' });
-  } catch (error) {
-    res.json({ success: true, message: 'Account deleted locally' });
-  }
-});
-
 app.delete('/api/users/:id', requireRole('ADMIN'), async (req, res) => {
   const { id } = req.params;
   try {
@@ -1739,57 +1736,6 @@ app.put('/api/incidents/:id/dismiss', async (req, res) => {
   }
 
   res.json({ success: true, message: 'Incident resolved successfully' });
-});
-
-app.get('/api/users/profile', async (req, res) => {
-  const targetEmail = (req.query.email || req.user?.email || '').toLowerCase().trim();
-  if (!targetEmail) return res.status(400).json({ error: 'Email parameter is required' });
-  const user = await ensureUserRecord(targetEmail);
-  const fileUsers = loadJSONStore(USERS_FILE, []);
-  const memUser = fileUsers.find(u => u.email === targetEmail) || user;
-  res.json({
-    success: true,
-    user: {
-      id: memUser?.id || user?.id,
-      email: targetEmail,
-      name: memUser?.name || user?.name,
-      role: memUser?.role || user?.role || 'STUDENT',
-      phone: memUser?.phone || user?.phone || '',
-      department: memUser?.department || user?.designation || '',
-      academicTerm: memUser?.academicTerm || 'Fall 2024 - Spring 2028'
-    }
-  });
-});
-
-app.put('/api/users/profile', async (req, res) => {
-  const { name, email, phone, department, academicTerm, designation } = req.body;
-  const targetEmail = (email || req.user?.email || '').toLowerCase().trim();
-  if (!targetEmail) return res.status(400).json({ error: 'Email is required' });
-
-  try {
-    const updatedUser = await ensureUserRecord(targetEmail, {
-      name,
-      phone,
-      department: department || designation,
-      academicTerm
-    });
-
-    const fileUsers = loadJSONStore(USERS_FILE, []);
-    const memUser = fileUsers.find(u => u.email === targetEmail) || updatedUser;
-
-    return res.json({
-      success: true,
-      user: {
-        id: memUser?.id || updatedUser?.id,
-        email: targetEmail,
-        name: memUser?.name || updatedUser?.name,
-        role: memUser?.role || updatedUser?.role || 'STUDENT',
-        phone: memUser?.phone || '',
-        department: memUser?.department || '',
-        academicTerm: memUser?.academicTerm || 'Fall 2024 - Spring 2028'
-      }
-    });
-  } catch (error) { handleDatabaseError(res, error, 'update profile'); }
 });
 
 // ================= VEHICLE ENDPOINTS ================= //
@@ -2373,6 +2319,7 @@ async function evaluateScheduledNotifications() {
       allBookingsMap.set(String(b.id), {
         id: String(b.id),
         userEmail: b.user?.email || 'student@college.edu',
+        userRole: (b.user?.role || b.userRole || b.role || 'STUDENT').toUpperCase(),
         zoneName: b.slot?.zone?.name || 'Zone A',
         slotNumber: b.slot?.slotNumber || 'A-01',
         plateNumber: b.vehicle?.plateNumber || 'KA-01-AB-1234',
@@ -2387,6 +2334,7 @@ async function evaluateScheduledNotifications() {
         allBookingsMap.set(String(b.id), {
           id: String(b.id),
           userEmail: b.userEmail || b.user || 'student@college.edu',
+          userRole: (b.userRole || b.role || 'STUDENT').toUpperCase(),
           zoneName: b.zoneName || 'Zone A',
           slotNumber: b.slotNumber || 'A-01',
           plateNumber: b.plateNumber || 'KA-01-AB-1234',
@@ -2408,11 +2356,14 @@ async function evaluateScheduledNotifications() {
       const recipient = b.userEmail ? b.userEmail.toLowerCase().trim() : null;
       if (!recipient) return;
 
+      const bUserRole = (b.userRole || 'STUDENT').toUpperCase();
+      const bRole = (bUserRole === 'STAFF' || bUserRole === 'FACULTY' || (b.zoneName || '').toLowerCase().includes('staff') || (b.zoneName || '').toLowerCase().includes('faculty')) ? 'STAFF' : 'STUDENT';
+
       // 30 MINUTE REMINDER
       if (minsRemaining <= 30 && minsRemaining > 15) {
         createNotification({
           userEmail: recipient,
-          targetRole: 'STUDENT',
+          targetRole: bRole,
           category: 'PARKING_EXPIRY',
           priority: 'NORMAL',
           title: '⏳ Parking Session Expiry Warning',
@@ -2427,7 +2378,7 @@ async function evaluateScheduledNotifications() {
       if (minsRemaining <= 15 && minsRemaining > 5) {
         createNotification({
           userEmail: recipient,
-          targetRole: 'STUDENT',
+          targetRole: bRole,
           category: 'PARKING_EXPIRY',
           priority: 'NORMAL',
           title: '⚠️ Parking Expires in 15 Minutes',
@@ -2442,7 +2393,7 @@ async function evaluateScheduledNotifications() {
       if (minsRemaining <= 5 && minsRemaining > 0) {
         createNotification({
           userEmail: recipient,
-          targetRole: 'STUDENT',
+          targetRole: bRole,
           category: 'PARKING_EXPIRY',
           priority: 'HIGH',
           title: '🚨 Parking Expires in 5 Minutes!',
@@ -2457,7 +2408,7 @@ async function evaluateScheduledNotifications() {
       if (minsRemaining <= 0 && minsRemaining >= -15) {
         createNotification({
           userEmail: recipient,
-          targetRole: 'STUDENT',
+          targetRole: bRole,
           category: 'PARKING_EXPIRED',
           priority: 'HIGH',
           title: '🛑 Parking Session Expired',
@@ -2472,7 +2423,7 @@ async function evaluateScheduledNotifications() {
       if (minsRemaining < -15 && minsRemaining >= -360) {
         createNotification({
           userEmail: recipient,
-          targetRole: 'STUDENT',
+          targetRole: bRole,
           category: 'PARKING_EXPIRED',
           priority: 'CRITICAL',
           title: '⚠️ Overstay Violation Warning',
@@ -2651,20 +2602,23 @@ app.get('/api/notifications', async (req, res) => {
       }
 
       // 2. STRICT ROLE ISOLATION
-      if (userRole === 'STUDENT' || userRole === 'FACULTY') {
-        // Disallowed target roles
-        if (targetR !== 'ALL' && targetR !== userRole) return false;
+      const isStaff = userRole === 'STAFF' || userRole === 'FACULTY';
+      const isStudent = userRole === 'STUDENT';
 
-        // Disallowed categories for students
-        const forbiddenForStudents = ['CAPACITY', 'ZONE_CAPACITY', 'PARKING_ALERT', 'AUDIT', 'SYSTEM_HEALTH'];
-        if (forbiddenForStudents.includes(n.category)) return false;
-        if (n.category === 'PARKING' && !n.userEmail) return false;
-        if ((n.category === 'SECURITY' || n.category === 'VIOLATION' || n.category === 'GATE_ALERT') && !n.userEmail) return false;
-
-        // Personal student notifications MUST belong to this email
-        const personalCategories = ['BOOKING', 'PARKING_EXPIRY', 'PARKING_EXPIRED', 'VEHICLE_ENTRY', 'VEHICLE_EXIT', 'PASS'];
-        if (personalCategories.includes(n.category) && (!n.userEmail || n.userEmail !== userEmail)) {
-          return false;
+      if (isStudent || isStaff) {
+        // If notification is personally addressed to this user's email, ALLOW IT!
+        if (n.userEmail && userEmail && n.userEmail === userEmail) {
+          // Permitted: User's personal booking, parking expiry, pass, violation, or system message!
+        } else {
+          // Broadcast notifications without specific user email
+          if (isStudent) {
+            if (targetR !== 'ALL' && targetR !== 'STUDENT') return false;
+            const forbiddenForStudents = ['CAPACITY', 'ZONE_CAPACITY', 'PARKING_ALERT', 'AUDIT', 'SYSTEM_HEALTH'];
+            if (forbiddenForStudents.includes(n.category)) return false;
+            if (n.category === 'PARKING' || n.category === 'SECURITY' || n.category === 'VIOLATION' || n.category === 'GATE_ALERT') return false;
+          } else if (isStaff) {
+            if (targetR !== 'ALL' && targetR !== 'STAFF' && targetR !== 'FACULTY') return false;
+          }
         }
       } else if (userRole === 'SECURITY') {
         const allowedSecurityCategories = ['SECURITY', 'VIOLATION', 'VISITOR', 'EMERGENCY', 'ALERT', 'GATE', 'GATE_ENTRY', 'GATE_EXIT', 'GATE_ALERT', 'CCTV'];

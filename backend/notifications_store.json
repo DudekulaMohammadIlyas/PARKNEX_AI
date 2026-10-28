@@ -1,5 +1,20 @@
 [
   {
+    "id": "dab923da-aef5-458f-b964-5694661941b3",
+    "title": "🎟️ Parking Booking Confirmed",
+    "message": "Your booking for Staff Parking (SP-05) is confirmed for vehicle KA-05-ST-1234.",
+    "category": "BOOKING",
+    "priority": "NORMAL",
+    "isRead": false,
+    "userId": "563cf0c4-4430-4977-be3a-ca1c38432368",
+    "userEmail": "staff@college.edu",
+    "targetRole": "STUDENT",
+    "relatedEntity": "daad11c2-621f-4984-8ae6-01eeae27f3b1",
+    "deepLink": "StudentBookScreen",
+    "metadata": null,
+    "createdAt": "2026-10-28T06:22:27.778Z"
+  },
+  {
     "id": "93ba4c6e-16bf-40c1-81af-c234e72aa0d9",
     "title": "🎟️ Parking Booking Confirmed",
     "message": "Your booking for Staff Parking (SP-02) is confirmed for vehicle KA-01-XX-9999.",

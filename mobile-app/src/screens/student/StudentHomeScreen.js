@@ -134,10 +134,10 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         const nowMs = Date.now();
         const freshAlerts = notifList.filter(n => {
           if (n.isRead) return false;
-          if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH') return false;
+          if (n.priority !== 'CRITICAL' && n.priority !== 'HIGH' && n.category !== 'BOOKING' && n.category !== 'PARKING_EXPIRY' && n.category !== 'PARKING_EXPIRED') return false;
           if (seenToastIdsRef.current.has(n.id)) return false;
           const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
-          return (nowMs - createdMs) < 180000;
+          return (nowMs - createdMs) < 300000;
         });
 
         if (freshAlerts.length > 0) {
@@ -426,7 +426,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           <TouchableOpacity 
             style={{ flex: 1, marginRight: 8 }}
             onPress={() => {
-              navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: 'STUDENT' });
+              navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: effectiveRole });
               setToastAlert(null);
             }}
           >
@@ -480,8 +480,8 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#4338CA' }}>
-                  🎓 {userProfile?.department ? `${userProfile.department}${userProfile?.academicTerm ? ` • ${userProfile.academicTerm}` : ''}` : 'Campus Student Member'}
+                <Text style={{ fontSize: 11, fontWeight: '800', color: isStaffOrFaculty ? '#D97706' : '#4338CA' }}>
+                  {isStaffOrFaculty ? '⭐ Staff / Faculty Member' : (userProfile?.department ? `🎓 ${userProfile.department}${userProfile?.academicTerm ? ` • ${userProfile.academicTerm}` : ''}` : '🎓 Campus Student Member')}
                 </Text>
               </View>
               <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3.5, borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0' }}>
@@ -494,7 +494,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity 
               style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE', position: 'relative' }}
-              onPress={() => navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: 'STUDENT' })}
+              onPress={() => navigation?.navigate('Notifications', { userEmail: userEmail || userProfile?.email || 'student@college.edu', userRole: effectiveRole })}
               activeOpacity={0.7}
             >
               <Feather name="bell" size={20} color="#2563EB" />

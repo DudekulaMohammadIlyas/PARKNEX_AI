@@ -53,6 +53,17 @@ export default function OfficerProfileScreen({ navigation, onLogout, user }) {
     );
   };
 
+  const handleConfirmLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of your Officer account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: () => onLogout && onLogout() }
+      ]
+    );
+  };
+
   const name = officerUser?.name || 'Sgt. Michael Davis';
   const badgeId = officerUser?.email ? `SEC-${(officerUser.email).split('@')[0].toUpperCase()}` : 'SEC-8924';
 
@@ -63,7 +74,7 @@ export default function OfficerProfileScreen({ navigation, onLogout, user }) {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
         <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 }}>ParkNex AI Security</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <TouchableOpacity onPress={onLogout} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+          <TouchableOpacity onPress={handleConfirmLogout} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
             <Text style={{ color: COLORS.danger, fontWeight: '800', fontSize: 13 }}>Logout</Text>
           </TouchableOpacity>
         </View>

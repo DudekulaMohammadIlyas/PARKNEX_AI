@@ -73,6 +73,17 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
   const [editRank, setEditRank] = useState('Head Security Officer');
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
+  const handleConfirmLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of the Security terminal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: () => onLogout && onLogout() }
+      ]
+    );
+  };
+
   const pushSecurityLog = async (type, text, color = '#6366F1') => {
     const newEntry = {
       id: String(Date.now()),
@@ -357,7 +368,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
               </TouchableOpacity>
               <TouchableOpacity 
                 style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }} 
-                onPress={onLogout}
+                onPress={handleConfirmLogout}
               >
                 <Ionicons name="log-out" size={20} color="#F87171" />
               </TouchableOpacity>
@@ -824,7 +835,7 @@ export default function SecurityDashboard({ navigation, onLogout, initialTab }) 
 
                 <TouchableOpacity 
                   style={[styles.primaryBtn, { flex: 1, backgroundColor: '#EF4444' }]}
-                  onPress={onLogout}
+                  onPress={handleConfirmLogout}
                 >
                   <Ionicons name="log-out-outline" size={18} color="#fff" />
                   <Text style={[styles.primaryBtnText, { marginLeft: 4 }]}>Logout</Text>

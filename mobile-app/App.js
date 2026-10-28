@@ -161,14 +161,14 @@ function HomeStack({ occupancy, navigation, user }) {
       <HomeStackNav.Screen name="Billing" component={StudentBillingScreen} />
       <HomeStackNav.Screen name="LiveStatus" component={LiveStatusScreen} />
       <HomeStackNav.Screen name="Notifications">
-        {props => <NotificationsScreen {...props} user={user} userRole="STUDENT" />}
+        {props => <NotificationsScreen {...props} user={user} userRole={user?.role || 'STUDENT'} />}
       </HomeStackNav.Screen>
       <HomeStackNav.Screen name="SlotOccupied" component={SlotOccupiedAlertScreen} />
       <HomeStackNav.Screen name="ExitSuccess" component={ExitSuccessScreen} />
       <HomeStackNav.Screen name="History" component={StudentHistoryScreen} />
       <HomeStackNav.Screen name="AIChat" component={AIChatScreen} />
       <HomeStackNav.Screen name="Feedback">
-        {props => <FeedbackScreen {...props} user={user} userRole="STUDENT" />}
+        {props => <FeedbackScreen {...props} user={user} userRole={user?.role || 'STUDENT'} />}
       </HomeStackNav.Screen>
     </HomeStackNav.Navigator>
   );
@@ -361,15 +361,28 @@ function MainApp() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem('@parknex_token');
-      await AsyncStorage.removeItem('@parknex_user');
-      await AsyncStorage.removeItem('@parknex_role');
-      await supabase.auth.signOut().catch(() => {});
-    } catch (e) {}
-    setUser(null);
-    setRole(null);
+  const handleLogout = () => {
+    Alert.alert(
+      '🚪 Logout Confirmation',
+      'Are you sure you want to log out of ParkNex-AI?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('@parknex_token');
+              await AsyncStorage.removeItem('@parknex_user');
+              await AsyncStorage.removeItem('@parknex_role');
+              await supabase.auth.signOut().catch(() => {});
+            } catch (e) {}
+            setUser(null);
+            setRole(null);
+          }
+        }
+      ]
+    );
   };
 
   if (isInitializing) {
@@ -394,7 +407,7 @@ function MainApp() {
           <Stack.Screen name="Main">
             {() => (
               <>
-                {(role === 'STUDENT' || role === 'FACULTY' || !role) && <StudentTabs occupancy={occupancy} onLogout={handleLogout} user={user} />}
+                {(role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF' || !role) && <StudentTabs occupancy={occupancy} onLogout={handleLogout} user={user} />}
                 {role === 'SECURITY' && <SecurityTabs onLogout={handleLogout} user={user} />}
                 {(role === 'ADMIN' || role === 'CAMPUS_ADMIN' || role === 'DEPARTMENT_ADMIN') && <AdminTabs occupancy={occupancy} events={events} onLogout={handleLogout} user={user} />}
               </>
