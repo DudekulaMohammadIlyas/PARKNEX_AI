@@ -1,5 +1,50 @@
 [
   {
+    "id": "dc23fcf5-e3d8-4448-9c06-84672276b467",
+    "userEmail": "faculty1@gmail.com",
+    "zoneName": "Staff Parking",
+    "slotNumber": "SP-75",
+    "plateNumber": "AP 32 NLR 5432",
+    "durationHours": 4,
+    "bookingDate": "2026-10-28",
+    "bookingTime": "17:06",
+    "status": "CONFIRMED",
+    "slot": {
+      "slotNumber": "SP-75",
+      "zone": {
+        "name": "Staff Parking"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP 32 NLR 5432"
+    }
+  },
+  {
+    "id": "82fed329-ed50-4e8f-ab44-e237df6ddf82",
+    "userEmail": "mraghavendra6305@gmail.com",
+    "zoneName": "KRISHNA HOSTEL",
+    "slotNumber": "K-119",
+    "plateNumber": "AP03CH4591",
+    "durationHours": 4,
+    "bookingDate": "2026-10-28",
+    "bookingTime": "16:51",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "K-119",
+      "zone": {
+        "name": "KRISHNA HOSTEL"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP03CH4591"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-10-28T11:25:47.413Z",
+    "exitedAt": "2026-10-28T11:25:47.413Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Web Command Center QR Scanner"
+  },
+  {
     "id": "daad11c2-621f-4984-8ae6-01eeae27f3b1",
     "userEmail": "staff@college.edu",
     "zoneName": "Staff Parking",

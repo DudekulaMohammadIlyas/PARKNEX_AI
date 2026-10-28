@@ -16,6 +16,8 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const userName = user?.name || '';
 
   const [userProfile, setUserProfile] = useState(user || {});
+  const effectiveRole = (userProfile?.role || user?.role || 'STUDENT').toUpperCase();
+  const isStaffOrFaculty = effectiveRole === 'FACULTY' || effectiveRole === 'STAFF';
   const [digitalPass, setDigitalPass] = useState(null);
   const [recommendations, setRecommendations] = useState([
     { slotNumber: 'C-04', zoneName: 'Central Library', score: 96, reason: '80m from CS Block • 96% vacant • EV Charger' },
@@ -80,8 +82,6 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
     try {
       const userVehiclesKey = `@parknex_vehicles_${userEmail.toLowerCase()}`;
       const userHistoryKey = `@parknex_history_${userEmail.toLowerCase()}`;
-      const effectiveRole = (userProfile?.role || user?.role || 'STUDENT').toUpperCase();
-      const isStaffOrFaculty = effectiveRole === 'FACULTY' || effectiveRole === 'STAFF';
 
       const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes, violRes] = await Promise.allSettled([
         smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
@@ -506,7 +506,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
             </TouchableOpacity>
             <TouchableOpacity 
               style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
-              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: studentDisplayName })}
+              onPress={() => navigation?.navigate('AIChat', { userRole: effectiveRole, userName: studentDisplayName })}
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
@@ -596,7 +596,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
             <TouchableOpacity
               style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}
-              onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: studentDisplayName })}
+              onPress={() => navigation?.navigate('AIChat', { userRole: effectiveRole, userName: studentDisplayName })}
               activeOpacity={0.85}
             >
               <MaterialCommunityIcons name="robot" size={15} color="#FFFFFF" />
@@ -607,7 +607,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
         {/* INTERACTIVE NAVIGATION PILL TABS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
-          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })} activeOpacity={0.8}>
+          <TouchableOpacity style={{ backgroundColor: '#8B5CF6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => navigation?.navigate('AIChat', { userRole: effectiveRole, userName: studentDisplayName })} activeOpacity={0.8}>
             <MaterialCommunityIcons name="robot" size={16} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>AI Assistant</Text>
           </TouchableOpacity>
@@ -1141,7 +1141,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
           borderWidth: 1.5,
           borderColor: '#818CF8'
         }}
-        onPress={() => navigation?.navigate('AIChat', { userRole: 'STUDENT', userName: userProfile?.name || user?.name || 'Student' })}
+        onPress={() => navigation?.navigate('AIChat', { userRole: effectiveRole, userName: studentDisplayName })}
         activeOpacity={0.85}
       >
         <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />

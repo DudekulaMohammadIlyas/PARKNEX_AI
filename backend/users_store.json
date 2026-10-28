@@ -179,12 +179,13 @@
     "name": "System Admin",
     "role": "ADMIN",
     "studentId": "STU-2026-362",
-    "passwordHash": "$2b$10$tfeLP8oKIiQ6ksTRS6ncN.PustTSh7tmTB50CRHPtgoKthLH8ERba",
+    "passwordHash": "$2b$10$rlptQz05pgM71pNeCtQbge2oRGj4Fp3lpTo4WnMHWKSDfRoa05/.2",
     "phone": "",
     "department": "",
     "academicTerm": "Fall 2024 - Spring 2028",
     "lastLogin": "2026-09-17T13:36:59.609Z",
-    "createdAt": "2026-09-17T13:36:59.609Z"
+    "createdAt": "2026-09-17T13:36:59.609Z",
+    "passwordChangedAt": "2026-10-28T11:19:43.267Z"
   },
   {
     "id": "f685b6a1-0b98-4e11-9686-eb011db5ceae",
@@ -320,7 +321,7 @@
     "id": "563cf0c4-4430-4977-be3a-ca1c38432368",
     "email": "staff@college.edu",
     "name": "Dr. Ramesh Staff",
-    "role": "STUDENT",
+    "role": "STAFF",
     "studentId": "STU-2026-441",
     "passwordHash": "$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe",
     "phone": "+91 99999 88888",
@@ -328,5 +329,22 @@
     "academicTerm": "Fall 2024 - Spring 2028",
     "lastLogin": "2026-10-28T06:20:39.558Z",
     "createdAt": "2026-10-28T06:20:39.558Z"
+  },
+  {
+    "id": "cdc7b88a-d86f-4e93-bd85-523a1737a71e",
+    "email": "nageswarbellamkonda56@gmail.com",
+    "password": "$2b$10$iZwdXa56MhUdTfOlWt50H.jYsHNf8.wIDJ7.0T2OiMgAWWAGbzbty",
+    "role": "ADMIN",
+    "name": "Nageswar Bellamkonda",
+    "phone": null,
+    "designation": null,
+    "academicYear": null,
+    "studentId": null,
+    "departmentId": null,
+    "emergencyPhone": null,
+    "pushToken": null,
+    "passwordChangedAt": null,
+    "createdAt": "2026-10-28T11:07:53.172Z",
+    "updatedAt": "2026-10-28T11:07:53.172Z"
   }
 ]

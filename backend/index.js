@@ -1021,15 +1021,19 @@ async function ensureUserRecord(email, extraData = {}) {
 
   let dbUser = await prisma.user.findUnique({ where: { email: normEmail } }).catch(() => null);
 
+  const isStaffEmail = normEmail.includes('staff') || normEmail.includes('faculty');
+  const fallbackRole = isStaffEmail ? (normEmail.includes('faculty') ? 'FACULTY' : 'STAFF') : 'STUDENT';
+  const finalRole = (extraData.role || memUser?.role || dbUser?.role || fallbackRole).toUpperCase();
+
   if (!dbUser) {
     try {
       dbUser = await prisma.user.create({
         data: {
           email: normEmail,
           name: extraData.name || memUser?.name || normEmail.split('@')[0],
-          role: extraData.role || memUser?.role || 'STUDENT',
+          role: finalRole,
           password: memUser?.passwordHash || '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe',
-          studentId: (extraData.role || memUser?.role || 'STUDENT') === 'STUDENT' ? `STU-2026-${Math.floor(100 + Math.random() * 900)}` : null,
+          studentId: finalRole === 'STUDENT' ? `STU-2026-${Math.floor(100 + Math.random() * 900)}` : null,
           phone: extraData.phone || memUser?.phone || null,
           designation: extraData.department || extraData.designation || memUser?.department || memUser?.designation || null
         }
@@ -1053,8 +1057,8 @@ async function ensureUserRecord(email, extraData = {}) {
       id: dbUser?.id || `u_${Date.now()}`,
       email: normEmail,
       name: dbUser?.name || extraData.name || normEmail.split('@')[0],
-      role: dbUser?.role || extraData.role || 'STUDENT',
-      studentId: dbUser?.studentId || `STU-2026-${Math.floor(100 + Math.random() * 900)}`,
+      role: finalRole,
+      studentId: dbUser?.studentId || (finalRole === 'STUDENT' ? `STU-2026-${Math.floor(100 + Math.random() * 900)}` : null),
       passwordHash: dbUser?.password || '$2b$10$DfQZ1bMYiJZkh9aWXy7vcebaAHfVjpkahOXk0BM4Uo.hzGfB4Xnqe',
       phone: extraData.phone || dbUser?.phone || '',
       department: extraData.department || dbUser?.designation || '',

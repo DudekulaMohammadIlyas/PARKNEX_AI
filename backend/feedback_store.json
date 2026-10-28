@@ -1,5 +1,44 @@
 [
   {
+    "id": "fb_1793187524429_nzzs",
+    "rating": 5,
+    "category": "FACILITY_SECURITY",
+    "subject": "GOOD",
+    "comment": "GOOD",
+    "tags": [
+      "Fast Gate Clearance",
+      "Accurate AI"
+    ],
+    "isAnonymous": false,
+    "userEmail": "faculty1@gmail.com",
+    "userName": "Dr john",
+    "userRole": "FACULTY",
+    "sentiment": "POSITIVE",
+    "status": "NEW",
+    "createdAt": "2026-10-28T11:38:44.429Z"
+  },
+  {
+    "id": "fb_1793186952081_j7in",
+    "rating": 5,
+    "category": "GATE_BARRIER",
+    "subject": "Good",
+    "comment": "Good",
+    "tags": [
+      "Fast Gate Clearance",
+      "Accurate AI"
+    ],
+    "isAnonymous": true,
+    "userEmail": "anonymous@college.edu",
+    "userName": "Anonymous Student",
+    "userRole": "SECURITY",
+    "sentiment": "POSITIVE",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-28T11:29:12.081Z",
+    "adminReply": "THANK YOU",
+    "adminRepliedAt": "2026-10-28T11:31:55.892Z",
+    "updatedAt": "2026-10-28T11:31:55.892Z"
+  },
+  {
     "id": "fb_1792817677164_1imd",
     "rating": 5,
     "category": "PARKING_EXPERIENCE",

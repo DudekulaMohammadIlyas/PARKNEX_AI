@@ -15,6 +15,7 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
   const [phone, setPhone] = useState(user?.phone || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [academicTerm, setAcademicTerm] = useState(user?.academicTerm || 'Fall 2024 - Spring 2028');
+  const [role, setRole] = useState((user?.role || 'STUDENT').toUpperCase());
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedModalVisible, setIsSavedModalVisible] = useState(false);
@@ -26,6 +27,19 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
       setEmail(targetEmail);
       if (user?.name) setName(user.name);
 
+      const [storedUser, storedRole] = await Promise.all([
+        AsyncStorage.getItem('@parknex_user').catch(() => null),
+        AsyncStorage.getItem('@parknex_role').catch(() => null)
+      ]);
+      let currentRole = user?.role || storedRole || 'STUDENT';
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed.role) currentRole = parsed.role;
+        } catch (e) {}
+      }
+      setRole(currentRole.toUpperCase());
+
       try {
         const res = await smartApiRequest('get', `/users/profile?email=${encodeURIComponent(targetEmail)}`);
         if (res.data?.success && res.data?.user) {
@@ -34,8 +48,9 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
           if (u.phone) setPhone(u.phone);
           if (u.department) setDepartment(u.department);
           if (u.academicTerm) setAcademicTerm(u.academicTerm);
+          if (u.role) setRole(u.role.toUpperCase());
 
-          const updatedLocal = { ...user, name: u.name || user?.name, phone: u.phone, department: u.department, academicTerm: u.academicTerm };
+          const updatedLocal = { ...user, name: u.name || user?.name, phone: u.phone, department: u.department, academicTerm: u.academicTerm, role: u.role || currentRole };
           await AsyncStorage.setItem('@parknex_user', JSON.stringify(updatedLocal));
         }
       } catch (e) {}
@@ -168,8 +183,8 @@ export default function StudentProfileScreen({ onLogout, user, navigation }) {
           </View>
           <Text style={{ fontSize: 20, fontWeight: '900', color: COLORS.text }}>{name}</Text>
           <Text style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' }}>{email}</Text>
-          <View style={[styles.badge, { backgroundColor: '#DCFCE7', marginTop: 8 }]}>
-            <Text style={{ color: COLORS.success, fontSize: 11, fontWeight: '800' }}>● {user?.role || 'STUDENT'} ACCOUNT</Text>
+          <View style={[styles.badge, { backgroundColor: (role === 'STAFF' || role === 'FACULTY') ? '#FEF3C7' : '#DCFCE7', marginTop: 8 }]}>
+            <Text style={{ color: (role === 'STAFF' || role === 'FACULTY') ? '#D97706' : COLORS.success, fontSize: 11, fontWeight: '800' }}>● {role} ACCOUNT</Text>
           </View>
         </View>
 

@@ -156,29 +156,37 @@ function generateWelcomeMessage(name, role) {
   const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const cleanName = (name && name !== 'User' && name !== 'Student User') ? name : '';
 
-  if (role === 'SECURITY') {
+  const upperRole = (role || '').toUpperCase();
+
+  if (upperRole === 'SECURITY') {
     return `**${timeGreeting}${cleanName ? `, Officer ${cleanName}` : ''}!** 🛡️\n\nI am your **ParkNex Security AI Assistant**, synchronized with live gate barriers and ANPR vision.\n\nHere is how I can assist your patrol & gate duty:\n• 🔍 **Security Incidents**: *"Show active security incidents"*\n• 🚧 **Barrier Clearance**: *"Check Main Gate barrier status"*\n• ⚠️ **Zone Congestion**: *"Which lots are over 90% full?"*\n• 🚫 **Violations**: *"List unauthorized vehicle entries or overstays"*\n\n💬 *Enter a command below or tap a quick prompt.*`;
   }
 
-  if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'CAMPUS_ADMIN') {
+  if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN' || upperRole === 'CAMPUS_ADMIN') {
     return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** ⚙️\n\nI am your **ParkNex Operations AI**, connected to campus-wide analytics, slot sensors, and student telemetry.\n\nHere is what I can analyze for you today:\n• 📊 **Campus Overview**: *"Summarize today's parking utilization"*\n• ⚠️ **Capacity Alerts**: *"Which zone requires administrative attention?"*\n• 🕒 **Peak Hours**: *"Show peak arrival and departure times"*\n• ⭐ **Student Feedback**: *"How do students rate parking this week?"*\n\n💬 *Ask for an analytics summary or tap a suggestion below.*`;
+  }
+
+  if (upperRole === 'FACULTY' || upperRole === 'STAFF') {
+    return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** 🎓 Welcome to your **ParkNex Faculty & Staff AI Assistant**.\n\nI am synchronized with dedicated faculty & staff bays, active bookings, and campus clearance:\n\n• 🅿️ **Staff Parking Guidance**: *"Where is the dedicated Faculty & Staff parking zone?"*\n• 🎟️ **Exclusive Reservations**: *"How do staff slot bookings work?"*\n• 🎫 **Active Passes & Entry**: *"Check my active booking & QR pass"*\n• 💳 **Staff Policies & Access**: *"What are the parking policies for faculty and staff?"*\n• ⭐ **Staff Zone Vacancy**: *"Check vacancy in Staff Parking"*\n\n💬 *Type your question below, or tap any suggestion to get started!*`;
   }
 
   return `**${timeGreeting}${cleanName ? `, ${cleanName}` : ''}!** 👋 Welcome to your **ParkNex Campus AI Assistant**.\n\nI'm here to make campus parking effortless with real-time updates:\n\n• 🅿️ **Live Vacancy Guidance**: *"Where should I park right now?"*\n• 🎟️ **Slot Reservations**: *"How does slot booking work?"*\n• 🎫 **Active Passes & Entry**: *"Check my active booking & QR pass"*\n• 💳 **Permits & Tariffs**: *"Is parking free for students?"*\n• ⭐ **Feedback & Reviews**: *"How do I submit parking feedback?"*\n\n💬 *Type your question below, or tap any quick suggestion to get started!*`;
 }
 
 export default function AIChatScreen({ navigation, route }) {
-  const userRole = route?.params?.userRole || 'STUDENT';
+  const initialRole = (route?.params?.userRole || 'STUDENT').toUpperCase();
   const userName = route?.params?.userName || '';
   const initialName = (userName && userName !== 'User' && userName !== 'Student User') 
     ? userName 
     : (route?.params?.user?.name || '');
 
+  const [currentRole, setCurrentRole] = useState(initialRole);
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       sender: 'ai',
-      text: generateWelcomeMessage(initialName, userRole),
+      text: generateWelcomeMessage(initialName, initialRole),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       meta: {
         ollamaUsed: true,
@@ -223,24 +231,47 @@ export default function AIChatScreen({ navigation, route }) {
 
   const loadUserAuth = async () => {
     try {
-      const [userStr, token] = await Promise.all([
+      const [userStr, token, storedRole] = await Promise.all([
         AsyncStorage.getItem('@parknex_user').catch(() => null),
-        AsyncStorage.getItem('@parknex_token').catch(() => null)
+        AsyncStorage.getItem('@parknex_token').catch(() => null),
+        AsyncStorage.getItem('@parknex_role').catch(() => null)
       ]);
+      let activeRole = initialRole;
+      let resolvedName = initialName;
+
       if (userStr) {
-        const parsed = JSON.parse(userStr);
-        setCurrentUser(parsed);
-        const resolvedName = parsed.name || (parsed.email ? parsed.email.split('@')[0] : userName);
-        setMessages(prev => {
-          if (prev.length === 1 && prev[0].id === 'welcome') {
-            return [{
-              ...prev[0],
-              text: generateWelcomeMessage(resolvedName, parsed.role || userRole)
-            }];
-          }
-          return prev;
-        });
+        try {
+          const parsed = JSON.parse(userStr);
+          setCurrentUser(parsed);
+          if (parsed.role) activeRole = parsed.role.toUpperCase();
+          if (parsed.name) resolvedName = parsed.name;
+          else if (parsed.email) resolvedName = parsed.email.split('@')[0];
+        } catch (e) {}
+      } else if (storedRole) {
+        activeRole = storedRole.toUpperCase();
       }
+
+      setCurrentRole(activeRole);
+
+      if (activeRole === 'FACULTY' || activeRole === 'STAFF') {
+        setSuggestions([
+          "Where is Staff Parking located?",
+          "Check vacancy in Staff Parking",
+          "How do staff slot bookings work?",
+          "Check my active booking"
+        ]);
+      }
+
+      setMessages(prev => {
+        if (prev.length === 1 && prev[0].id === 'welcome') {
+          return [{
+            ...prev[0],
+            text: generateWelcomeMessage(resolvedName, activeRole)
+          }];
+        }
+        return prev;
+      });
+
       if (token) {
         setAuthToken(token);
       }
@@ -590,10 +621,11 @@ export default function AIChatScreen({ navigation, route }) {
           style={styles.clearBtn} 
           onPress={() => { 
             const resolvedName = currentUser?.name || userName;
+            const activeRole = currentUser?.role ? currentUser.role.toUpperCase() : currentRole;
             setMessages([{
               id: 'welcome',
               sender: 'ai',
-              text: generateWelcomeMessage(resolvedName, currentUser?.role || userRole),
+              text: generateWelcomeMessage(resolvedName, activeRole),
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               meta: {
                 ollamaUsed: true,
@@ -616,7 +648,7 @@ export default function AIChatScreen({ navigation, route }) {
         <View style={styles.telemetryBannerContent}>
           <MaterialCommunityIcons name="shield-check" size={14} color="#2563EB" />
           <Text style={styles.telemetryBannerText} numberOfLines={1}>
-            Campus Grounded • Role: {userRole} • Live Bays Verified
+            Campus Grounded • Role: {currentRole} • Live Bays Verified
           </Text>
         </View>
       </View>
