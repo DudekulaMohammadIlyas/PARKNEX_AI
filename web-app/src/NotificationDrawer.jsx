@@ -20,6 +20,7 @@ import {
   Activity
 } from 'lucide-react';
 import axios from 'axios';
+import { supabase } from './supabaseClient';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -44,11 +45,34 @@ export default function NotificationDrawer({ isOpen, onClose, userEmail, userRol
   };
 
   useEffect(() => {
-    if (!isOpen) return;
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 4000);
-    return () => clearInterval(interval);
-  }, [isOpen, userEmail, userRole]);
+    const interval = setInterval(fetchNotifications, 3000);
+
+    const chName = `web-drawer-notif-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification' }, () => {
+        fetchNotifications();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification' }, () => {
+        fetchNotifications();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchNotifications();
+    });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
+  }, [userEmail, userRole]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotifications();
+    }
+  }, [isOpen]);
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -383,28 +407,65 @@ export default function NotificationDrawer({ isOpen, onClose, userEmail, userRol
                       <Clock size={12} color="#64748B" />
                       {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {n.deepLink && onNavigate && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!n.isRead) handleMarkAsRead(n.id);
-                          onNavigate(n.deepLink, n);
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#4F46E5',
-                          fontSize: '0.78rem',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '2px'
-                        }}
-                      >
-                        Action <ChevronRight size={14} />
-                      </button>
-                    )}
+                    {onNavigate && (() => {
+                      const targetDestination = n.deepLink || (
+                        n.category === 'VIOLATION' ? 'violations' :
+                        n.category === 'FEEDBACK' ? 'FeedbackPage' :
+                        (n.category === 'BOOKING' || n.category === 'PARKING_EXPIRY' || n.category === 'PARKING_EXPIRED') ? 'StudentBookScreen' :
+                        (n.category === 'VEHICLE_ENTRY' || n.category === 'VEHICLE_EXIT' || n.category === 'PASS') ? 'StudentVehiclesScreen' :
+                        (n.category === 'CAPACITY' || n.category === 'PARKING') ? (userRole === 'ADMIN' ? 'ManageZones' : 'dashboard') :
+                        (n.category === 'SYSTEM' || n.category === 'AUDIT' || n.category === 'ANALYTICS') ? (userRole === 'ADMIN' ? 'Analytics' : 'dashboard') :
+                        (n.category === 'CCTV' || n.category === 'GATE' || n.category === 'SECURITY') ? 'cctv' :
+                        n.category === 'VISITOR' ? 'visitors' :
+                        'dashboard'
+                      );
+
+                      const getActionText = (dest, cat) => {
+                        if (dest === 'violations' || cat === 'VIOLATION') return 'Review Violation';
+                        if (dest === 'FeedbackPage' || dest === 'Feedback' || cat === 'FEEDBACK') return 'View Feedback';
+                        if (dest === 'StudentBookScreen' || cat === 'BOOKING' || cat === 'PARKING_EXPIRY') return 'View Slot';
+                        if (dest === 'StudentVehiclesScreen' || cat === 'VEHICLE_ENTRY' || cat === 'PASS') return 'View Vehicle';
+                        if (dest === 'ManageZones' || cat === 'CAPACITY') return 'Manage Capacity';
+                        if (dest === 'Analytics' || cat === 'SYSTEM') return 'View Analytics';
+                        if (dest === 'cctv' || cat === 'CCTV') return 'Open CCTV';
+                        if (dest === 'visitors' || cat === 'VISITOR') return 'Visitor Pass';
+                        return 'Action';
+                      };
+
+                      return (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!n.isRead) handleMarkAsRead(n.id);
+                            onNavigate(targetDestination, n);
+                          }}
+                          style={{
+                            background: '#EEF2FF',
+                            border: '1px solid #C7D2FE',
+                            color: '#4F46E5',
+                            fontSize: '0.76rem',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '8px',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = '#4F46E5';
+                            e.currentTarget.style.color = '#FFFFFF';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = '#EEF2FF';
+                            e.currentTarget.style.color = '#4F46E5';
+                          }}
+                        >
+                          {getActionText(targetDestination, n.category)} <ChevronRight size={13} />
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );

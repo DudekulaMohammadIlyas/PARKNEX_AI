@@ -1,0 +1,26 @@
+[
+  {
+    "id": "inc_1",
+    "title": "Unauthorized Plate UP-16-XX-8888 Detected",
+    "desc": "Vehicle UP-16-XX-8888 failed OCR verification at North Security Gate Barrier. Barrier held in closed lock.",
+    "severity": "CRITICAL",
+    "status": "ACTIVE",
+    "timestamp": "2026-10-28T10:19:40.897Z"
+  },
+  {
+    "id": "inc_2",
+    "title": "Tailgating Detected at Main Gate",
+    "desc": "Two vehicles detected within 1.2s at Main Campus Entrance Gate. Camera Cam 01 flagged anomaly.",
+    "severity": "MEDIUM",
+    "status": "RESOLVED",
+    "timestamp": "2026-10-28T09:29:40.897Z"
+  },
+  {
+    "id": "inc_3",
+    "title": "Slot Obstruction in Zone B",
+    "desc": "Vehicle parked across demarcation lines in Central Library slot B-12.",
+    "severity": "LOW",
+    "status": "RESOLVED",
+    "timestamp": "2026-10-28T08:34:40.897Z"
+  }
+]

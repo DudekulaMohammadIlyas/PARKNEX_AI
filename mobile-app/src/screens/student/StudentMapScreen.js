@@ -22,6 +22,7 @@ export default function StudentMapScreen() {
   const [currentUserEmail, setCurrentUserEmail] = useState('student@college.edu');
   const [userRole, setUserRole] = useState('STUDENT');
   const [vehicles, setVehicles] = useState([]);
+  const [aiRec, setAiRec] = useState(null);
   
   // Slot Modal Booking State
   const [selectedSlotForBooking, setSelectedSlotForBooking] = useState(null);
@@ -44,12 +45,21 @@ export default function StudentMapScreen() {
           setUserRole(role);
         }
 
-        const [zoneRes, bookRes, allBookRes, vehRes] = await Promise.allSettled([
+        const [zoneRes, bookRes, allBookRes, vehRes, recRes] = await Promise.allSettled([
           smartApiRequest('get', `/zones?role=${encodeURIComponent(role)}`),
           smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
           smartApiRequest('get', '/bookings/all'),
-          smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`)
+          smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
+          smartApiRequest('get', `/ai/recommendations?department=Computer Science&role=${encodeURIComponent(role)}&email=${encodeURIComponent(userEmail)}`)
         ]);
+
+        if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations) && isMounted) {
+          const recs = recRes.value.data.recommendations;
+          const roleFiltered = isStaffOrFaculty
+            ? recs.filter(r => (r.zoneName || '').toLowerCase().includes('staff') || (r.zoneName || '').toLowerCase().includes('faculty'))
+            : recs.filter(r => !(r.zoneName || '').toLowerCase().includes('staff') && !(r.zoneName || '').toLowerCase().includes('faculty'));
+          setAiRec(roleFiltered[0] || (isStaffOrFaculty ? { slotNumber: 'SP-01', zoneName: 'Staff Parking', score: 98, reason: 'Staff Priority Bay • 45m away' } : recs[0] || null));
+        }
 
         if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0 && isMounted) {
           setRawZoneObjs(zoneRes.value.data);
@@ -127,16 +137,34 @@ export default function StudentMapScreen() {
   const selectedZoneObj = rawZoneObjs.find(z => z.name === selectedZone);
   const totalCount = selectedZoneObj?.total || (selectedZone.includes('KRISHNA') ? 150 : selectedZone.includes('HOSPITAL') || selectedZone.includes('North') || selectedZone.includes('Zone C') ? 200 : 100);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const activeMySlots = new Set(
     myBookings
-      .filter(b => b.status === 'CONFIRMED' && (b.zoneName === selectedZone || b.slot?.zone?.name === selectedZone))
-      .map(b => b.slotNumber || b.slot?.slotNumber)
+      .filter(b => {
+        const isConfirmed = b.status === 'CONFIRMED' || !b.status;
+        const bZone = (b.zoneName || b.slot?.zone?.name || b.zone || '').trim().toLowerCase();
+        const selZone = selectedZone.trim().toLowerCase();
+        const zoneMatch = bZone === selZone;
+        const bDate = b.bookingDate || b.date;
+        const dateMatch = !bDate || bDate === todayStr;
+        return isConfirmed && zoneMatch && dateMatch;
+      })
+      .map(b => ((b.slotNumber || b.slot?.slotNumber || b.slot || '').toString()).trim().toUpperCase())
   );
 
   const activeAllBookedSlots = new Set(
     allBookings
-      .filter(b => b.status === 'CONFIRMED' && (b.zoneName === selectedZone || b.slot?.zone?.name === selectedZone))
-      .map(b => b.slotNumber || b.slot?.slotNumber)
+      .filter(b => {
+        const isConfirmed = b.status === 'CONFIRMED' || !b.status;
+        const bZone = (b.zoneName || b.slot?.zone?.name || b.zone || '').trim().toLowerCase();
+        const selZone = selectedZone.trim().toLowerCase();
+        const zoneMatch = bZone === selZone;
+        const bDate = b.bookingDate || b.date;
+        const dateMatch = !bDate || bDate === todayStr;
+        return isConfirmed && zoneMatch && dateMatch;
+      })
+      .map(b => ((b.slotNumber || b.slot?.slotNumber || b.slot || '').toString()).trim().toUpperCase())
   );
 
   const isStaffOrFaculty = userRole === 'FACULTY' || userRole === 'STAFF';
@@ -144,7 +172,7 @@ export default function StudentMapScreen() {
 
   const slots = Array.from({ length: totalCount }, (_, i) => {
     const numStr = (i + 1).toString().padStart(2, '0');
-    const id = `${prefix}${numStr}`;
+    const id = `${prefix}${numStr}`.toUpperCase();
     let status = 'Available';
     
     if (activeMySlots.has(id)) {
@@ -202,34 +230,43 @@ export default function StudentMapScreen() {
       return;
     }
 
-    const newBookingObj = {
-      id: `b_${Date.now()}`,
-      userEmail: currentUserEmail,
-      slotNumber: selectedSlotForBooking.id,
-      zoneName: selectedZone,
-      plateNumber: selectedVehiclePlate,
-      status: 'CONFIRMED'
-    };
-
-    setMyBookings(prev => [newBookingObj, ...prev]);
-    setAllBookings(prev => [newBookingObj, ...prev]);
+    const slotId = selectedSlotForBooking.id.toUpperCase();
+    if (activeAllBookedSlots.has(slotId) || activeMySlots.has(slotId)) {
+      Alert.alert('Slot Already Occupied 🛑', `Slot ${slotId} was just reserved by another user. Please choose another available slot.`);
+      return;
+    }
 
     const bookingDateStr = new Date().toISOString().split('T')[0];
     const bookingTimeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
     try {
-      await smartApiRequest('post', '/bookings', {
+      const res = await smartApiRequest('post', '/bookings', {
         userEmail: currentUserEmail,
         userRole: userRole,
         role: userRole,
         zoneName: selectedZone,
-        slotNumber: selectedSlotForBooking.id,
+        slotNumber: slotId,
         plateNumber: selectedVehiclePlate,
         vehiclePlate: selectedVehiclePlate,
         durationHours: bookingDuration,
         bookingDate: bookingDateStr,
         bookingTime: bookingTimeStr
-      }).catch(() => null);
+      });
+
+      const newBookingObj = {
+        id: res?.data?.id || `b_${Date.now()}`,
+        userEmail: currentUserEmail,
+        slotNumber: slotId,
+        zoneName: selectedZone,
+        plateNumber: selectedVehiclePlate,
+        status: 'CONFIRMED',
+        bookingDate: bookingDateStr,
+        date: bookingDateStr,
+        time: `${bookingTimeStr} (${bookingDuration} hrs)`
+      };
+
+      setMyBookings(prev => [newBookingObj, ...prev]);
+      setAllBookings(prev => [newBookingObj, ...prev]);
 
       // Save to local history cache
       const histKey = `@parknex_history_${currentUserEmail.toLowerCase()}`;
@@ -240,7 +277,7 @@ export default function StudentMapScreen() {
         date: bookingDateStr,
         time: `${bookingTimeStr} (${bookingDuration} hrs)`,
         zone: selectedZone,
-        slot: selectedSlotForBooking.id,
+        slot: slotId,
         vehicle: selectedVehiclePlate,
         duration: `${bookingDuration} Hours`,
         status: 'CONFIRMED'
@@ -249,10 +286,11 @@ export default function StudentMapScreen() {
 
       Alert.alert(
         'Slot Reserved Successfully! 🎉',
-        `Slot ${selectedSlotForBooking.id} in ${selectedZone} has been locked for vehicle ${selectedVehiclePlate}!`
+        `Slot ${slotId} in ${selectedZone} has been locked for vehicle ${selectedVehiclePlate}!`
       );
     } catch (e) {
-      Alert.alert('Slot Reserved Successfully! 🎉', `Slot ${selectedSlotForBooking.id} locked for ${selectedVehiclePlate}!`);
+      const errMsg = e?.response?.data?.error || e?.message || 'Slot could not be booked due to a conflict.';
+      Alert.alert('Booking Conflict / Error 🛑', errMsg);
     } finally {
       setIsBookingModalOpen(false);
       setSelectedSlotForBooking(null);
@@ -293,6 +331,55 @@ export default function StudentMapScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 4 }} showsVerticalScrollIndicator={false}>
         
+        {/* AI REAL-TIME ROLE-SCOPED RECOMMENDATION BANNER */}
+        {aiRec && (
+          <TouchableOpacity 
+            onPress={() => {
+              if (selectedZone !== aiRec.zoneName) setSelectedZone(aiRec.zoneName);
+              const targetSlot = slots.find(s => s.id === aiRec.slotNumber) || { id: aiRec.slotNumber, status: 'Available' };
+              handleSlotPress(targetSlot);
+            }}
+            activeOpacity={0.88}
+            style={{ 
+              marginBottom: 16, 
+              backgroundColor: '#EEF2FF', 
+              borderRadius: 18, 
+              padding: 14, 
+              borderWidth: 1.5, 
+              borderColor: '#6366F1', 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              shadowColor: '#6366F1',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.15,
+              shadowRadius: 6,
+              elevation: 3
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Ionicons name="sparkles" size={16} color="#4F46E5" />
+                <Text style={{ fontSize: 11, fontWeight: '900', color: '#4F46E5', textTransform: 'uppercase' }}>
+                  {isStaffOrFaculty ? 'Staff Priority AI Recommendation' : 'AI Real-Time Slot Recommendation'}
+                </Text>
+                <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#047857' }}>{aiRec.score || 98}% Match</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>
+                Slot {aiRec.slotNumber} in {aiRec.zoneName}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, fontWeight: '600' }} numberOfLines={1}>
+                {aiRec.reason}
+              </Text>
+            </View>
+            <View style={{ backgroundColor: '#4F46E5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 }}>
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 11 }}>Reserve</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         <View style={{ backgroundColor: COLORS.white, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 }}>
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
@@ -313,6 +400,8 @@ export default function StudentMapScreen() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
             {slots.map(slot => {
               const s = getSlotStyle(slot.status);
+              const isAiPick = aiRec && aiRec.slotNumber === slot.id && aiRec.zoneName === selectedZone;
+
               return (
                 <TouchableOpacity 
                   key={slot.id} 
@@ -320,18 +409,25 @@ export default function StudentMapScreen() {
                   style={{ 
                     width: '22%', 
                     height: 54,
-                    backgroundColor: s.backgroundColor, 
+                    backgroundColor: isAiPick ? 'rgba(99, 102, 241, 0.12)' : s.backgroundColor, 
                     borderRadius: 12, 
-                    borderWidth: 1.5, 
-                    borderColor: s.borderColor, 
+                    borderWidth: isAiPick ? 2 : 1.5, 
+                    borderColor: isAiPick ? '#6366F1' : s.borderColor, 
                     justifyContent: 'center', 
                     alignItems: 'center',
-                    padding: 4
+                    padding: 4,
+                    position: 'relative'
                   }}
                 >
-                  <Text style={{ color: s.color, fontWeight: '900', fontSize: 12 }}>{slot.id}</Text>
-                  <Text style={{ color: s.color, fontWeight: '700', fontSize: 8, marginTop: 1 }}>
-                    {slot.status === 'Yours' ? 'SELECTED' : slot.status === 'Occupied' ? 'TAKEN' : slot.hasEV ? '⚡ EV' : 'FREE'}
+                  {isAiPick && (
+                    <View style={{ position: 'absolute', top: -7, right: -4, backgroundColor: '#4F46E5', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 5 }}>
+                      <Text style={{ color: '#fff', fontSize: 7, fontWeight: '900' }}>AI PICK</Text>
+                    </View>
+                  )}
+                  <Text style={{ color: isAiPick ? '#4F46E5' : s.color, fontWeight: '900', fontSize: 12 }}>{slot.id}</Text>
+                  <Text style={{ color: isAiPick ? '#4F46E5' : s.color, fontWeight: '700', fontSize: 8, marginTop: 1 }}>
+                    {slot.status === 'Yours' ? 'SELECTED' : slot.status === 'Occupied' ? 'TAKEN' : isAiPick ? '★ TOP PICK' : slot.hasEV ? '⚡ EV' : 'FREE'}
+
                   </Text>
                 </TouchableOpacity>
               );

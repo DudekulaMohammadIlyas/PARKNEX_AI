@@ -244,24 +244,24 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
   const getStatusBadge = (status) => {
     switch (status) {
       case 'RESOLVED':
-        return <span style={{ padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.25)' }}>● RESOLVED</span>;
+        return <span style={{ padding: '0.3rem 0.75rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(16, 185, 129, 0.22)', color: '#34D399', border: '1px solid rgba(52, 211, 153, 0.55)', textShadow: '0 0 10px rgba(52, 211, 153, 0.4)' }}>● RESOLVED</span>;
       case 'UNDER_REVIEW':
-        return <span style={{ padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.25)' }}>● UNDER REVIEW</span>;
+        return <span style={{ padding: '0.3rem 0.75rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(245, 158, 11, 0.22)', color: '#FBBF24', border: '1px solid rgba(251, 191, 36, 0.55)', textShadow: '0 0 10px rgba(251, 191, 36, 0.4)' }}>● UNDER REVIEW</span>;
       case 'DISMISSED':
-        return <span style={{ padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(100, 116, 139, 0.12)', color: '#64748B', border: '1px solid rgba(100, 116, 139, 0.25)' }}>● CLOSED</span>;
+        return <span style={{ padding: '0.3rem 0.75rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(148, 163, 184, 0.2)', color: '#CBD5E1', border: '1px solid rgba(148, 163, 184, 0.4)' }}>● CLOSED</span>;
       default:
-        return <span style={{ padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.25)' }}>● NEW</span>;
+        return <span style={{ padding: '0.3rem 0.75rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(56, 189, 248, 0.22)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.55)', textShadow: '0 0 10px rgba(56, 189, 248, 0.4)' }}>● NEW</span>;
     }
   };
 
   const getSentimentBadge = (sentiment) => {
     if (sentiment === 'POSITIVE') {
-      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: '700', color: '#10B981', background: 'rgba(16, 185, 129, 0.08)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}><ThumbsUp size={11} /> Positive</span>;
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: '800', color: '#34D399', background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(52, 211, 153, 0.45)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}><ThumbsUp size={12} /> Positive</span>;
     }
     if (sentiment === 'NEGATIVE') {
-      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: '700', color: '#EF4444', background: 'rgba(239, 68, 68, 0.08)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}><ThumbsDown size={11} /> Critical</span>;
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: '800', color: '#F87171', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(248, 113, 113, 0.45)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}><ThumbsDown size={12} /> Critical</span>;
     }
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: '700', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.08)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Neutral</span>;
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: '800', color: '#FBBF24', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(251, 191, 36, 0.45)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}>Neutral</span>;
   };
 
   return (
@@ -269,8 +269,8 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
       
       {/* HEADER BANNER */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
-        border: '1px solid rgba(37, 99, 235, 0.2)',
+        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+        border: '1px solid rgba(255, 255, 255, 0.18)',
         borderRadius: '24px',
         padding: '2rem 2.5rem',
         marginBottom: '2rem',
@@ -279,18 +279,19 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: '1.5rem',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.04)'
+        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
+        backdropFilter: 'blur(16px)'
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563EB, #4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563EB, #4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)' }}>
               <MessageSquare size={22} />
             </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--text-main)', margin: 0 }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: '900', color: '#FFFFFF', margin: 0 }}>
               {isAdmin ? 'Campus Feedback & Experience Command' : 'Feedback & Ratings Hub'}
             </h1>
           </div>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: '500' }}>
+          <p style={{ margin: 0, color: '#CBD5E1', fontSize: '0.95rem', fontWeight: '500' }}>
             {isAdmin 
               ? 'Real-time student & staff ratings, AI satisfaction telemetry, and operational response desk.'
               : 'Help us enhance the ParkNex smart campus ecosystem. Rate your parking, AI guidance, and barrier clearance.'}
@@ -302,32 +303,33 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
           display: 'flex',
           alignItems: 'center',
           gap: '1.25rem',
-          background: 'var(--card-bg, #ffffff)',
+          background: 'rgba(15, 27, 46, 0.92)',
           padding: '0.85rem 1.4rem',
           borderRadius: '16px',
-          border: '1px solid var(--border)',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(16px)'
         }}>
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Average Rating</div>
+            <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Average Rating</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-main)' }}>{metrics.averageRating || '4.6'}</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#FFFFFF' }}>{metrics.averageRating || '4.6'}</span>
               <div style={{ display: 'flex', gap: '2px' }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <Star 
                     key={star} 
                     size={16} 
                     fill={star <= Math.round(metrics.averageRating || 5) ? '#F59E0B' : 'transparent'} 
-                    color={star <= Math.round(metrics.averageRating || 5) ? '#F59E0B' : '#CBD5E1'} 
+                    color={star <= Math.round(metrics.averageRating || 5) ? '#F59E0B' : '#64748B'} 
                   />
                 ))}
               </div>
             </div>
           </div>
-          <div style={{ width: '1px', height: '36px', background: 'var(--border)' }} />
+          <div style={{ width: '1px', height: '36px', background: 'rgba(255, 255, 255, 0.15)' }} />
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Satisfaction</div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#10B981', marginTop: '0.2rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Satisfaction</div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#34D399', marginTop: '0.2rem' }}>
               {metrics.satisfactionRate || 92}%
             </div>
           </div>
@@ -341,42 +343,42 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
             <button
               onClick={() => setActiveTab('inbox')}
               style={{
-                padding: '0.75rem 1.4rem',
-                borderRadius: '12px',
-                border: 'none',
+                padding: '0.8rem 1.5rem',
+                borderRadius: '14px',
+                border: activeTab === 'inbox' ? '1px solid #60A5FA' : '1px solid rgba(255, 255, 255, 0.16)',
                 cursor: 'pointer',
                 fontWeight: '800',
-                fontSize: '0.9rem',
+                fontSize: '0.92rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                background: activeTab === 'inbox' ? '#2563EB' : 'transparent',
-                color: activeTab === 'inbox' ? '#FFFFFF' : 'var(--text-muted)',
-                boxShadow: activeTab === 'inbox' ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none',
+                gap: '0.6rem',
+                background: activeTab === 'inbox' ? 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)' : 'rgba(255, 255, 255, 0.06)',
+                color: '#FFFFFF',
+                boxShadow: activeTab === 'inbox' ? '0 4px 16px rgba(37, 99, 235, 0.4)' : 'none',
                 transition: 'all 0.2s ease'
               }}
             >
-              <MessageSquare size={16} /> User Feedback Inbox ({feedbacks.length})
+              <MessageSquare size={18} color="#FFFFFF" /> User Feedback Inbox ({feedbacks.length})
             </button>
             <button
               onClick={() => setActiveTab('submit')}
               style={{
-                padding: '0.75rem 1.4rem',
-                borderRadius: '12px',
-                border: 'none',
+                padding: '0.8rem 1.5rem',
+                borderRadius: '14px',
+                border: activeTab === 'submit' ? '1px solid #60A5FA' : '1px solid rgba(255, 255, 255, 0.16)',
                 cursor: 'pointer',
                 fontWeight: '800',
-                fontSize: '0.9rem',
+                fontSize: '0.92rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                background: activeTab === 'submit' ? '#2563EB' : 'transparent',
-                color: activeTab === 'submit' ? '#FFFFFF' : 'var(--text-muted)',
-                boxShadow: activeTab === 'submit' ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none',
+                gap: '0.6rem',
+                background: activeTab === 'submit' ? 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)' : 'rgba(255, 255, 255, 0.06)',
+                color: '#FFFFFF',
+                boxShadow: activeTab === 'submit' ? '0 4px 16px rgba(37, 99, 235, 0.4)' : 'none',
                 transition: 'all 0.2s ease'
               }}
             >
-              <Send size={16} /> Submit Internal Review
+              <Send size={18} color="#FFFFFF" /> Submit Internal Review
             </button>
           </>
         ) : (
@@ -384,42 +386,42 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
             <button
               onClick={() => { setActiveTab('submit'); setSubmitSuccess(false); }}
               style={{
-                padding: '0.75rem 1.4rem',
-                borderRadius: '12px',
-                border: 'none',
+                padding: '0.8rem 1.5rem',
+                borderRadius: '14px',
+                border: activeTab === 'submit' ? '1px solid #60A5FA' : '1px solid rgba(255, 255, 255, 0.16)',
                 cursor: 'pointer',
                 fontWeight: '800',
-                fontSize: '0.9rem',
+                fontSize: '0.92rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                background: activeTab === 'submit' ? '#2563EB' : 'transparent',
-                color: activeTab === 'submit' ? '#FFFFFF' : 'var(--text-muted)',
-                boxShadow: activeTab === 'submit' ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none',
+                gap: '0.6rem',
+                background: activeTab === 'submit' ? 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)' : 'rgba(255, 255, 255, 0.06)',
+                color: '#FFFFFF',
+                boxShadow: activeTab === 'submit' ? '0 4px 16px rgba(37, 99, 235, 0.4)' : 'none',
                 transition: 'all 0.2s ease'
               }}
             >
-              <Send size={16} /> Share Your Feedback
+              <Send size={18} color="#FFFFFF" /> Share Your Feedback
             </button>
             <button
               onClick={() => { setActiveTab('history'); fetchMyFeedback(); }}
               style={{
-                padding: '0.75rem 1.4rem',
-                borderRadius: '12px',
-                border: 'none',
+                padding: '0.8rem 1.5rem',
+                borderRadius: '14px',
+                border: activeTab === 'history' ? '1px solid #60A5FA' : '1px solid rgba(255, 255, 255, 0.16)',
                 cursor: 'pointer',
                 fontWeight: '800',
-                fontSize: '0.9rem',
+                fontSize: '0.92rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                background: activeTab === 'history' ? '#2563EB' : 'transparent',
-                color: activeTab === 'history' ? '#FFFFFF' : 'var(--text-muted)',
-                boxShadow: activeTab === 'history' ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none',
+                gap: '0.6rem',
+                background: activeTab === 'history' ? 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)' : 'rgba(255, 255, 255, 0.06)',
+                color: '#FFFFFF',
+                boxShadow: activeTab === 'history' ? '0 4px 16px rgba(37, 99, 235, 0.4)' : 'none',
                 transition: 'all 0.2s ease'
               }}
             >
-              <Clock size={16} /> My Submissions ({myFeedbacks.length})
+              <Clock size={18} color="#FFFFFF" /> My Submissions ({myFeedbacks.length})
             </button>
           </>
         )}
@@ -430,44 +432,44 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
         <div>
           {/* ANALYTICS KPI GRID */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-            <div style={{ background: 'var(--card-bg, #ffffff)', padding: '1.4rem', borderRadius: '18px', border: '1px solid var(--border)', boxShadow: '0 4px 14px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Submissions</div>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--text-main)', marginTop: '0.4rem' }}>{metrics.total}</div>
-              <div style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: '700', marginTop: '0.2rem' }}>Active campus records</div>
+            <div style={{ background: 'rgba(15, 27, 46, 0.88)', padding: '1.4rem', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Submissions</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#FFFFFF', marginTop: '0.4rem' }}>{metrics.total}</div>
+              <div style={{ fontSize: '0.82rem', color: '#34D399', fontWeight: '800', marginTop: '0.2rem' }}>Active campus records</div>
             </div>
 
-            <div style={{ background: 'var(--card-bg, #ffffff)', padding: '1.4rem', borderRadius: '18px', border: '1px solid var(--border)', boxShadow: '0 4px 14px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Campus Rating</div>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#F59E0B', marginTop: '0.4rem' }}>{metrics.averageRating} ★</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.2rem' }}>Out of 5.0 Stars</div>
+            <div style={{ background: 'rgba(15, 27, 46, 0.88)', padding: '1.4rem', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Avg Campus Rating</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#FBBF24', marginTop: '0.4rem', textShadow: '0 0 12px rgba(251, 191, 36, 0.35)' }}>{metrics.averageRating} ★</div>
+              <div style={{ fontSize: '0.82rem', color: '#94A3B8', fontWeight: '700', marginTop: '0.2rem' }}>Out of 5.0 Stars</div>
             </div>
 
-            <div style={{ background: 'var(--card-bg, #ffffff)', padding: '1.4rem', borderRadius: '18px', border: '1px solid var(--border)', boxShadow: '0 4px 14px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Satisfaction Rate</div>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#10B981', marginTop: '0.4rem' }}>{metrics.satisfactionRate}%</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.2rem' }}>4 & 5-Star Reviews</div>
+            <div style={{ background: 'rgba(15, 27, 46, 0.88)', padding: '1.4rem', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Satisfaction Rate</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#34D399', marginTop: '0.4rem', textShadow: '0 0 12px rgba(52, 211, 153, 0.35)' }}>{metrics.satisfactionRate}%</div>
+              <div style={{ fontSize: '0.82rem', color: '#94A3B8', fontWeight: '700', marginTop: '0.2rem' }}>4 & 5-Star Reviews</div>
             </div>
 
-            <div style={{ background: 'var(--card-bg, #ffffff)', padding: '1.4rem', borderRadius: '18px', border: '1px solid var(--border)', boxShadow: '0 4px 14px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pending Review</div>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#3B82F6', marginTop: '0.4rem' }}>{metrics.statusCounts?.NEW || 0}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.2rem' }}>Awaiting operations reply</div>
+            <div style={{ background: 'rgba(15, 27, 46, 0.88)', padding: '1.4rem', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pending Review</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#38BDF8', marginTop: '0.4rem', textShadow: '0 0 12px rgba(56, 189, 248, 0.35)' }}>{metrics.statusCounts?.NEW || 0}</div>
+              <div style={{ fontSize: '0.82rem', color: '#94A3B8', fontWeight: '700', marginTop: '0.2rem' }}>Awaiting operations reply</div>
             </div>
           </div>
 
           {/* FILTERS & SEARCH BAR */}
-          <div style={{ background: 'var(--card-bg, #ffffff)', padding: '1.25rem 1.5rem', borderRadius: '18px', border: '1px solid var(--border)', marginBottom: '1.75rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'rgba(15, 27, 46, 0.88)', padding: '1.25rem 1.5rem', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.16)', marginBottom: '1.75rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(16px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1', minWidth: '260px' }}>
-              <Search size={18} color="var(--text-muted)" />
+              <Search size={18} color="#94A3B8" />
               <input
                 type="text"
                 placeholder="Search feedback by keyword, user, or tags..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '600' }}
+                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#FFFFFF', fontSize: '0.92rem', fontWeight: '600' }}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', fontSize: '1rem' }}>✕</button>
               )}
             </div>
 
@@ -476,40 +478,40 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
               <select
                 value={filterCategory}
                 onChange={e => setFilterCategory(e.target.value)}
-                style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '0.82rem', outline: 'none' }}
+                style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.22)', background: 'rgba(7, 17, 31, 0.85)', color: '#FFFFFF', fontWeight: '700', fontSize: '0.84rem', outline: 'none' }}
               >
                 <option value="ALL">All Categories</option>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                {CATEGORIES.map(c => <option key={c.id} value={c.id} style={{ background: '#07111F' }}>{c.label}</option>)}
               </select>
 
               {/* Status Filter */}
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
-                style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '0.82rem', outline: 'none' }}
+                style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.22)', background: 'rgba(7, 17, 31, 0.85)', color: '#FFFFFF', fontWeight: '700', fontSize: '0.84rem', outline: 'none' }}
               >
                 <option value="ALL">All Statuses</option>
-                <option value="NEW">New</option>
-                <option value="UNDER_REVIEW">Under Review</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="DISMISSED">Closed</option>
+                <option value="NEW" style={{ background: '#07111F' }}>New</option>
+                <option value="UNDER_REVIEW" style={{ background: '#07111F' }}>Under Review</option>
+                <option value="RESOLVED" style={{ background: '#07111F' }}>Resolved</option>
+                <option value="DISMISSED" style={{ background: '#07111F' }}>Closed</option>
               </select>
 
               {/* Sentiment Filter */}
               <select
                 value={filterSentiment}
                 onChange={e => setFilterSentiment(e.target.value)}
-                style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '0.82rem', outline: 'none' }}
+                style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.22)', background: 'rgba(7, 17, 31, 0.85)', color: '#FFFFFF', fontWeight: '700', fontSize: '0.84rem', outline: 'none' }}
               >
                 <option value="ALL">All Sentiments</option>
-                <option value="POSITIVE">Positive (4-5★)</option>
-                <option value="NEUTRAL">Neutral (3★)</option>
-                <option value="NEGATIVE">Critical (1-2★)</option>
+                <option value="POSITIVE" style={{ background: '#07111F' }}>Positive (4-5★)</option>
+                <option value="NEUTRAL" style={{ background: '#07111F' }}>Neutral (3★)</option>
+                <option value="NEGATIVE" style={{ background: '#07111F' }}>Critical (1-2★)</option>
               </select>
 
               <button
                 onClick={fetchAllFeedback}
-                style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', padding: '0.5rem 0.85rem', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-main)' }}
+                style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '0.55rem 0.95rem', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.84rem', fontWeight: '800', color: '#FFFFFF' }}
                 title="Refresh list"
               >
                 <RefreshCw size={14} /> Refresh
@@ -519,15 +521,15 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
           {/* FEEDBACK CARDS LIST */}
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#94A3B8' }}>
               <RefreshCw size={32} className="spin" style={{ margin: '0 auto 1rem', animation: 'spin 1s linear infinite' }} />
-              <p style={{ fontWeight: '700' }}>Fetching feedback submissions...</p>
+              <p style={{ fontWeight: '700', color: '#FFFFFF' }}>Fetching feedback submissions...</p>
             </div>
           ) : feedbacks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'var(--card-bg, #ffffff)', borderRadius: '20px', border: '1px solid var(--border)' }}>
-              <CheckCircle size={44} color="#10B981" style={{ margin: '0 auto 1rem' }} />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.5rem' }}>No feedback entries match your filter</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto' }}>All feedback tickets are addressed or match criteria returned zero records.</p>
+            <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'rgba(15, 27, 46, 0.88)', borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.16)', backdropFilter: 'blur(16px)' }}>
+              <CheckCircle size={44} color="#34D399" style={{ margin: '0 auto 1rem' }} />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#FFFFFF', margin: '0 0 0.5rem' }}>No feedback entries match your filter</h3>
+              <p style={{ color: '#CBD5E1', fontSize: '0.92rem', maxWidth: '420px', margin: '0 auto' }}>All feedback tickets are addressed or match criteria returned zero records.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -538,47 +540,48 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                   <div
                     key={fb.id}
                     style={{
-                      background: 'var(--card-bg, #ffffff)',
+                      background: 'rgba(15, 27, 46, 0.88)',
                       borderRadius: '20px',
                       padding: '1.5rem 1.75rem',
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                      boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                      backdropFilter: 'blur(16px)',
                       transition: 'all 0.2s ease',
-                      borderLeft: `5px solid ${fb.rating >= 4 ? '#10B981' : fb.rating === 3 ? '#F59E0B' : '#EF4444'}`
+                      borderLeft: `5px solid ${fb.rating >= 4 ? '#34D399' : fb.rating === 3 ? '#FBBF24' : '#F87171'}`
                     }}
                   >
                     {/* TOP META ROW */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: `${catObj.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: catObj.color }}>
-                          <CatIcon size={20} />
+                        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: `${catObj.color}25`, border: `1px solid ${catObj.color}45`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: catObj.color }}>
+                          <CatIcon size={22} />
                         </div>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text-main)' }}>{fb.userName}</span>
-                            <span style={{ fontSize: '0.72rem', fontWeight: '800', background: 'var(--bg-main)', padding: '0.15rem 0.5rem', borderRadius: '6px', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <span style={{ fontWeight: '800', fontSize: '1rem', color: '#FFFFFF' }}>{fb.userName}</span>
+                            <span style={{ fontSize: '0.72rem', fontWeight: '800', background: 'rgba(255, 255, 255, 0.08)', padding: '0.2rem 0.55rem', borderRadius: '6px', color: '#93C5FD', border: '1px solid rgba(147, 197, 253, 0.3)' }}>
                               {fb.userRole || 'STUDENT'}
                             </span>
                             {fb.isAnonymous && (
-                              <span style={{ fontSize: '0.7rem', fontWeight: '800', background: 'rgba(100, 116, 139, 0.1)', color: '#64748B', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: '800', background: 'rgba(245, 158, 11, 0.18)', color: '#FBBF24', border: '1px solid rgba(251, 191, 36, 0.4)', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
                                 Anonymous
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '0.2rem' }}>
                             {fb.userEmail} • {new Date(fb.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '2px' }}>
+                        <div style={{ display: 'flex', gap: '3px' }}>
                           {[1, 2, 3, 4, 5].map(star => (
                             <Star
                               key={star}
                               size={16}
                               fill={star <= fb.rating ? '#F59E0B' : 'transparent'}
-                              color={star <= fb.rating ? '#F59E0B' : '#CBD5E1'}
+                              color={star <= fb.rating ? '#F59E0B' : '#64748B'}
                             />
                           ))}
                         </div>
@@ -588,10 +591,10 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                     </div>
 
                     {/* SUBJECT & COMMENT */}
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.5rem' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#FFFFFF', margin: '0 0 0.5rem' }}>
                       {fb.subject}
                     </h3>
-                    <p style={{ color: 'var(--text-main)', fontSize: '0.92rem', lineHeight: '1.6', margin: '0 0 1rem', whiteSpace: 'pre-line' }}>
+                    <p style={{ color: '#E2E8F0', fontSize: '0.94rem', lineHeight: '1.6', margin: '0 0 1rem', whiteSpace: 'pre-line', fontWeight: '500' }}>
                       {fb.comment}
                     </p>
 
@@ -604,17 +607,17 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                             style={{
                               fontSize: '0.75rem',
                               fontWeight: '700',
-                              color: '#475569',
-                              background: 'var(--bg-main)',
-                              padding: '0.2rem 0.65rem',
+                              color: '#FFFFFF',
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              padding: '0.25rem 0.75rem',
                               borderRadius: '8px',
-                              border: '1px solid var(--border)',
+                              border: '1px solid rgba(255, 255, 255, 0.18)',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.3rem'
+                              gap: '0.35rem'
                             }}
                           >
-                            <Tag size={10} color="#2563EB" /> {tag}
+                            <Tag size={11} color="#60A5FA" /> {tag}
                           </span>
                         ))}
                       </div>
@@ -622,24 +625,24 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
                     {/* ADMIN REPLY BOX (IF PRESENT) */}
                     {fb.adminReply && (
-                      <div style={{ background: 'rgba(37, 99, 235, 0.05)', border: '1px solid rgba(37, 99, 235, 0.2)', borderRadius: '14px', padding: '1rem 1.25rem', marginTop: '1rem', marginBottom: '1rem' }}>
+                      <div style={{ background: 'rgba(37, 99, 235, 0.15)', border: '1px solid rgba(96, 165, 250, 0.35)', borderRadius: '14px', padding: '1.1rem 1.35rem', marginTop: '1rem', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                          <Shield size={16} color="#2563EB" />
-                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1D4ED8' }}>Official Operations Response:</span>
+                          <Shield size={16} color="#60A5FA" />
+                          <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#93C5FD' }}>Official Operations Response:</span>
                           {fb.adminRepliedAt && (
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
                               ({new Date(fb.adminRepliedAt).toLocaleDateString()})
                             </span>
                           )}
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#FFFFFF', fontStyle: 'italic', lineHeight: '1.5' }}>
                           "{fb.adminReply}"
                         </p>
                       </div>
                     )}
 
                     {/* ACTIONS ROW */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.85rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '0.85rem' }}>
                       <button
                         onClick={() => {
                           setSelectedFbForReply(fb);
@@ -647,37 +650,37 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                           setReplyStatus(fb.status || 'RESOLVED');
                         }}
                         style={{
-                          background: '#2563EB',
+                          background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
                           color: '#FFFFFF',
                           border: 'none',
-                          padding: '0.5rem 1.1rem',
+                          padding: '0.55rem 1.25rem',
                           borderRadius: '10px',
-                          fontSize: '0.82rem',
+                          fontSize: '0.84rem',
                           fontWeight: '800',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.4rem',
-                          boxShadow: '0 2px 8px rgba(37, 99, 235, 0.2)'
+                          gap: '0.45rem',
+                          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
                         }}
                       >
-                        <MessageSquare size={14} /> {fb.adminReply ? 'Edit Response' : 'Reply & Resolve'}
+                        <MessageSquare size={14} color="#FFFFFF" /> {fb.adminReply ? 'Edit Response' : 'Reply & Resolve'}
                       </button>
 
                       <button
                         onClick={() => handleDeleteFeedback(fb.id)}
                         style={{
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          color: '#EF4444',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          padding: '0.5rem 0.9rem',
+                          background: 'rgba(239, 68, 68, 0.18)',
+                          color: '#F87171',
+                          border: '1px solid rgba(248, 113, 113, 0.4)',
+                          padding: '0.55rem 1rem',
                           borderRadius: '10px',
-                          fontSize: '0.82rem',
+                          fontSize: '0.84rem',
                           fontWeight: '800',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.35rem'
+                          gap: '0.4rem'
                         }}
                         title="Delete feedback entry"
                       >
@@ -696,40 +699,40 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
       {activeTab === 'submit' && (
         <div style={{ maxWidth: '820px', margin: '0 auto' }}>
           {submitSuccess ? (
-            <div style={{ background: 'var(--card-bg, #ffffff)', borderRadius: '24px', padding: '3rem 2rem', textAlign: 'center', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#10B981', border: '2px solid rgba(16, 185, 129, 0.3)' }}>
-                <CheckCircle size={36} />
+            <div style={{ background: 'rgba(15, 27, 46, 0.92)', borderRadius: '24px', padding: '3rem 2rem', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.18)', boxShadow: '0 12px 36px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#34D399', border: '2px solid rgba(52, 211, 153, 0.45)', boxShadow: '0 0 20px rgba(52, 211, 153, 0.35)' }}>
+                <CheckCircle size={38} />
               </div>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: '900', color: '#FFFFFF', marginBottom: '0.75rem' }}>
                 Thank You for Your Feedback!
               </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto 2rem', lineHeight: '1.6' }}>
+              <p style={{ color: '#CBD5E1', fontSize: '0.96rem', maxWidth: '520px', margin: '0 auto 2rem', lineHeight: '1.6' }}>
                 Your review has been submitted to campus parking operations. If you provided your account details, you will be notified in your drawer when an admin replies.
               </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setSubmitSuccess(false)}
-                  style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: '800', color: 'var(--text-main)', cursor: 'pointer' }}
+                  style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '0.8rem 1.6rem', borderRadius: '12px', fontWeight: '800', color: '#FFFFFF', cursor: 'pointer', transition: 'all 0.2s ease' }}
                 >
                   Submit Another Review
                 </button>
                 <button
                   onClick={() => setActiveTab(isAdmin ? 'inbox' : 'history')}
-                  style={{ background: '#2563EB', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: '800', color: '#FFFFFF', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' }}
+                  style={{ background: 'linear-gradient(135deg, #2563EB, #4F46E5)', border: 'none', padding: '0.8rem 1.6rem', borderRadius: '12px', fontWeight: '800', color: '#FFFFFF', cursor: 'pointer', boxShadow: '0 4px 16px rgba(37, 99, 235, 0.4)' }}
                 >
                   View {isAdmin ? 'All Submissions' : 'My Past Reviews'} →
                 </button>
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmitFeedback} style={{ background: 'var(--card-bg, #ffffff)', borderRadius: '24px', padding: '2.5rem', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
+            <form onSubmit={handleSubmitFeedback} style={{ background: 'rgba(15, 27, 46, 0.92)', borderRadius: '24px', padding: '2.5rem', border: '1px solid rgba(255, 255, 255, 0.18)', boxShadow: '0 12px 36px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
               
               {/* STAR RATING PICKER */}
               <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#CBD5E1', marginBottom: '0.85rem' }}>
                   Overall Campus Parking Experience
                 </label>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
                       key={star}
@@ -743,27 +746,27 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                         cursor: 'pointer',
                         padding: '0.4rem',
                         transition: 'transform 0.15s ease',
-                        transform: (hoverRating || rating) >= star ? 'scale(1.15)' : 'scale(1)'
+                        transform: (hoverRating || rating) >= star ? 'scale(1.2)' : 'scale(1)'
                       }}
                       title={`${star} Star`}
                     >
                       <Star
-                        size={38}
+                        size={40}
                         fill={(hoverRating || rating) >= star ? '#F59E0B' : 'transparent'}
-                        color={(hoverRating || rating) >= star ? '#F59E0B' : '#CBD5E1'}
-                        style={{ filter: (hoverRating || rating) >= star ? 'drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4))' : 'none' }}
+                        color={(hoverRating || rating) >= star ? '#F59E0B' : '#64748B'}
+                        style={{ filter: (hoverRating || rating) >= star ? 'drop-shadow(0 2px 12px rgba(245, 158, 11, 0.6))' : 'none' }}
                       />
                     </button>
                   ))}
                 </div>
-                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: (hoverRating || rating) >= 4 ? '#10B981' : (hoverRating || rating) === 3 ? '#F59E0B' : '#EF4444' }}>
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: (hoverRating || rating) >= 4 ? '#34D399' : (hoverRating || rating) === 3 ? '#FBBF24' : '#F87171', textShadow: '0 0 10px rgba(0,0,0,0.5)' }}>
                   {RATING_DESCRIPTIONS[hoverRating || rating]}
                 </div>
               </div>
 
               {/* CATEGORY SELECTOR */}
               <div style={{ marginBottom: '2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.85rem', letterSpacing: '0.3px' }}>
                   Select Topic / Category
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
@@ -777,20 +780,20 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                         style={{
                           padding: '1rem',
                           borderRadius: '16px',
-                          border: isSelected ? `2px solid ${cat.color}` : '1px solid var(--border)',
-                          background: isSelected ? `${cat.color}10` : 'var(--bg-main)',
+                          border: isSelected ? `2px solid ${cat.color}` : '1px solid rgba(255, 255, 255, 0.16)',
+                          background: isSelected ? `${cat.color}25` : 'rgba(255, 255, 255, 0.05)',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.85rem',
                           transition: 'all 0.2s ease',
-                          boxShadow: isSelected ? `0 4px 14px ${cat.color}25` : 'none'
+                          boxShadow: isSelected ? `0 4px 20px ${cat.color}40` : 'none'
                         }}
                       >
-                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${cat.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
-                          <CatIcon size={18} />
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: `${cat.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
+                          <CatIcon size={20} />
                         </div>
-                        <span style={{ fontWeight: isSelected ? '800' : '600', fontSize: '0.88rem', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                        <span style={{ fontWeight: isSelected ? '800' : '700', fontSize: '0.9rem', color: '#FFFFFF' }}>
                           {cat.label}
                         </span>
                       </div>
@@ -801,10 +804,10 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
               {/* QUICK TAGS */}
               <div style={{ marginBottom: '2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.65rem' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.75rem', letterSpacing: '0.3px' }}>
                   Experience Highlights (Tap to Tag)
                 </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem' }}>
                   {PREDEFINED_TAGS.map((tag, idx) => {
                     const isSelected = selectedTags.includes(tag);
                     return (
@@ -813,21 +816,22 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                         key={idx}
                         onClick={() => toggleTag(tag)}
                         style={{
-                          padding: '0.4rem 0.85rem',
+                          padding: '0.45rem 0.95rem',
                           borderRadius: '20px',
-                          border: isSelected ? '1px solid #2563EB' : '1px solid var(--border)',
-                          background: isSelected ? '#2563EB' : 'var(--bg-main)',
-                          color: isSelected ? '#FFFFFF' : 'var(--text-muted)',
-                          fontSize: '0.78rem',
+                          border: isSelected ? '1px solid #60A5FA' : '1px solid rgba(255, 255, 255, 0.18)',
+                          background: isSelected ? 'linear-gradient(135deg, #2563EB, #4F46E5)' : 'rgba(255, 255, 255, 0.06)',
+                          color: '#FFFFFF',
+                          fontSize: '0.8rem',
                           fontWeight: '700',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.35rem',
-                          transition: 'all 0.15s ease'
+                          gap: '0.4rem',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 2px 10px rgba(37, 99, 235, 0.4)' : 'none'
                         }}
                       >
-                        {isSelected && <Check size={12} />} {tag}
+                        {isSelected && <Check size={13} color="#FFFFFF" />} {tag}
                       </button>
                     );
                   })}
@@ -836,7 +840,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
               {/* SUBJECT INPUT */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.55rem' }}>
                   Headline / Subject
                 </label>
                 <input
@@ -848,10 +852,10 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                     width: '100%',
                     padding: '0.85rem 1rem',
                     borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-main)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.9rem',
+                    border: '1px solid rgba(255, 255, 255, 0.22)',
+                    background: 'rgba(7, 17, 31, 0.85)',
+                    color: '#FFFFFF',
+                    fontSize: '0.92rem',
                     fontWeight: '600',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -861,8 +865,8 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
               {/* COMMENTS TEXTAREA */}
               <div style={{ marginBottom: '1.75rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-                  Detailed Review & Suggestions <span style={{ color: '#EF4444' }}>*</span>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.55rem' }}>
+                  Detailed Review & Suggestions <span style={{ color: '#F87171' }}>*</span>
                 </label>
                 <textarea
                   rows={4}
@@ -874,10 +878,10 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                     width: '100%',
                     padding: '0.85rem 1rem',
                     borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-main)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.9rem',
+                    border: '1px solid rgba(255, 255, 255, 0.22)',
+                    background: 'rgba(7, 17, 31, 0.85)',
+                    color: '#FFFFFF',
+                    fontSize: '0.92rem',
                     fontWeight: '500',
                     lineHeight: '1.5',
                     outline: 'none',
@@ -892,15 +896,15 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '1rem 1.25rem',
+                padding: '1.1rem 1.35rem',
                 borderRadius: '14px',
-                background: 'var(--bg-main)',
-                border: '1px solid var(--border)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
                 marginBottom: '2rem'
               }}>
                 <div>
-                  <div style={{ fontWeight: '800', fontSize: '0.88rem', color: 'var(--text-main)' }}>Submit Anonymously</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                  <div style={{ fontWeight: '800', fontSize: '0.92rem', color: '#FFFFFF' }}>Submit Anonymously</div>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '0.2rem' }}>
                     Hide your name and student email from operations display
                   </div>
                 </div>
@@ -908,14 +912,14 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                   type="checkbox"
                   checked={isAnonymous}
                   onChange={e => setIsAnonymous(e.target.checked)}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563EB' }}
+                  style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#2563EB' }}
                 />
               </div>
 
               {/* ERROR MESSAGE */}
               {submitError && (
-                <div style={{ padding: '0.85rem 1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#EF4444', fontSize: '0.85rem', fontWeight: '700', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <AlertCircle size={16} /> {submitError}
+                <div style={{ padding: '0.85rem 1.1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(248, 113, 113, 0.45)', color: '#FCA5A5', fontSize: '0.88rem', fontWeight: '700', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertCircle size={18} color="#F87171" /> {submitError}
                 </div>
               )}
 
@@ -925,7 +929,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                 disabled={isSubmitting}
                 style={{
                   width: '100%',
-                  padding: '1rem',
+                  padding: '1.05rem',
                   borderRadius: '14px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #2563EB, #4F46E5)',
@@ -937,7 +941,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
-                  boxShadow: '0 4px 16px rgba(37, 99, 235, 0.35)',
+                  boxShadow: '0 4px 18px rgba(37, 99, 235, 0.45)',
                   transition: 'all 0.2s ease'
                 }}
               >
@@ -960,17 +964,17 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
       {!isAdmin && activeTab === 'history' && (
         <div style={{ maxWidth: '820px', margin: '0 auto' }}>
           {myFeedbacks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'var(--card-bg, #ffffff)', borderRadius: '24px', border: '1px solid var(--border)' }}>
-              <MessageSquare size={44} color="var(--primary, #2563EB)" style={{ margin: '0 auto 1rem', opacity: 0.7 }} />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.5rem' }}>
+            <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'rgba(15, 27, 46, 0.92)', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.18)', boxShadow: '0 12px 36px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+              <MessageSquare size={48} color="#60A5FA" style={{ margin: '0 auto 1.25rem', filter: 'drop-shadow(0 0 12px rgba(96, 165, 250, 0.5))' }} />
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '900', color: '#FFFFFF', margin: '0 0 0.5rem' }}>
                 You haven't submitted any feedback yet
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '420px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
+              <p style={{ color: '#CBD5E1', fontSize: '0.94rem', maxWidth: '440px', margin: '0 auto 1.75rem', lineHeight: '1.6' }}>
                 Share your campus parking experience, rate AI recommendations, or suggest improvements to help us optimize slot vacancy.
               </p>
               <button
                 onClick={() => setActiveTab('submit')}
-                style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' }}
+                style={{ background: 'linear-gradient(135deg, #2563EB, #4F46E5)', color: '#FFFFFF', border: 'none', padding: '0.8rem 1.6rem', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 16px rgba(37, 99, 235, 0.4)' }}
               >
                 Submit Your First Review →
               </button>
@@ -984,35 +988,36 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                   <div
                     key={fb.id}
                     style={{
-                      background: 'var(--card-bg, #ffffff)',
+                      background: 'rgba(15, 27, 46, 0.92)',
                       borderRadius: '20px',
                       padding: '1.5rem 1.75rem',
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
-                      borderLeft: `5px solid ${fb.rating >= 4 ? '#10B981' : fb.rating === 3 ? '#F59E0B' : '#EF4444'}`
+                      border: '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                      backdropFilter: 'blur(16px)',
+                      borderLeft: `5px solid ${fb.rating >= 4 ? '#34D399' : fb.rating === 3 ? '#FBBF24' : '#F87171'}`
                     }}
                   >
                     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '0.85rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: `${catObj.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: catObj.color }}>
-                          <CatIcon size={18} />
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${catObj.color}25`, border: `1px solid ${catObj.color}45`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: catObj.color }}>
+                          <CatIcon size={20} />
                         </div>
                         <div>
-                          <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text-main)' }}>{catObj.label}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          <div style={{ fontWeight: '800', fontSize: '0.98rem', color: '#FFFFFF' }}>{catObj.label}</div>
+                          <div style={{ fontSize: '0.76rem', color: '#94A3B8' }}>
                             {new Date(fb.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '2px' }}>
+                        <div style={{ display: 'flex', gap: '3px' }}>
                           {[1, 2, 3, 4, 5].map(star => (
                             <Star
                               key={star}
                               size={15}
                               fill={star <= fb.rating ? '#F59E0B' : 'transparent'}
-                              color={star <= fb.rating ? '#F59E0B' : '#CBD5E1'}
+                              color={star <= fb.rating ? '#F59E0B' : '#64748B'}
                             />
                           ))}
                         </div>
@@ -1020,21 +1025,21 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                       </div>
                     </div>
 
-                    <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.4rem' }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#FFFFFF', margin: '0 0 0.4rem' }}>
                       {fb.subject}
                     </h4>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem' }}>
+                    <p style={{ color: '#E2E8F0', fontSize: '0.92rem', lineHeight: '1.6', margin: '0 0 0.85rem', fontWeight: '500' }}>
                       {fb.comment}
                     </p>
 
                     {/* ADMIN RESPONSE BANNER */}
                     {fb.adminReply && (
-                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '14px', padding: '1rem 1.25rem', marginTop: '0.85rem' }}>
+                      <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '14px', padding: '1.1rem 1.35rem', marginTop: '0.85rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
-                          <ShieldCheck size={16} color="#10B981" />
-                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#047857' }}>Campus Operations Response:</span>
+                          <ShieldCheck size={18} color="#34D399" />
+                          <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#6EE7B7' }}>Campus Operations Response:</span>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#FFFFFF', fontStyle: 'italic', lineHeight: '1.5' }}>
                           "{fb.adminReply}"
                         </p>
                       </div>
@@ -1049,50 +1054,50 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
 
       {/* ================= ADMIN REPLY MODAL ================= */}
       {selectedFbForReply && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }} onClick={() => setSelectedFbForReply(null)}>
-          <div style={{ background: 'var(--card-bg, #ffffff)', borderRadius: '24px', padding: '2rem', maxWidth: '580px', width: '100%', border: '1px solid var(--border)', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(3, 7, 18, 0.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }} onClick={() => setSelectedFbForReply(null)}>
+          <div style={{ background: 'rgba(15, 27, 46, 0.96)', borderRadius: '24px', padding: '2rem', maxWidth: '580px', width: '100%', border: '1px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 24px 60px rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Shield size={20} color="#2563EB" />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Shield size={22} color="#60A5FA" />
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#FFFFFF', margin: 0 }}>
                   Respond to User Feedback
                 </h3>
               </div>
-              <button onClick={() => setSelectedFbForReply(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
+              <button onClick={() => setSelectedFbForReply(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94A3B8' }}>✕</button>
             </div>
 
-            <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '14px', marginBottom: '1.25rem', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)' }}>
+            <div style={{ background: 'rgba(7, 17, 31, 0.85)', padding: '1.1rem', borderRadius: '14px', marginBottom: '1.25rem', border: '1px solid rgba(255, 255, 255, 0.16)' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#94A3B8' }}>
                 {selectedFbForReply.userName} ({selectedFbForReply.rating}★ - {selectedFbForReply.category})
               </div>
-              <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text-main)', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: '800', fontSize: '0.98rem', color: '#FFFFFF', marginTop: '0.25rem' }}>
                 {selectedFbForReply.subject}
               </div>
-              <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+              <p style={{ margin: '0.4rem 0 0', fontSize: '0.88rem', color: '#E2E8F0', lineHeight: '1.5' }}>
                 "{selectedFbForReply.comment}"
               </p>
             </div>
 
             {/* STATUS CHANGER */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.45rem' }}>
                 Update Ticket Status
               </label>
               <select
                 value={replyStatus}
                 onChange={e => setReplyStatus(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }}
+                style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.22)', background: 'rgba(7, 17, 31, 0.85)', color: '#FFFFFF', fontWeight: '700', outline: 'none' }}
               >
-                <option value="NEW">New (Unresolved)</option>
-                <option value="UNDER_REVIEW">Under Review / Investigating</option>
-                <option value="RESOLVED">Resolved / Addressed</option>
-                <option value="DISMISSED">Dismissed / Closed</option>
+                <option value="NEW" style={{ background: '#07111F' }}>New (Unresolved)</option>
+                <option value="UNDER_REVIEW" style={{ background: '#07111F' }}>Under Review / Investigating</option>
+                <option value="RESOLVED" style={{ background: '#07111F' }}>Resolved / Addressed</option>
+                <option value="DISMISSED" style={{ background: '#07111F' }}>Dismissed / Closed</option>
               </select>
             </div>
 
             {/* REPLY MESSAGE */}
             <div style={{ marginBottom: '1.75rem' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#FFFFFF', marginBottom: '0.45rem' }}>
                 Official Reply Message (Sent to User)
               </label>
               <textarea
@@ -1100,7 +1105,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                 placeholder="Write an operational reply. The student will receive a real-time notification on their device..."
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.88rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.22)', background: 'rgba(7, 17, 31, 0.85)', color: '#FFFFFF', fontSize: '0.9rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -1108,7 +1113,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
               <button
                 type="button"
                 onClick={() => setSelectedFbForReply(null)}
-                style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', padding: '0.7rem 1.25rem', borderRadius: '12px', fontWeight: '700', color: 'var(--text-main)', cursor: 'pointer' }}
+                style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '0.75rem 1.4rem', borderRadius: '12px', fontWeight: '800', color: '#FFFFFF', cursor: 'pointer' }}
               >
                 Cancel
               </button>
@@ -1116,7 +1121,7 @@ export default function FeedbackPage({ userRole = 'STUDENT', profile = {}, BACKE
                 type="button"
                 onClick={handleSendReply}
                 disabled={isSavingReply}
-                style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', padding: '0.7rem 1.5rem', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' }}
+                style={{ background: 'linear-gradient(135deg, #2563EB, #4F46E5)', color: '#FFFFFF', border: 'none', padding: '0.75rem 1.6rem', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.45rem', boxShadow: '0 4px 16px rgba(37, 99, 235, 0.45)' }}
               >
                 {isSavingReply ? 'Saving...' : 'Send Reply & Save'}
               </button>

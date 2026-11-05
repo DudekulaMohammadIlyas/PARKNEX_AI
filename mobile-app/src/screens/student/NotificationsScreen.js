@@ -125,35 +125,58 @@ export default function NotificationsScreen({ navigation, route, user, userRole:
     if (!navigation) return;
 
     const r = (userRole || 'STUDENT').toUpperCase();
+    const dest = deepLink || item.category;
+
     if (r === 'SECURITY') {
-      if (deepLink === 'cctv' || item.category === 'CCTV' || item.category === 'GATE') {
-        navigation.navigate('CCTV');
-      } else if (deepLink === 'visitors' || item.category === 'VISITOR') {
-        navigation.navigate('Visitors');
-      } else if (deepLink === 'violations' || item.category === 'VIOLATION') {
-        navigation.navigate('Violations');
+      if (dest === 'cctv' || item.category === 'CCTV' || item.category === 'GATE' || item.category === 'GATE_ALERT') {
+        navigation.navigate('Scan');
+      } else if (dest === 'visitors' || item.category === 'VISITOR') {
+        navigation.navigate('SecurityHome', { initialTab: 'visitors' });
+      } else if (dest === 'violations' || item.category === 'VIOLATION') {
+        navigation.navigate('SecurityHome', { initialTab: 'violations' });
+      } else if (dest === 'FeedbackPage' || dest === 'Feedback' || item.category === 'FEEDBACK') {
+        navigation.navigate('Feedback');
+      } else if (dest === 'logs' || item.category === 'AUDIT') {
+        navigation.navigate('SecurityLogs');
       } else {
-        navigation.navigate('Home');
+        navigation.navigate('SecurityHome');
       }
     } else if (r === 'ADMIN') {
-      if (deepLink === 'ManageZones' || item.category === 'CAPACITY') {
-        navigation.navigate('Zones');
-      } else if (deepLink === 'Analytics' || item.category === 'SYSTEM') {
+      if (dest === 'violations' || item.category === 'VIOLATION') {
+        navigation.navigate('AdminHome', { openViolations: true });
+      } else if (dest === 'ManageZones' || item.category === 'CAPACITY') {
+        navigation.navigate('ManageZones');
+      } else if (dest === 'Analytics' || item.category === 'SYSTEM' || item.category === 'ANALYTICS') {
+        navigation.navigate('Analytics');
+      } else if (dest === 'Reports' || item.category === 'AUDIT') {
         navigation.navigate('Reports');
+      } else if (dest === 'UserManagement' || dest === 'users') {
+        navigation.navigate('UserManagement');
+      } else if (dest === 'FeedbackPage' || dest === 'Feedback' || item.category === 'FEEDBACK') {
+        navigation.navigate('Feedback');
+      } else if (dest === 'SystemSettings') {
+        navigation.navigate('SystemSettings');
       } else {
-        navigation.navigate('Home');
+        navigation.navigate('AdminHome');
       }
     } else {
-      if (deepLink === 'StudentBookScreen' || item.category === 'PARKING_EXPIRY' || item.category === 'BOOKING') {
+      // STUDENT / STAFF / FACULTY
+      if (dest === 'violations' || item.category === 'VIOLATION') {
+        navigation.navigate('StudentHome', { highlightViolations: true });
+      } else if (dest === 'FeedbackPage' || dest === 'Feedback' || item.category === 'FEEDBACK') {
+        navigation.navigate('Feedback');
+      } else if (dest === 'ExitSuccess') {
+        navigation.navigate('ExitSuccess');
+      } else if (dest === 'StudentBookScreen' || item.category === 'PARKING_EXPIRY' || item.category === 'BOOKING') {
         navigation.navigate('Book');
-      } else if (deepLink === 'StudentVehiclesScreen' || item.category === 'VEHICLE_ENTRY' || item.category === 'VEHICLE_EXIT') {
+      } else if (dest === 'StudentVehiclesScreen' || item.category === 'VEHICLE_ENTRY' || item.category === 'VEHICLE_EXIT') {
         navigation.navigate('Vehicles');
-      } else if (deepLink === 'StudentPassScreen' || item.category === 'PASS') {
+      } else if (dest === 'StudentPassScreen' || item.category === 'PASS') {
         navigation.navigate('Pass');
-      } else if (deepLink === 'Emergency' || item.category === 'EMERGENCY') {
+      } else if (dest === 'Emergency' || item.category === 'EMERGENCY') {
         Alert.alert('🚨 Emergency Alert', item.message);
       } else {
-        navigation.navigate('Home');
+        navigation.navigate('StudentHome');
       }
     }
   };

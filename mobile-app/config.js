@@ -6,7 +6,7 @@ let activeBackendUrl = null;
 let customServerUrl = null;
 
 // Primary host machine Wi-Fi IPv4 address on the current network
-export const CURRENT_WIFI_IP = '10.183.174.205';
+export const CURRENT_WIFI_IP = '192.168.29.254';
 
 // Initialize cached working backend URL and custom server override from previous sessions
 AsyncStorage.getItem('@parknex_custom_server_ip').then(custom => {
@@ -24,14 +24,14 @@ AsyncStorage.getItem('@parknex_active_backend_url').then(cached => {
 export const getCandidateUrls = () => {
   const candidates = [];
 
-  // 1. User manual override if configured in app
-  if (customServerUrl) {
-    candidates.push(customServerUrl);
-  }
-
-  // 2. Currently active / verified working URL
+  // 1. Currently active / verified working URL (Fast path: avoids redundant failover delays)
   if (activeBackendUrl) {
     candidates.push(activeBackendUrl);
+  }
+
+  // 2. User manual override if configured in app
+  if (customServerUrl) {
+    candidates.push(customServerUrl);
   }
 
   // 3. Current active Wi-Fi host IPv4 address (Primary for current network)
@@ -68,16 +68,11 @@ export const getCandidateUrls = () => {
   // 7. Android Emulator default host mapping
   candidates.push('http://10.0.2.2:5000/api');
 
-  // 8. Other previous known fallback network IPs
-  candidates.push('http://10.213.187.205:5000/api');
-  candidates.push('http://192.168.29.254:5000/api');
-  candidates.push('http://192.168.1.100:5000/api');
-
   return [...new Set(candidates)];
 };
 
 export const getBackendUrl = () => {
-  return customServerUrl || activeBackendUrl || `http://${CURRENT_WIFI_IP}:5000/api`;
+  return activeBackendUrl || `http://${CURRENT_WIFI_IP}:5000/api` || customServerUrl;
 };
 
 export const setCustomBackendIp = async (ipOrUrl) => {
@@ -105,7 +100,7 @@ export const testBackendConnection = async (targetUrl = null) => {
   const urlToTest = targetUrl || getBackendUrl();
   const clean = urlToTest.replace(/\/$/, '');
   try {
-    const res = await axios.get(`${clean}/health`, { timeout: 3000 });
+    const res = await axios.get(`${clean}/health`, { timeout: 2000 });
     return { success: res.status === 200, url: urlToTest, data: res.data };
   } catch (err) {
     return { success: false, url: urlToTest, error: err.message };
@@ -116,22 +111,36 @@ export const smartApiRequest = async (method, relativePath, data = null, headers
   const isAiReq = (relativePath || '').toLowerCase().includes('ai');
   const candidates = getCandidateUrls();
 
+  // Automatically attach auth token if available
+  const authHeaders = { ...headers };
+  try {
+    const token = await AsyncStorage.getItem('@parknex_token');
+    if (token && !authHeaders.Authorization) {
+      authHeaders.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {}
+
   let lastError = null;
 
   for (const baseUrl of candidates) {
     const fullUrl = `${baseUrl.replace(/\/$/, '')}/${relativePath.replace(/^\//, '')}`;
+    const timeoutMs = isAiReq ? 15000 : (baseUrl === activeBackendUrl ? 2500 : 1500);
     try {
       const response = await axios({
         method,
         url: fullUrl,
         data,
-        headers,
-        timeout: isAiReq ? 25000 : 3500 // Fast failover on dead IP candidates
+        headers: authHeaders,
+        timeout: timeoutMs
       });
 
       // Cache the working backend URL for future requests
       activeBackendUrl = baseUrl;
       AsyncStorage.setItem('@parknex_active_backend_url', baseUrl).catch(() => null);
+      if (customServerUrl && customServerUrl !== baseUrl) {
+        customServerUrl = baseUrl;
+        AsyncStorage.setItem('@parknex_custom_server_ip', baseUrl).catch(() => null);
+      }
       return response;
     } catch (err) {
       lastError = err;

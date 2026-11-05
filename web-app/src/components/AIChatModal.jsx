@@ -243,7 +243,7 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
   useEffect(() => {
     const fetchHealthAndSuggestions = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('parknex_token') || localStorage.getItem('token');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         
         const [healthRes, sugRes] = await Promise.all([
@@ -290,12 +290,16 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('parknex_token') || localStorage.getItem('token');
       let storedUser = null;
       try {
-        const u = localStorage.getItem('user');
+        const u = localStorage.getItem('parknex_user') || localStorage.getItem('user');
         if (u) storedUser = JSON.parse(u);
       } catch (e) {}
+
+      const effectiveEmail = currentUser?.email || storedUser?.email || localStorage.getItem('parknex_user_email') || 'student@college.edu';
+      const effectiveName = currentUser?.name || storedUser?.name || 'User';
+      const effectiveRole = currentUser?.role || storedUser?.role || 'STUDENT';
 
       const headers = {
         'Content-Type': 'application/json',
@@ -308,9 +312,9 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
         body: JSON.stringify({
           message: query.trim(),
           conversationId: conversationId,
-          userEmail: storedUser?.email || '',
-          userName: storedUser?.name || '',
-          userRole: storedUser?.role || ''
+          userEmail: effectiveEmail,
+          userName: effectiveName,
+          userRole: effectiveRole
         })
       });
 
@@ -407,12 +411,16 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
     if (isDemoRunning) return;
     setIsDemoRunning(true);
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('parknex_token') || localStorage.getItem('token');
     let storedUser = null;
     try {
-      const u = localStorage.getItem('user');
+      const u = localStorage.getItem('parknex_user') || localStorage.getItem('user');
       if (u) storedUser = JSON.parse(u);
     } catch (e) {}
+
+    const effectiveEmail = currentUser?.email || storedUser?.email || localStorage.getItem('parknex_user_email') || 'student@college.edu';
+    const effectiveName = currentUser?.name || storedUser?.name || 'User';
+    const effectiveRole = currentUser?.role || storedUser?.role || 'STUDENT';
 
     const headers = {
       'Content-Type': 'application/json',
@@ -434,9 +442,9 @@ export default function AIChatModal({ isOpen, onClose, currentUser }) {
           body: JSON.stringify({
             message: test.query,
             conversationId: testConvId,
-            userEmail: storedUser?.email || '',
-            userName: storedUser?.name || '',
-            userRole: storedUser?.role || ''
+            userEmail: effectiveEmail,
+            userName: effectiveName,
+            userRole: effectiveRole
           })
         });
 

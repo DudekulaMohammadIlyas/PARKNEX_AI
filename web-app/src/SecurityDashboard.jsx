@@ -242,7 +242,14 @@ export default function SecurityDashboard({
             config,
             (decodedText) => {
               if (!isMounted) return;
-              setQrTokenInput(decodedText);
+              let displayToken = decodedText;
+              try {
+                const parsed = typeof decodedText === 'string' ? JSON.parse(decodedText) : decodedText;
+                if (parsed.vehiclePlate || parsed.plateNumber) {
+                  displayToken = parsed.vehiclePlate || parsed.plateNumber;
+                }
+              } catch (e) {}
+              setQrTokenInput(displayToken);
               handleScanQRToken(decodedText);
               if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
                 html5QrcodeScanner.stop().catch(() => {});
@@ -322,6 +329,9 @@ export default function SecurityDashboard({
       const res = await axios.post(`${BACKEND_URL}/security/release-vehicle`, {
         bookingId,
         plateNumber,
+        userEmail: scannedQRDetails.owner?.email,
+        slotNumber: scannedQRDetails.booking?.slotNumber,
+        zoneName: scannedQRDetails.booking?.zoneName,
         officerEmail: profile?.email || 'security@college.edu',
         role: 'SECURITY',
         remarks: 'Released via Web Command Center QR Scanner'
@@ -925,7 +935,7 @@ export default function SecurityDashboard({
       )}
 
       {/* VIOLATIONS MANAGEMENT TAB */}
-      {activeTab === 'incidents' && (
+      {(activeTab === 'incidents' || activeTab === 'violations') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>

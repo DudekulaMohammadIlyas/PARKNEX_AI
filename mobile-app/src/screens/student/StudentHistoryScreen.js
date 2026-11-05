@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
@@ -14,84 +14,110 @@ const BACKEND_URL = config.BACKEND_URL;
 export default function StudentHistoryScreen() {
   const [user, setUser] = useState(null);
   const [historyData, setHistoryData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedExitBooking, setSelectedExitBooking] = useState(null);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadHistory = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem('@parknex_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
-        if (isMounted) setUser(userObj);
+  const loadHistory = useCallback(async (isManualRefresh = false) => {
+    try {
+      const storedUser = await AsyncStorage.getItem('@parknex_user');
+      const userObj = storedUser ? JSON.parse(storedUser) : { email: '', name: '' };
+      setUser(userObj);
 
-        const userEmail = userObj.email || '';
+      const userEmail = (userObj.email || '').trim().toLowerCase();
 
+      // Instantly populate from local offline cache
+      if (userEmail) {
+        const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail}`).catch(() => null);
+        if (savedHist) {
+          try {
+            const parsed = JSON.parse(savedHist);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setHistoryData(parsed);
+              setIsLoading(false);
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Query live synchronized history from backend
+      const apiRes = await smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
+      if (Array.isArray(apiRes?.data)) {
+        const apiMapped = apiRes.data.map(b => ({
+          id: String(b.id || `b_${Date.now()}`),
+          date: b.date || b.bookingDate || 'Today',
+          time: b.time || b.bookingTime || '09:00 AM',
+          zone: b.zoneName || b.slot?.zone?.name || 'Campus Lot',
+          slot: b.slotNumber || b.slot?.slotNumber || 'K-30',
+          vehicle: b.vehiclePlate || b.plateNumber || b.vehicle?.plateNumber || 'KA-09-ZZ-9999',
+          duration: b.duration || `${b.durationHours || 4} Hours`,
+          status: b.status || 'CONFIRMED',
+          releasedAt: b.releasedAt,
+          releasedBy: b.releasedBy
+        }));
+
+        setHistoryData(apiMapped);
         if (userEmail) {
-          const savedHist = await AsyncStorage.getItem(`@parknex_history_${userEmail.toLowerCase()}`);
-          if (savedHist && isMounted) {
-            try { setHistoryData(JSON.parse(savedHist)); } catch (e) {}
-          }
+          AsyncStorage.setItem(`@parknex_history_${userEmail}`, JSON.stringify(apiMapped)).catch(() => null);
         }
+      }
+    } catch (e) {
+      console.warn('History load warning:', e.message);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
-        const apiRes = await smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`).catch(() => null);
-        if (Array.isArray(apiRes?.data) && apiRes.data.length > 0 && isMounted) {
-          const apiMapped = apiRes.data.map(b => ({
-            id: String(b.id || `b_${Date.now()}`),
-            date: b.bookingDate || 'Today',
-            time: b.bookingTime || '09:00 AM',
-            zone: b.zoneName || b.slot?.zone?.name || 'KRISHNA HOSTEL',
-            slot: b.slotNumber || b.slot?.slotNumber || 'K-30',
-            vehicle: b.vehiclePlate || b.plateNumber || b.vehicle?.plateNumber || 'NO VEHICLE',
-            duration: `${b.durationHours || 4} Hours`,
-            status: b.status || 'CONFIRMED'
-          }));
-
-          setHistoryData(prev => {
-            const map = new Map();
-            apiMapped.forEach(m => map.set(m.id, m));
-            prev.forEach(p => {
-              if (!map.has(p.id)) {
-                map.set(p.id, p);
-              }
-            });
-            const merged = Array.from(map.values());
-            AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(merged)).catch(() => null);
-            return merged;
-          });
-        }
-      } catch (e) {}
-    };
-
+  useEffect(() => {
     loadHistory();
-    const interval = setInterval(loadHistory, 3000);
+    const interval = setInterval(() => loadHistory(false), 10000);
 
     const chName = `student-history-realtime-${Date.now()}`;
     const channel = supabase
       .channel(chName)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        loadHistory();
+        loadHistory(false);
       });
 
     channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') loadHistory();
+      if (status === 'SUBSCRIBED') loadHistory(false);
     });
 
     return () => {
-      isMounted = false;
       clearInterval(interval);
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadHistory]);
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    loadHistory(true);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#FAFBFF' }]}>
       <View style={[styles.header, { paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={[styles.greeting, { fontSize: 24 }]}>Parking History</Text>
-        <Text style={{ color: COLORS.textMuted, fontWeight: '700', fontSize: 12 }}>{historyData.length} Logs</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {isLoading && <ActivityIndicator size="small" color={COLORS.primary} />}
+          <Text style={{ color: COLORS.textMuted, fontWeight: '700', fontSize: 12 }}>{historyData.length} Logs</Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={{ padding: 20 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={isRefreshing} 
+            onRefresh={onRefresh} 
+            colors={[COLORS.primary]} 
+            tintColor={COLORS.primary} 
+          />
+        }
+      >
         {historyData.length === 0 ? (
           <View style={[styles.card, { padding: 30, alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border }]}>
             <MaterialCommunityIcons name="history" size={48} color={COLORS.textMuted} />

@@ -13,6 +13,7 @@ export default function ExitScanScreen({ navigation }) {
   const [hasScannedCode, setHasScannedCode] = useState(false);
 
   const [qrToken, setQrToken] = useState('');
+  const [rawScannedData, setRawScannedData] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scannedResult, setScannedResult] = useState(null);
   const [isReleasing, setIsReleasing] = useState(false);
@@ -20,12 +21,20 @@ export default function ExitScanScreen({ navigation }) {
   const handleBarCodeScanned = ({ data }) => {
     if (hasScannedCode || !data) return;
     setHasScannedCode(true);
-    setQrToken(data);
+    setRawScannedData(data);
+    let displayToken = data;
+    try {
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      if (parsed.vehiclePlate || parsed.plateNumber) {
+        displayToken = parsed.vehiclePlate || parsed.plateNumber;
+      }
+    } catch (e) {}
+    setQrToken(displayToken);
     handleVerifyQR(data);
   };
 
   const handleVerifyQR = async (tokenOverride = null) => {
-    const target = (tokenOverride || qrToken || '').trim();
+    const target = (tokenOverride || rawScannedData || qrToken || '').trim();
     if (!target) {
       Alert.alert('Validation Error', 'Please enter or scan a valid QR pass code or license plate.');
       return;
@@ -76,6 +85,9 @@ export default function ExitScanScreen({ navigation }) {
       const res = await smartApiRequest('post', '/security/release-vehicle', {
         bookingId,
         plateNumber,
+        userEmail: scannedResult.owner?.email,
+        slotNumber: scannedResult.booking?.slotNumber,
+        zoneName: scannedResult.booking?.zoneName,
         officerEmail,
         role: 'SECURITY',
         remarks: 'Released via Mobile Security Scanner'

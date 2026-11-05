@@ -3,10 +3,11 @@
     "id": "z1",
     "name": "Staff Parking",
     "total": 100,
-    "occupied": 3,
+    "occupied": 2,
     "type": "Staff Only",
     "status": "Active",
-    "isStaffOnly": true
+    "isStaffOnly": true,
+    "isFacultyOnly": true
   },
   {
     "id": "z2",
@@ -36,7 +37,7 @@
     "id": "z5",
     "name": "HOSPITAL PARKING",
     "total": 200,
-    "occupied": 0,
+    "occupied": 1,
     "type": "Mixed",
     "status": "Active"
   },

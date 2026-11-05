@@ -530,7 +530,7 @@ export default function AuthScreen({ onLoginSuccess }) {
             </Text>
             <TextInput
               style={[styles.input, { marginBottom: 10, fontSize: 14 }]}
-              placeholder="e.g. 10.183.174.205"
+              placeholder="e.g. 10.130.227.205"
               value={serverIpInput}
               onChangeText={setServerIpInput}
               autoCapitalize="none"

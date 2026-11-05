@@ -182,6 +182,96 @@ export default function AdminDashboard({ occupancy, events }) {
     fetchEnterpriseData();
   }, []);
 
+  // Enterprise Parking Violations State & Realtime Sync
+  const [violations, setViolations] = useState([]);
+  const [violationsFilter, setViolationsFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'RESOLVED'
+  const [violationSearchQuery, setViolationSearchQuery] = useState('');
+  const [isViolationModalOpen, setIsViolationModalOpen] = useState(false);
+  const [violationForm, setViolationForm] = useState({
+    plateNumber: '',
+    type: 'WRONG_PARKING',
+    description: '',
+    penaltyAmount: 500
+  });
+  const [isSubmittingViolation, setIsSubmittingViolation] = useState(false);
+  const [isResolvingViolationId, setIsResolvingViolationId] = useState(null);
+
+  const fetchViolations = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/violations`);
+      if (Array.isArray(res.data)) {
+        setViolations(res.data);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchViolations();
+    const interval = setInterval(fetchViolations, 3000);
+
+    const chName = `admin-violations-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Violation' }, () => {
+        fetchViolations();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'violation' }, () => {
+        fetchViolations();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchViolations();
+    });
+
+    return () => {
+      clearInterval(interval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleResolveViolation = async (violationId, plate) => {
+    if (!window.confirm(`Clear and resolve parking citation #${violationId} for plate ${plate || ''}?`)) return;
+    setIsResolvingViolationId(violationId);
+    try {
+      await axios.put(`${BACKEND_URL}/violations/${violationId}/resolve`, {
+        resolverEmail: 'admin@college.edu'
+      });
+      setViolations(prev => prev.map(v => String(v.id) === String(violationId) ? { ...v, status: 'RESOLVED' } : v));
+      alert(`✅ Violation citation for plate ${plate || violationId} marked as RESOLVED!`);
+      fetchViolations();
+    } catch (err) {
+      alert('Failed to resolve violation.');
+    } finally {
+      setIsResolvingViolationId(null);
+    }
+  };
+
+  const handleIssueViolation = async (e) => {
+    e.preventDefault();
+    if (!violationForm.plateNumber.trim()) return;
+    setIsSubmittingViolation(true);
+    try {
+      const res = await axios.post(`${BACKEND_URL}/violations`, {
+        plateNumber: violationForm.plateNumber.trim().toUpperCase(),
+        type: violationForm.type,
+        description: violationForm.description || 'Reported by Campus Admin',
+        penaltyAmount: Number(violationForm.penaltyAmount) || 500,
+        officerEmail: 'admin@college.edu'
+      });
+      if (res.data) {
+        setViolations(prev => [res.data, ...prev]);
+      }
+      alert(`🎟️ Violation citation issued for plate ${violationForm.plateNumber.toUpperCase()}! Fine: ₹${violationForm.penaltyAmount}`);
+      setIsViolationModalOpen(false);
+      setViolationForm({ plateNumber: '', type: 'WRONG_PARKING', description: '', penaltyAmount: 500 });
+      fetchViolations();
+    } catch (err) {
+      alert('Error issuing violation citation.');
+    } finally {
+      setIsSubmittingViolation(false);
+    }
+  };
+
   // USER MANAGEMENT HANDLERS (ADD / MODIFY / SUSPEND / REMOVE)
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -426,11 +516,41 @@ export default function AdminDashboard({ occupancy, events }) {
     }
   };
 
+  const pendingViolations = violations.filter(v => v.status === 'PENDING');
+  const totalPendingFines = pendingViolations.reduce((sum, v) => sum + (Number(v.penaltyAmount) || 0), 0);
+
+  const filteredViolationsList = violations.filter(v => {
+    if (violationsFilter === 'PENDING' && v.status !== 'PENDING') return false;
+    if (violationsFilter === 'RESOLVED' && v.status !== 'RESOLVED') return false;
+    if (violationSearchQuery.trim()) {
+      const q = violationSearchQuery.toLowerCase();
+      const matchPlate = (v.plateNumber || '').toLowerCase().includes(q);
+      const matchType = (v.type || '').toLowerCase().includes(q);
+      const matchDesc = (v.description || '').toLowerCase().includes(q);
+      const matchIssuer = (v.issuedBy || '').toLowerCase().includes(q);
+      if (!matchPlate && !matchType && !matchDesc && !matchIssuer) return false;
+    }
+    return true;
+  });
+
   const stats = [
     { label: 'System Health Score', value: `${systemHealth.healthScore}/100`, icon: <Cpu />, color: '#10b981', bg: '#ecfdf5' },
     { label: 'Total Registered Users', value: usersList.length.toLocaleString(), icon: <Users />, color: '#2563eb', bg: '#eff6ff' },
     { label: 'Active Active Members', value: usersList.filter(u => u.status === 'ACTIVE').length.toLocaleString(), icon: <UserCheck />, color: '#8b5cf6', bg: '#f5f3ff' },
     { label: 'Suspended Accounts', value: usersList.filter(u => u.status === 'SUSPENDED').length.toLocaleString(), icon: <UserX />, color: '#ef4444', bg: '#fef2f2' },
+    { 
+      label: 'Parking Violations', 
+      value: `${pendingViolations.length} Active`, 
+      subtext: `₹${totalPendingFines.toLocaleString()} pending fines`, 
+      icon: <AlertTriangle />, 
+      color: pendingViolations.length > 0 ? '#ef4444' : '#10b981', 
+      bg: pendingViolations.length > 0 ? '#fef2f2' : '#ecfdf5',
+      badge: pendingViolations.length > 0 ? 'ACTION REQ' : 'CLEARED',
+      onClick: () => {
+        const el = document.getElementById('admin-violations-box');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }
+    },
   ];
 
   return (
@@ -487,13 +607,35 @@ export default function AdminDashboard({ occupancy, events }) {
         </div>
       </div>
 
-      <div className="stats-grid">
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         {stats.map((stat, i) => (
-          <div key={i} className="card stat-card">
+          <div 
+            key={i} 
+            className="card stat-card"
+            onClick={stat.onClick}
+            style={{ 
+              cursor: stat.onClick ? 'pointer' : 'default', 
+              transition: 'transform 0.15s, box-shadow 0.15s' 
+            }}
+            onMouseEnter={e => stat.onClick && (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseLeave={e => stat.onClick && (e.currentTarget.style.transform = 'translateY(0)')}
+          >
             <div className="stat-icon-box" style={{ background: stat.bg, color: stat.color }}>{stat.icon}</div>
-            <div className="stat-info">
-              <span className="label">{stat.label}</span>
-              <span className="value">{stat.value}</span>
+            <div className="stat-info" style={{ flex: 1 }}>
+              <span className="label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {stat.label}
+                {stat.badge && (
+                  <span style={{ fontSize: '0.65rem', fontWeight: '900', padding: '1px 6px', borderRadius: '6px', background: stat.bg, color: stat.color }}>
+                    {stat.badge}
+                  </span>
+                )}
+              </span>
+              <span className="value" style={{ fontSize: '1.4rem' }}>{stat.value}</span>
+              {stat.subtext && (
+                <span style={{ fontSize: '0.74rem', color: stat.color, fontWeight: '700', marginTop: '2px', display: 'block' }}>
+                  {stat.subtext}
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -537,6 +679,218 @@ export default function AdminDashboard({ occupancy, events }) {
             <p style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '1rem' }}>Role-aware intelligent campus assistant for Student & Admin</p>
             <span className="badge badge-success">ACTIVE</span>
           </div>
+        </div>
+      </div>
+
+      {/* ENTERPRISE PARKING VIOLATIONS & ENFORCEMENT COMMAND BOX */}
+      <div 
+        id="admin-violations-box" 
+        className="card animate-fade-in" 
+        style={{ 
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.04) 0%, rgba(245, 158, 11, 0.04) 100%)', 
+          border: '1.5px solid rgba(239, 68, 68, 0.3)', 
+          borderRadius: '24px', 
+          padding: '1.75rem',
+          boxShadow: '0 10px 25px -5px rgba(239, 68, 68, 0.08)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldAlert color="#EF4444" size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Parking Violations & Enforcement Command Box
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '2px 0 0 0' }}>
+                  Live campus citation hub • Enforce fines, inspect offending vehicles, and resolve citations
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={fetchViolations} 
+              style={{ padding: '0.5rem 0.9rem', fontSize: '0.82rem', gap: '0.4rem' }}
+              title="Refresh Violations"
+            >
+              <RefreshCw size={15} /> Refresh
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setIsViolationModalOpen(true)} 
+              style={{ backgroundColor: '#DC2626', borderColor: '#DC2626', padding: '0.5rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
+            >
+              <Ticket size={16} /> Issue Citation
+            </button>
+          </div>
+        </div>
+
+        {/* VIOLATION METRICS HIGHLIGHT STRIP */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: 'var(--bg-main)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '14px', padding: '1rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Pending Citations</span>
+            <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#EF4444', marginTop: '0.25rem' }}>
+              {pendingViolations.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Require driver clearance</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-main)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '14px', padding: '1rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Outstanding Fines</span>
+            <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#F59E0B', marginTop: '0.25rem' }}>
+              ₹{totalPendingFines.toLocaleString()}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pending payment collected</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-main)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '14px', padding: '1rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cleared & Resolved</span>
+            <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#10B981', marginTop: '0.25rem' }}>
+              {violations.filter(v => v.status === 'RESOLVED').length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Resolved in system logs</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '14px', padding: '1rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Recorded Citations</span>
+            <div style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-main)', marginTop: '0.25rem' }}>
+              {violations.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>All-time violation logs</span>
+          </div>
+        </div>
+
+        {/* SEARCH & FILTER BAR */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {[
+              { key: 'ALL', label: `All Citations (${violations.length})` },
+              { key: 'PENDING', label: `Pending Fines (${pendingViolations.length})` },
+              { key: 'RESOLVED', label: `Resolved (${violations.filter(v => v.status === 'RESOLVED').length})` }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setViolationsFilter(tab.key)}
+                style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '12px',
+                  border: violationsFilter === tab.key ? 'none' : '1px solid var(--border)',
+                  backgroundColor: violationsFilter === tab.key ? '#DC2626' : 'var(--bg-main)',
+                  color: violationsFilter === tab.key ? '#FFFFFF' : 'var(--text-muted)',
+                  fontSize: '0.78rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ minWidth: '240px', flex: '0 1 300px' }}>
+            <input 
+              type="text"
+              placeholder="Search by plate, reason, or officer..."
+              value={violationSearchQuery}
+              onChange={e => setViolationSearchQuery(e.target.value)}
+              className="search-input"
+              style={{ paddingLeft: '0.85rem', paddingRight: '0.85rem', fontSize: '0.82rem' }}
+            />
+          </div>
+        </div>
+
+        {/* VIOLATIONS TABLE */}
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Vehicle Plate</th>
+                <th>Violation Category</th>
+                <th>Description & Issuer</th>
+                <th>Penalty Fine</th>
+                <th>Issued Timestamp</th>
+                <th>Status</th>
+                <th>Admin Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredViolationsList.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                    <CheckCircle size={36} color="#10B981" style={{ margin: '0 auto 0.5rem auto', display: 'block' }} />
+                    <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>No Violations in Selected View</strong>
+                    <span style={{ fontSize: '0.8rem' }}>All campus parking regulations are currently in compliance.</span>
+                  </td>
+                </tr>
+              ) : (
+                filteredViolationsList.map((viol, idx) => (
+                  <tr key={`${viol.id || viol.plateNumber}-${idx}`}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Car size={16} color="var(--primary)" />
+                        <code style={{ fontSize: '0.92rem', fontWeight: '900', color: 'var(--text-main)', background: 'rgba(0,0,0,0.06)', padding: '2px 6px', borderRadius: '6px' }}>
+                          {viol.plateNumber}
+                        </code>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${
+                        viol.type === 'UNAUTHORIZED_ENTRY' ? 'badge-danger' : 
+                        viol.type === 'RESTRICTED_ZONE' ? 'badge-warning' : 
+                        viol.type === 'EXPIRED_PASS' ? 'badge-warning' : 'badge-danger'
+                      }`}>
+                        {viol.type?.replace(/_/g, ' ') || 'WRONG PARKING'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--text-main)', fontWeight: '600', fontSize: '0.85rem', display: 'block' }}>
+                        {viol.description || 'Reported Violation'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Issued by: {viol.issuedBy || 'Security Enforcement'}
+                      </span>
+                    </td>
+                    <td>
+                      <strong style={{ color: viol.status === 'PENDING' ? '#EF4444' : 'var(--text-main)', fontSize: '0.95rem', fontWeight: '900' }}>
+                        ₹{viol.penaltyAmount || 500}
+                      </strong>
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      {viol.issuedAt ? new Date(viol.issuedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                    </td>
+                    <td>
+                      <span className={`badge ${viol.status === 'RESOLVED' ? 'badge-success' : 'badge-danger'}`} style={{ fontWeight: '900' }}>
+                        {viol.status === 'RESOLVED' ? 'CLEARED' : 'PENDING'}
+                      </span>
+                    </td>
+                    <td>
+                      {viol.status === 'PENDING' ? (
+                        <button 
+                          className="btn btn-outline" 
+                          onClick={() => handleResolveViolation(viol.id, viol.plateNumber)}
+                          disabled={isResolvingViolationId === viol.id}
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', borderColor: '#10B981', color: '#10B981', gap: '0.3rem', fontWeight: '800' }}
+                          title="Clear and Resolve Citation"
+                        >
+                          <Check size={14} /> Clear Citation
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: '#10B981', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <CheckCircle size={14} /> Cleared
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -984,6 +1338,87 @@ export default function AdminDashboard({ occupancy, events }) {
                 <button type="button" className="btn btn-outline" onClick={() => setIsAnnouncementModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#6366F1' }}>
                   <Megaphone size={16} /> Broadcast Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ISSUE VIOLATION CITATION MODAL FOR ADMIN */}
+      {isViolationModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsViolationModalOpen(false)}>
+          <div className="card modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Ticket color="#DC2626" size={24} /> Issue Parking Citation
+              </h3>
+              <button onClick={() => setIsViolationModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleIssueViolation} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Vehicle License Plate</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. KA-01-AB-1234"
+                  value={violationForm.plateNumber}
+                  onChange={e => setViolationForm({ ...violationForm, plateNumber: e.target.value.toUpperCase() })}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '1rem', textTransform: 'uppercase', fontWeight: '700' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Violation Category</label>
+                <select 
+                  value={violationForm.type}
+                  onChange={e => setViolationForm({ ...violationForm, type: e.target.value })}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '1rem', color: 'var(--text-main)', backgroundColor: 'var(--bg-main)' }}
+                >
+                  <option value="WRONG_PARKING">Wrong Parking Space</option>
+                  <option value="UNAUTHORIZED_ENTRY">Unauthorized Restricted Entry</option>
+                  <option value="EXPIRED_PASS">Expired Parking Pass</option>
+                  <option value="RESTRICTED_ZONE">Faculty Reserved Zone Intrusion</option>
+                  <option value="OVERSTAY">Exceeded Time Reservation (Overstay)</option>
+                  <option value="BLOCKING_EXIT">Vehicle Blocking Exit / Lane</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Citation Description & Notes</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Parked across two bays in Faculty Zone C"
+                  value={violationForm.description}
+                  onChange={e => setViolationForm({ ...violationForm, description: e.target.value })}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '1rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>Penalty Fine (₹)</label>
+                <input 
+                  type="number" 
+                  required
+                  min="50"
+                  step="50"
+                  value={violationForm.penaltyAmount}
+                  onChange={e => setViolationForm({ ...violationForm, penaltyAmount: e.target.value })}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '1rem', fontWeight: '700' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsViolationModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmittingViolation} style={{ flex: 1, justifyContent: 'center', backgroundColor: '#DC2626', borderColor: '#DC2626' }}>
+                  {isSubmittingViolation ? 'Issuing...' : 'Issue Citation & Alert'}
                 </button>
               </div>
             </form>

@@ -9,7 +9,7 @@ import { COLORS } from '../../theme/colors';
 
 const BACKEND_URL = config.BACKEND_URL;
 
-export default function AdminDashboard({ navigation, onLogout, occupancy, user }) {
+export default function AdminDashboard({ navigation, route, onLogout, occupancy, user }) {
   const [executiveData, setExecutiveData] = useState({ systemHealth: '99.8% Optimal' });
   const [sustainability, setSustainability] = useState({ co2ReducedKg: 1450, fuelSavedLiters: 620, greenCampusRating: 'A+ Excellent' });
   const [signage, setSignage] = useState([{ screenName: 'MAIN_GATE_LED_01', displayedText: 'WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE' }]);
@@ -18,6 +18,8 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
   const [customSignageText, setCustomSignageText] = useState('WELCOME • CS ACADEMIC BLOCK: 75 FREE • CENTRAL LIBRARY: 30 FREE');
   const [liveOccupancyPct, setLiveOccupancyPct] = useState('68%');
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [violationsList, setViolationsList] = useState([]);
+  const [isViolationsModalOpen, setIsViolationsModalOpen] = useState(false);
 
   const handleConfirmLogout = () => {
     Alert.alert(
@@ -32,12 +34,13 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
 
   const fetchAdminData = async () => {
     try {
-      const [execRes, sustRes, signRes, zoneRes, notifRes] = await Promise.allSettled([
+      const [execRes, sustRes, signRes, zoneRes, notifRes, violRes] = await Promise.allSettled([
         smartApiRequest('get', '/executive/dashboard'),
         smartApiRequest('get', '/sustainability/metrics'),
         smartApiRequest('get', '/signage'),
         smartApiRequest('get', '/zones'),
-        smartApiRequest('get', '/notifications?role=ADMIN&email=admin@college.edu')
+        smartApiRequest('get', '/notifications?role=ADMIN&email=admin@college.edu'),
+        smartApiRequest('get', '/violations')
       ]);
 
       if (execRes.status === 'fulfilled' && execRes.value.data) setExecutiveData(execRes.value.data);
@@ -54,6 +57,9 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
       }
       if (notifRes.status === 'fulfilled' && notifRes.value.data) {
         setUnreadNotifCount(notifRes.value.data.unreadCount || 0);
+      }
+      if (violRes.status === 'fulfilled' && Array.isArray(violRes.value.data)) {
+        setViolationsList(violRes.value.data);
       }
     } catch (e) {}
   };
@@ -83,6 +89,26 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
       if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, [navigation]);
+
+  useEffect(() => {
+    if (route?.params?.openViolations) {
+      setIsViolationsModalOpen(true);
+    }
+  }, [route?.params]);
+
+  const handleResolveViolation = async (targetId, plate) => {
+    try {
+      await axios.put(`${BACKEND_URL}/violations/${targetId}/resolve`, {
+        resolverEmail: user?.email || 'admin@college.edu'
+      });
+      setViolationsList(prev => prev.map(v => String(v.id) === String(targetId) ? { ...v, status: 'RESOLVED' } : v));
+      Alert.alert('Citation Cleared ✅', `Violation ticket for plate ${plate || targetId} has been resolved.`);
+      fetchAdminData();
+    } catch (e) {
+      setViolationsList(prev => prev.map(v => String(v.id) === String(targetId) ? { ...v, status: 'RESOLVED' } : v));
+      Alert.alert('Notice', 'Citation marked as resolved locally.');
+    }
+  };
 
   const handleBroadcastSignage = async () => {
     if (!customSignageText.trim()) {
@@ -202,11 +228,36 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
             <Text style={{ fontSize: 10, color: '#059669', fontWeight: '800', marginTop: 4 }}>+14% today</Text>
           </View>
 
-          <View style={{ flex: 1, backgroundColor: '#FFFFFF', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2 }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B' }}>VIOLATIONS</Text>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#F59E0B', marginTop: 4 }}>3 Active</Text>
-            <Text style={{ fontSize: 10, color: '#D97706', fontWeight: '800', marginTop: 4 }}>Action req.</Text>
-          </View>
+          <TouchableOpacity 
+            onPress={() => setIsViolationsModalOpen(true)}
+            activeOpacity={0.8}
+            style={{ 
+              flex: 1, 
+              backgroundColor: '#FFFFFF', 
+              padding: 14, 
+              borderRadius: 16, 
+              borderWidth: 1.5, 
+              borderColor: violationsList.filter(v => v.status === 'PENDING').length > 0 ? '#FECACA' : '#E2E8F0', 
+              elevation: 2 
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B' }}>VIOLATIONS</Text>
+              <Ionicons 
+                name={violationsList.filter(v => v.status === 'PENDING').length > 0 ? "alert-circle" : "checkmark-circle"} 
+                size={14} 
+                color={violationsList.filter(v => v.status === 'PENDING').length > 0 ? '#EF4444' : '#10B981'} 
+              />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: violationsList.filter(v => v.status === 'PENDING').length > 0 ? '#EF4444' : '#10B981', marginTop: 4 }}>
+              {violationsList.filter(v => v.status === 'PENDING').length} Active
+            </Text>
+            <Text style={{ fontSize: 10, color: violationsList.filter(v => v.status === 'PENDING').length > 0 ? '#DC2626' : '#059669', fontWeight: '800', marginTop: 4 }}>
+              {violationsList.filter(v => v.status === 'PENDING').length > 0 
+                ? `₹${violationsList.filter(v => v.status === 'PENDING').reduce((s, v) => s + (Number(v.penaltyAmount) || 0), 0)} fines` 
+                : 'All cleared ✅'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ADMIN COMMAND HUB GRID */}
@@ -291,6 +342,17 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Feedback Desk</Text>
             <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Student ratings & inbox</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => setIsViolationsModalOpen(true)}
+            style={{ width: '48%', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 18, borderWidth: 1.5, borderColor: '#FECACA', elevation: 2 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.12)', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="warning" size={22} color="#DC2626" />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Violations & Fines</Text>
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 3, fontWeight: '600' }}>Review & resolve tickets</Text>
+          </TouchableOpacity>
         </View>
 
         {/* SYSTEM HEALTH & SUSTAINABILITY SECTION */}
@@ -362,6 +424,83 @@ export default function AdminDashboard({ navigation, onLogout, occupancy, user }
 
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      {/* PARKING VIOLATIONS & FINES MODAL */}
+      <Modal visible={isViolationsModalOpen} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.65)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, maxHeight: '82%', width: '100%' }}>
+            {/* Modal Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                  <Ionicons name="warning" size={22} color="#DC2626" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Violations Console</Text>
+                  <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '600' }}>
+                    {violationsList.filter(v => v.status === 'PENDING').length} Active • ₹{violationsList.filter(v => v.status === 'PENDING').reduce((s, v) => s + (Number(v.penaltyAmount) || 0), 0)} Pending Fines
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setIsViolationsModalOpen(false)} style={{ padding: 6, borderRadius: 20, backgroundColor: '#F1F5F9' }}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Citations List */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 20 }}>
+              {violationsList.length === 0 ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F172A', marginTop: 10 }}>No Active Violations</Text>
+                  <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, textAlign: 'center' }}>All campus parking regulations are in full compliance.</Text>
+                </View>
+              ) : (
+                violationsList.map((viol, vIdx) => {
+                  const isPending = viol.status === 'PENDING';
+                  return (
+                    <View key={viol.id || vIdx} style={{ backgroundColor: isPending ? '#FFF5F5' : '#F8FAFC', borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: isPending ? '#FECACA' : '#E2E8F0' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A', fontFamily: 'monospace' }}>
+                              {viol.plateNumber}
+                            </Text>
+                            <View style={{ backgroundColor: isPending ? '#FEE2E2' : '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                              <Text style={{ color: isPending ? '#DC2626' : '#15803D', fontSize: 9, fontWeight: '900' }}>
+                                {isPending ? 'PENDING' : 'RESOLVED'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={{ fontSize: 12, color: '#334155', fontWeight: '700', marginTop: 4 }}>
+                            {viol.type?.replace(/_/g, ' ') || 'WRONG PARKING'}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                            {viol.description || 'Reported by Security Officer'}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: isPending ? '#DC2626' : '#10B981' }}>
+                            ₹{viol.penaltyAmount || 500}
+                          </Text>
+                          {isPending && (
+                            <TouchableOpacity
+                              onPress={() => handleResolveViolation(viol.id, viol.plateNumber)}
+                              style={{ marginTop: 8, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                            >
+                              <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900' }}>Resolve</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* EDIT & BROADCAST SIGNAGE MODAL */}
       <Modal visible={isSignageModalOpen} animationType="slide" transparent>

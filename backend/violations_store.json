@@ -1,5 +1,41 @@
 [
   {
+    "id": "da7fdbed-4bfe-4730-bc1a-9dc3e7ad8f38",
+    "plateNumber": "KA-01-AB-1234",
+    "type": "WRONG_PARKING",
+    "description": "Resolved Ticket",
+    "penaltyAmount": 500,
+    "status": "RESOLVED",
+    "resolvedAt": "2026-10-31T04:06:17.611Z",
+    "resolvedBy": "admin@college.edu"
+  },
+  {
+    "id": "1793275787063",
+    "plateNumber": "TN-07-EMG-1111",
+    "type": "BLOCKING_EXIT",
+    "description": "Vehicle blocking North Emergency Exit",
+    "penaltyAmount": 1000,
+    "status": "RESOLVED",
+    "userEmail": null,
+    "issuedBy": "admin@college.edu",
+    "issuedAt": "2026-10-29T12:09:47.251Z",
+    "resolvedAt": "2026-10-29T12:09:47.903Z",
+    "resolvedBy": "security@college.edu"
+  },
+  {
+    "id": "1793275668253",
+    "plateNumber": "TN-09-ADM-9999",
+    "type": "RESTRICTED_ZONE",
+    "description": "Parked in restricted emergency access lane",
+    "penaltyAmount": 750,
+    "status": "RESOLVED",
+    "userEmail": null,
+    "issuedBy": "admin@college.edu",
+    "issuedAt": "2026-10-29T12:07:48.455Z",
+    "resolvedAt": "2026-10-29T12:07:49.570Z",
+    "resolvedBy": "security@college.edu"
+  },
+  {
     "id": "1792258271914",
     "plateNumber": "AP03CH4591",
     "type": "WRONG_PARKING",

@@ -43,6 +43,12 @@ import SettingsPage from './SettingsPage';
 import FeedbackPage from './FeedbackPage';
 import NotificationDrawer from './NotificationDrawer';
 import AIChatModal from './components/AIChatModal';
+import CinematicSplash from './components/CinematicSplash';
+import GlassBackground from './components/GlassBackground';
+import WelcomeGuidanceCard from './components/WelcomeGuidanceCard';
+import GuidedTour from './components/GuidedTour';
+import TopNavbar from './components/TopNavbar';
+import ProjectFooter from './components/ProjectFooter';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
@@ -85,6 +91,10 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    return !sessionStorage.getItem('parknex_splash_seen');
+  });
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const [role, setRole] = useState(null); 
   const [occupancy, setOccupancy] = useState(null);
   const [events, setEvents] = useState([]);
@@ -248,17 +258,104 @@ function App() {
     };
 
     fetchNotificationsCount();
-    const notifInterval = setInterval(fetchNotificationsCount, 5000);
-    return () => clearInterval(notifInterval);
+    const notifInterval = setInterval(fetchNotificationsCount, 10000);
+
+    const chName = `app-notif-realtime-${Date.now()}`;
+    const channel = supabase
+      .channel(chName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification' }, () => {
+        fetchNotificationsCount();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification' }, () => {
+        fetchNotificationsCount();
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') fetchNotificationsCount();
+    });
+
+    return () => {
+      clearInterval(notifInterval);
+      if (supabase && supabase.removeChannel) supabase.removeChannel(channel);
+    };
   }, [role, profile.email]);
 
   const handleNotifNavigate = (targetScreen, notif) => {
     setIsNotificationOpen(false);
-    if (targetScreen === 'StudentBookScreen' || targetScreen === 'slots') {
-      setActivePage(role === 'STUDENT' ? 'dashboard' : 'slots');
-    } else if (targetScreen === 'StudentVehiclesScreen' || targetScreen === 'vehicles') {
-      setActivePage(role === 'ADMIN' ? 'users' : 'dashboard');
-    } else if (targetScreen === 'UnauthorizedLogsScreen' || targetScreen === 'security') {
+    const dest = targetScreen || notif?.deepLink || notif?.category;
+
+    if (dest === 'violations' || dest === 'VIOLATION') {
+      if (role === 'ADMIN') {
+        setActivePage('dashboard');
+        setTimeout(() => {
+          const el = document.getElementById('admin-violations-box');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      } else if (role === 'SECURITY') {
+        setActivePage('incidents');
+      } else {
+        // STUDENT or STAFF
+        setActivePage('dashboard');
+        setTimeout(() => {
+          const el = document.getElementById('student-violations-card') || document.querySelector('.badge-danger');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    } else if (dest === 'FeedbackPage' || dest === 'Feedback' || dest === 'FEEDBACK') {
+      setActivePage('feedback');
+    } else if (dest === 'StudentBookScreen' || dest === 'slots' || dest === 'BOOKING' || dest === 'PARKING_EXPIRY' || dest === 'PARKING_EXPIRED') {
+      if (role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF') {
+        setActivePage('dashboard');
+      } else if (role === 'ADMIN') {
+        setActivePage('slots');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'StudentVehiclesScreen' || dest === 'vehicles' || dest === 'VEHICLE_ENTRY' || dest === 'VEHICLE_EXIT' || dest === 'PASS') {
+      if (role === 'ADMIN') {
+        setActivePage('users');
+      } else if (role === 'SECURITY') {
+        setActivePage('overview');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'UnauthorizedLogsScreen' || dest === 'security' || dest === 'GATE' || dest === 'CCTV' || dest === 'cctv') {
+      if (role === 'SECURITY') {
+        setActivePage('cctv');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'ManageZones' || dest === 'CAPACITY') {
+      if (role === 'ADMIN') {
+        setActivePage('slots');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'Analytics' || dest === 'Reports' || dest === 'ANALYTICS' || dest === 'SYSTEM' || dest === 'AUDIT') {
+      if (role === 'ADMIN') {
+        setActivePage('analytics');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'UserManagement' || dest === 'users') {
+      if (role === 'ADMIN') {
+        setActivePage('users');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'StudentProfileScreen' || dest === 'profile') {
+      openProfileModal();
+    } else if (dest === 'visitors' || dest === 'VISITOR') {
+      if (role === 'SECURITY') {
+        setActivePage('barrier');
+      } else {
+        setActivePage('dashboard');
+      }
+    } else if (dest === 'settings' || dest === 'SettingsPage') {
+      setActivePage('settings');
+    } else if (dest === 'Emergency' || dest === 'EMERGENCY') {
+      setActivePage('dashboard');
+    } else {
       setActivePage('dashboard');
     }
   };
@@ -390,241 +487,134 @@ function App() {
     setRole(null);
   };
 
-  if (!role) return <AuthScreen onLogin={handleLoginSuccess} />;
+  if (showSplash) {
+    return (
+      <CinematicSplash 
+        onComplete={() => {
+          sessionStorage.setItem('parknex_splash_seen', 'true');
+          setShowSplash(false);
+        }} 
+      />
+    );
+  }
+
+  if (!role) {
+    return (
+      <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+        <GlassBackground />
+        <AuthScreen 
+          onLogin={handleLoginSuccess} 
+          onReplayIntro={() => setShowSplash(true)} 
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="app-container">
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="sidebar">
-        <div className="logo-container">
-          <div className="logo-icon"><CarFront size={24} /></div>
-          <span className="logo-text">ParkNex AI</span>
-        </div>
-        
-        <div className="menu-label">Menu</div>
-        <nav className="nav-links">
+    <div className="app-container-glass">
+      {/* GLOBAL PERSISTENT GLASS BACKGROUND */}
+      <GlassBackground />
+
+      {/* SHARED PROFESSIONAL TOP NAVIGATION */}
+      <TopNavbar
+        role={role}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        profile={profile}
+        unreadNotifCount={unreadNotifCount}
+        onOpenNotifications={() => setIsNotificationOpen(!isNotificationOpen)}
+        onOpenProfile={openProfileModal}
+        onOpenAIChat={() => setIsAIChatOpen(true)}
+        onStartTour={() => setIsTourOpen(true)}
+        onConfirmLogout={confirmLogout}
+      />
+
+      {/* NOTIFICATION DRAWER */}
+      <NotificationDrawer 
+        isOpen={isNotificationOpen} 
+        onClose={() => setIsNotificationOpen(false)} 
+        userEmail={profile.email || `${(role || 'student').toLowerCase()}@college.edu`} 
+        userRole={role} 
+        onUnreadCountChange={setUnreadNotifCount}
+        onNavigate={handleNotifNavigate} 
+      />
+
+      {/* MAIN DASHBOARD CONTENT AREA */}
+      <main className="content-body-glass">
+        {/* FIRST-TIME WELCOME & GUIDANCE CARD */}
+        {activePage === 'dashboard' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '0.85rem' }}>
+            <WelcomeGuidanceCard
+              userRole={role}
+              userName={profile.name}
+              userEmail={profile.email}
+              onStartTour={() => setIsTourOpen(true)}
+            />
+          </div>
+        )}
+
+        <ErrorBoundary key={`${role}-${activePage}`}>
           
-          {/* ADMIN ROLE NAVIGATION (CLEANED: REMOVED SECURITY COMMAND CENTER & STUDENT BOOKING PORTAL) */}
+          {/* ADMIN PORTAL SWITCHING & VIEWS */}
           {role === 'ADMIN' && (
             <>
-              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
-                <LayoutGrid size={20} /> Admin Command
-              </a>
-              <a className={`nav-item ${activePage === 'slots' ? 'active' : ''}`} onClick={() => setActivePage('slots')}>
-                <MapPin size={20} /> Manage Slots
-              </a>
-              <a className={`nav-item ${activePage === 'users' ? 'active' : ''}`} onClick={() => setActivePage('users')}>
-                <Users size={20} /> User Registry
-              </a>
-              <a className={`nav-item ${activePage === 'analytics' ? 'active' : ''}`} onClick={() => setActivePage('analytics')}>
-                <TrendingUp size={20} /> Analytics
-              </a>
-              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
-                <MessageSquare size={20} /> User Feedback
-              </a>
-              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
-                <Settings size={20} /> System Settings
-              </a>
+              {activePage === 'dashboard' && <AdminDashboard occupancy={occupancy} events={events} onEditProfile={openProfileModal} />}
+              {activePage === 'slots' && <ManageSlots occupancy={occupancy} refreshData={refreshData} />}
+              {activePage === 'users' && <UserManagement />}
+              {activePage === 'analytics' && <Analytics />}
+              {activePage === 'feedback' && <FeedbackPage userRole="ADMIN" profile={profile} BACKEND_URL={BACKEND_URL} />}
+              {activePage === 'settings' && <SettingsPage onLogout={confirmLogout} />}
             </>
           )}
 
-          {/* STUDENT & FACULTY/STAFF ROLE NAVIGATION */}
+          {/* STUDENT & FACULTY/STAFF PORTAL VIEWS */}
           {(role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF') && (
-            <>
-              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
-                <LayoutGrid size={20} /> Overview
-              </a>
-              <a className={`nav-item ${activePage === 'book' ? 'active' : ''}`} onClick={() => setActivePage('book')}>
-                <Calendar size={20} /> Book a Slot
-              </a>
-              <a className={`nav-item ${activePage === 'vehicles' ? 'active' : ''}`} onClick={() => setActivePage('vehicles')}>
-                <CarFront size={20} /> My Vehicles
-              </a>
-              <a className={`nav-item ${activePage === 'map' ? 'active' : ''}`} onClick={() => setActivePage('map')}>
-                <MapPin size={20} /> Campus Map
-              </a>
-              <a className={`nav-item ${activePage === 'billing' ? 'active' : ''}`} onClick={() => setActivePage('billing')}>
-                <CreditCard size={20} /> Passes & Billing
-              </a>
-              <a className={`nav-item ${activePage === 'history' ? 'active' : ''}`} onClick={() => setActivePage('history')}>
-                <History size={20} /> Parking History
-              </a>
-              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
-                <MessageSquare size={20} /> Feedback & Reviews
-              </a>
-              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
-                <Settings size={20} /> Settings
-              </a>
-            </>
+            activePage === 'settings' ? (
+              <SettingsPage onLogout={confirmLogout} />
+            ) : activePage === 'feedback' ? (
+              <FeedbackPage userRole={role} profile={profile} BACKEND_URL={BACKEND_URL} />
+            ) : (
+              <StudentDashboard 
+                occupancy={occupancy} 
+                BACKEND_URL={BACKEND_URL} 
+                profile={profile} 
+                userRole={role}
+                onEditProfile={openProfileModal}
+                activeTab={activePage === 'dashboard' ? 'overview' : activePage}
+                setActiveTab={setActivePage}
+              />
+            )
           )}
 
-          {/* SECURITY ROLE NAVIGATION */}
+          {/* SECURITY COMMAND CENTER VIEWS */}
           {role === 'SECURITY' && (
-            <>
-              <a className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => setActivePage('dashboard')}>
-                <Shield size={20} /> Security Command Center
-              </a>
-              <a className={`nav-item ${activePage === 'cameras' ? 'active' : ''}`} onClick={() => setActivePage('cameras')}>
-                <Camera size={20} /> CCTV Multi-Camera Feeds
-              </a>
-              <a className={`nav-item ${activePage === 'barrier' ? 'active' : ''}`} onClick={() => setActivePage('barrier')}>
-                <Users size={20} /> Visitor Console
-              </a>
-              <a className={`nav-item ${activePage === 'incidents' ? 'active' : ''}`} onClick={() => setActivePage('incidents')}>
-                <AlertTriangle size={20} /> Violations & Tickets
-              </a>
-              <a className={`nav-item ${activePage === 'feedback' ? 'active' : ''}`} onClick={() => setActivePage('feedback')}>
-                <MessageSquare size={20} /> Feedback Desk
-              </a>
-              <a className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
-                <Settings size={20} /> Settings
-              </a>
-            </>
+            activePage === 'settings' ? (
+              <SettingsPage onLogout={confirmLogout} />
+            ) : activePage === 'feedback' ? (
+              <FeedbackPage userRole="SECURITY" profile={profile} BACKEND_URL={BACKEND_URL} />
+            ) : (
+              <SecurityDashboard 
+                occupancy={occupancy} 
+                events={events} 
+                BACKEND_URL={BACKEND_URL} 
+                profile={profile} 
+                onEditProfile={openProfileModal}
+                activeTab={activePage === 'dashboard' ? 'overview' : activePage}
+                setActiveTab={setActivePage}
+              />
+            )
           )}
-        </nav>
 
-        <div className="logout-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ background: 'rgba(99, 102, 241, 0.04)', border: '1px solid var(--border)', padding: '0.85rem 1rem', borderRadius: '14px', fontSize: '0.8rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontWeight: '800', color: 'var(--primary)' }}>
-              <div className="live-dot-green" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></div>
-              SYSTEM STATUS: ONLINE
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '500' }}>
-              OCR Engine: Active
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '500', marginTop: '0.2rem' }}>
-              Backend: Express + PostgreSQL
-            </div>
-          </div>
-          <a className="nav-item" onClick={confirmLogout} style={{ margin: 0, cursor: 'pointer', color: 'var(--danger)' }}>
-            <LogOut size={20} color="var(--danger)" /> <span>Logout</span>
-          </a>
-        </div>
-      </aside>
+        </ErrorBoundary>
+      </main>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="main-wrapper">
-        <header className="top-nav" style={{ position: 'relative' }}>
-          <h2 className="page-title">{activePage.replace(/_/g, ' ').toUpperCase()}</h2>
-          <div className="top-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button className="notification-btn" onClick={() => setIsNotificationOpen(!isNotificationOpen)} style={{ position: 'relative' }}>
-              <Bell size={20} />
-              {unreadNotifCount > 0 && (
-                <span className="notification-dot" style={{ position: 'absolute', top: '-4px', right: '-4px', backgroundColor: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: '900', borderRadius: '10px', padding: '1px 5px', minWidth: '14px', textAlign: 'center', height: 'auto', width: 'auto' }}>
-                  {unreadNotifCount}
-                </span>
-              )}
-            </button>
-
-            <NotificationDrawer 
-              isOpen={isNotificationOpen} 
-              onClose={() => setIsNotificationOpen(false)} 
-              userEmail={profile.email || `${(role || 'student').toLowerCase()}@college.edu`} 
-              userRole={role} 
-              onUnreadCountChange={setUnreadNotifCount}
-              onNavigate={handleNotifNavigate} 
-            />
-
-            <div className="user-profile" onClick={openProfileModal} style={{ cursor: 'pointer', transition: 'opacity 0.2s' }} title="Edit Profile">
-              <div className="user-info">
-                <span className="user-name">{profile.name}</span>
-                <span className="user-role">{role}</span>
-              </div>
-              <div className="user-avatar">{profile.avatar}</div>
-            </div>
-
-            <button 
-              className="btn btn-logout-nav" 
-              onClick={confirmLogout} 
-              title="Sign Out of Session"
-              style={{ 
-                background: 'rgba(239, 68, 68, 0.12)', 
-                color: '#EF4444', 
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '0.5rem 0.95rem',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                fontWeight: '700',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = '#EF4444';
-                e.currentTarget.style.color = '#FFFFFF';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.35)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
-                e.currentTarget.style.color = '#EF4444';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.15)';
-              }}
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </button>
-          </div>
-        </header>
-
-        <main className="content-body">
-          <ErrorBoundary key={`${role}-${activePage}`}>
-            
-            {/* ADMIN PORTAL SWITCHING & VIEWS */}
-            {role === 'ADMIN' && (
-              <>
-                {activePage === 'dashboard' && <AdminDashboard occupancy={occupancy} events={events} onEditProfile={openProfileModal} />}
-                {activePage === 'slots' && <ManageSlots occupancy={occupancy} refreshData={refreshData} />}
-                {activePage === 'users' && <UserManagement />}
-                {activePage === 'analytics' && <Analytics />}
-                {activePage === 'feedback' && <FeedbackPage userRole="ADMIN" profile={profile} BACKEND_URL={BACKEND_URL} />}
-                {activePage === 'settings' && <SettingsPage onLogout={confirmLogout} />}
-              </>
-            )}
-
-            {/* STUDENT & FACULTY/STAFF PORTAL VIEWS */}
-            {(role === 'STUDENT' || role === 'FACULTY' || role === 'STAFF') && (
-              activePage === 'settings' ? (
-                <SettingsPage onLogout={confirmLogout} />
-              ) : activePage === 'feedback' ? (
-                <FeedbackPage userRole={role} profile={profile} BACKEND_URL={BACKEND_URL} />
-              ) : (
-                <StudentDashboard 
-                  occupancy={occupancy} 
-                  BACKEND_URL={BACKEND_URL} 
-                  profile={profile} 
-                  userRole={role}
-                  onEditProfile={openProfileModal}
-                  activeTab={activePage === 'dashboard' ? 'overview' : activePage}
-                  setActiveTab={setActivePage}
-                />
-              )
-            )}
-
-            {/* SECURITY COMMAND CENTER VIEWS */}
-            {role === 'SECURITY' && (
-              activePage === 'settings' ? (
-                <SettingsPage onLogout={confirmLogout} />
-              ) : activePage === 'feedback' ? (
-                <FeedbackPage userRole="SECURITY" profile={profile} BACKEND_URL={BACKEND_URL} />
-              ) : (
-                <SecurityDashboard 
-                  occupancy={occupancy} 
-                  events={events} 
-                  BACKEND_URL={BACKEND_URL} 
-                  profile={profile} 
-                  onEditProfile={openProfileModal}
-                  activeTab={activePage === 'dashboard' ? 'overview' : activePage}
-                  setActiveTab={setActivePage}
-                />
-              )
-            )}
-
-          </ErrorBoundary>
-        </main>
-      </div>
+      {/* PROFESSIONAL PROJECT FOOTER */}
+      <ProjectFooter 
+        onNavigate={setActivePage}
+        onReplayIntro={() => setShowSplash(true)}
+        activePage={activePage}
+        role={role}
+      />
 
       {/* Shared Edit Profile Modal */}
       {isProfileModalOpen && (
@@ -923,18 +913,35 @@ function App() {
             <strong style={{ fontSize: '0.95rem', display: 'block', margin: '2px 0' }}>{toastAlert.title}</strong>
             <p style={{ fontSize: '0.82rem', margin: 0, opacity: 0.9 }}>{toastAlert.message}</p>
           </div>
-          <button 
-            onClick={() => {
-              if (toastAlert?.id) {
-                seenToastIdsRef.current.add(toastAlert.id);
-                axios.put(`${BACKEND_URL}/notifications/${toastAlert.id}/read`).catch(() => {});
-              }
-              setToastAlert(null);
-            }}
-            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
-          >
-            Dismiss
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button 
+              onClick={() => {
+                if (toastAlert?.id) {
+                  seenToastIdsRef.current.add(toastAlert.id);
+                  axios.put(`${BACKEND_URL}/notifications/${toastAlert.id}/read`).catch(() => {});
+                }
+                const target = toastAlert?.deepLink || toastAlert?.category;
+                const currentAlert = toastAlert;
+                setToastAlert(null);
+                handleNotifNavigate(target, currentAlert);
+              }}
+              style={{ background: '#FFFFFF', border: 'none', color: '#0F172A', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer', fontSize: '0.76rem', fontWeight: '900', whiteSpace: 'nowrap' }}
+            >
+              Action →
+            </button>
+            <button 
+              onClick={() => {
+                if (toastAlert?.id) {
+                  seenToastIdsRef.current.add(toastAlert.id);
+                  axios.put(`${BACKEND_URL}/notifications/${toastAlert.id}/read`).catch(() => {});
+                }
+                setToastAlert(null);
+              }}
+              style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: '800' }}
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
@@ -983,6 +990,13 @@ function App() {
         isOpen={isAIChatOpen}
         onClose={() => setIsAIChatOpen(false)}
         currentUser={{ name: profile.name, role: role, email: profile.email, department: profile.department }}
+      />
+
+      {/* INTERACTIVE ROLE-AWARE GUIDED TOUR */}
+      <GuidedTour
+        userRole={role}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
       />
     </div>
   );

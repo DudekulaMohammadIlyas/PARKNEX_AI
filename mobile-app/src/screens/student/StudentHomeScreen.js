@@ -19,11 +19,20 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   const effectiveRole = (userProfile?.role || user?.role || 'STUDENT').toUpperCase();
   const isStaffOrFaculty = effectiveRole === 'FACULTY' || effectiveRole === 'STAFF';
   const [digitalPass, setDigitalPass] = useState(null);
-  const [recommendations, setRecommendations] = useState([
-    { slotNumber: 'C-04', zoneName: 'Central Library', score: 96, reason: '80m from CS Block • 96% vacant • EV Charger' },
-    { slotNumber: 'H-08', zoneName: 'Hostel Complex', score: 91, reason: '140m from CS Block • 100% vacant • High security' },
-    { slotNumber: 'K-12', zoneName: 'KRISHNA HOSTEL', score: 88, reason: 'Near Main Gate • 85% vacant' }
-  ]);
+  const [recommendations, setRecommendations] = useState(() => {
+    if (effectiveRole === 'STAFF' || effectiveRole === 'FACULTY') {
+      return [
+        { slotNumber: 'SP-01', zoneName: 'Staff Parking', score: 98, distanceMeters: 45, reason: '45m from Admin & Faculty Offices • Staff Priority Bay • EV Charger equipped' },
+        { slotNumber: 'SP-02', zoneName: 'Staff Parking', score: 96, distanceMeters: 48, reason: '48m from Central Admin walkway • Executive Shaded Bay' },
+        { slotNumber: 'SP-03', zoneName: 'Staff Parking', score: 95, distanceMeters: 50, reason: '50m from Central Quad • Reserved Executive Shade • FastPass barrier access' }
+      ];
+    }
+    return [
+      { slotNumber: 'K-04', zoneName: 'KRISHNA HOSTEL', score: 96, distanceMeters: 80, reason: '80m from Academic Block • Low congestion • EV Charger' },
+      { slotNumber: 'S-04', zoneName: 'South Block', score: 91, distanceMeters: 120, reason: '120m from Student Center • Shaded bays' },
+      { slotNumber: 'C-04', zoneName: 'Central Library', score: 89, distanceMeters: 100, reason: '100m from CS Block • High vacancy' }
+    ];
+  });
   const [vehicleLocation, setVehicleLocation] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [activeBooking, setActiveBooking] = useState(null);
@@ -85,7 +94,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
 
       const [passRes, recRes, zoneRes, vehRes, bookRes, profRes, notifsRes, violRes] = await Promise.allSettled([
         smartApiRequest('get', `/passes/my-pass?email=${encodeURIComponent(userEmail)}`),
-        smartApiRequest('get', `/ai/recommendations?department=Computer Science`),
+        smartApiRequest('get', `/ai/recommendations?department=Computer Science&role=${encodeURIComponent(effectiveRole)}&email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/zones?role=${encodeURIComponent(effectiveRole)}`),
         smartApiRequest('get', `/vehicles?email=${encodeURIComponent(userEmail)}`),
         smartApiRequest('get', `/bookings/my-bookings?email=${encodeURIComponent(userEmail)}`),
@@ -113,9 +122,13 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
       if (recRes.status === 'fulfilled' && Array.isArray(recRes.value.data?.recommendations)) {
         const rawRecs = recRes.value.data.recommendations;
         const filteredRecs = isStaffOrFaculty
-          ? rawRecs.filter(r => r.zoneName.toLowerCase().includes('staff') || r.zoneName.toLowerCase().includes('faculty'))
-          : rawRecs.filter(r => !r.zoneName.toLowerCase().includes('faculty') && !r.zoneName.toLowerCase().includes('staff'));
-        setRecommendations(filteredRecs.length > 0 ? filteredRecs : (isStaffOrFaculty ? [{ slotNumber: 'SP-01', zoneName: 'Staff Parking', score: 98, reason: 'Staff Exclusive • Guaranteed Space' }] : rawRecs));
+          ? rawRecs.filter(r => (r.zoneName || '').toLowerCase().includes('staff') || (r.zoneName || '').toLowerCase().includes('faculty'))
+          : rawRecs.filter(r => !(r.zoneName || '').toLowerCase().includes('faculty') && !(r.zoneName || '').toLowerCase().includes('staff'));
+        setRecommendations(filteredRecs.length > 0 ? filteredRecs : (isStaffOrFaculty ? [
+          { slotNumber: 'SP-01', zoneName: 'Staff Parking', score: 98, distanceMeters: 45, reason: '45m from Admin & Faculty Offices • Staff Priority Bay • EV Charger' },
+          { slotNumber: 'SP-02', zoneName: 'Staff Parking', score: 96, distanceMeters: 48, reason: '48m from Central Admin walkway • Executive Shaded Bay' },
+          { slotNumber: 'SP-03', zoneName: 'Staff Parking', score: 95, distanceMeters: 50, reason: '50m from Central Quad • Reserved Executive Shade • FastPass' }
+        ] : rawRecs));
       }
       if (zoneRes.status === 'fulfilled' && Array.isArray(zoneRes.value.data) && zoneRes.value.data.length > 0) {
         const rawZones = zoneRes.value.data;
@@ -250,7 +263,7 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
   useEffect(() => {
     loadProfileState();
     fetchHomeData();
-    const interval = setInterval(fetchHomeData, 3000);
+    const interval = setInterval(fetchHomeData, 10000);
 
     const unsubscribe = navigation?.addListener?.('focus', () => {
       loadProfileState();
@@ -484,11 +497,29 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
                   {isStaffOrFaculty ? '⭐ Staff / Faculty Member' : (userProfile?.department ? `🎓 ${userProfile.department}${userProfile?.academicTerm ? ` • ${userProfile.academicTerm}` : ''}` : '🎓 Campus Student Member')}
                 </Text>
               </View>
-              <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3.5, borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0' }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46' }}>
-                  🟢 Permit Active
+              <TouchableOpacity
+                onPress={() => navigation?.navigate('Pass')}
+                style={{
+                  backgroundColor: digitalPass?.isExpired ? '#FEE2E2' : (digitalPass?.daysRemaining <= 3 ? '#FEF3C7' : '#ECFDF5'),
+                  paddingHorizontal: 9,
+                  paddingVertical: 3.5,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: digitalPass?.isExpired ? '#FCA5A5' : (digitalPass?.daysRemaining <= 3 ? '#FCD34D' : '#A7F3D0'),
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <Text style={{
+                  fontSize: 11,
+                  fontWeight: '800',
+                  color: digitalPass?.isExpired ? '#B91C1C' : (digitalPass?.daysRemaining <= 3 ? '#B45309' : '#065F46')
+                }}>
+                  {digitalPass?.isExpired ? '⛔ Permit Expired' : (digitalPass?.daysRemaining !== undefined ? `🟢 Permit: ${digitalPass.daysRemaining}d Left` : '🟢 Permit Active')}
                 </Text>
-              </View>
+                <Ionicons name="chevron-forward" size={12} color={digitalPass?.isExpired ? '#B91C1C' : (digitalPass?.daysRemaining <= 3 ? '#B45309' : '#065F46')} />
+              </TouchableOpacity>
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -741,74 +772,63 @@ export default function StudentHomeScreen({ occupancy, navigation, user }) {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 16 }}>
-          {/* CARD 1: TOP PICK #1 */}
-          <TouchableOpacity 
-            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 2, borderColor: '#2563EB', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 }}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Book')}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#2563EB' }}>🏆 TOP PICK #1</Text>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>96% Match</Text>
-            </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot C-04 (Central Library)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
-              80m from CS Block • 30% vacant • EV Charger available
-            </Text>
-            <TouchableOpacity 
-              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center', shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}
-              onPress={() => navigation.navigate('Book')}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot C-04</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {/* CARD 2: RECOMMENDATION #2 */}
-          <TouchableOpacity 
-            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Book')}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#2 RECOMMENDATION</Text>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>91% Match</Text>
-            </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot H-08 (Hostel Complex)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
-              140m from CS Block • 45% vacant
-            </Text>
-            <TouchableOpacity 
-              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
-              onPress={() => navigation.navigate('Book')}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot H-08</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {/* CARD 3: RECOMMENDATION #3 */}
-          <TouchableOpacity 
-            style={{ width: 280, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Book')}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B' }}>#3 RECOMMENDATION</Text>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>86% Match</Text>
-            </View>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>Slot K-22 (KRISHNA HOSTEL)</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
-              210m from Library • 88% vacant • Covered shade
-            </Text>
-            <TouchableOpacity 
-              style={{ backgroundColor: '#4F46E5', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
-              onPress={() => navigation.navigate('Book')}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>Reserve Slot K-22</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
+          {recommendations.map((rec, index) => {
+            const isTop = index === 0;
+            return (
+              <TouchableOpacity 
+                key={`${rec.zoneName}-${rec.slotNumber}-${index}`}
+                style={{
+                  width: 280,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 18,
+                  padding: 16,
+                  borderWidth: isTop ? 2 : 1,
+                  borderColor: isTop ? '#2563EB' : '#E2E8F0',
+                  shadowColor: isTop ? '#2563EB' : '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isTop ? 0.1 : 0.05,
+                  shadowRadius: isTop ? 10 : 8,
+                  elevation: isTop ? 4 : 2
+                }}
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate('Book', { zone: rec.zoneName, slot: rec.slotNumber })}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: isTop ? '#2563EB' : '#64748B' }}>
+                    {isTop ? '🏆 TOP PICK #1' : `#${index + 1} RECOMMENDATION`}
+                  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#059669' }}>
+                    {rec.score || (isTop ? 98 : 95 - index * 3)}% Match
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A' }}>
+                  Slot {rec.slotNumber} ({rec.zoneName})
+                </Text>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, marginBottom: 14, lineHeight: 18, fontWeight: '600' }}>
+                  {rec.reason || `${rec.distanceMeters || 45}m from Academic Block • Available Now`}
+                </Text>
+                <TouchableOpacity 
+                  style={{
+                    backgroundColor: '#4F46E5',
+                    paddingVertical: 12,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    shadowColor: '#4F46E5',
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 3
+                  }}
+                  onPress={() => navigation.navigate('Book', { zone: rec.zoneName, slot: rec.slotNumber })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>
+                    Reserve Slot {rec.slotNumber}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* QUICK ACTION CARDS WITH FRESH ONBOARDING FALLBACKS */}

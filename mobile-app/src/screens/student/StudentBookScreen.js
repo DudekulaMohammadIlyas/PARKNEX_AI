@@ -20,16 +20,19 @@ const getCurrentTimeStr = () => {
   return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
 };
 
-export default function StudentBookScreen({ navigation }) {
+export default function StudentBookScreen({ navigation, route }) {
+  const routeZone = route?.params?.zone;
+  const routeSlot = route?.params?.slot;
   const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [selectedZone, setSelectedZone] = useState('KRISHNA HOSTEL');
-  const [selectedSlot, setSelectedSlot] = useState('K-04');
+  const [selectedZone, setSelectedZone] = useState(() => routeZone || 'KRISHNA HOSTEL');
+  const [selectedSlot, setSelectedSlot] = useState(() => routeSlot || 'K-04');
   const [bookingDate, setBookingDate] = useState(getTodayDateStr());
   const [bookingTime, setBookingTime] = useState(getCurrentTimeStr());
   const [durationHours, setDurationHours] = useState(4);
   const [historyList, setHistoryList] = useState([]);
+  const [allCampusBookings, setAllCampusBookings] = useState([]);
 
   // Popup overlay states
   const [isVehiclePickerOpen, setIsVehiclePickerOpen] = useState(false);
@@ -48,6 +51,16 @@ export default function StudentBookScreen({ navigation }) {
     { id: 'z9', name: 'Scad', capacity: 75, isFaculty: false }
   ]);
 
+  // Synchronize route parameters whenever passed from recommendation cards
+  useEffect(() => {
+    if (route?.params?.zone) {
+      setSelectedZone(route.params.zone);
+    }
+    if (route?.params?.slot) {
+      setSelectedSlot(route.params.slot);
+    }
+  }, [route?.params?.zone, route?.params?.slot]);
+
   // Render 150 slot matrix for Krishna Hostel
   const krishnaSlots = Array.from({ length: 150 }, (_, i) => {
     const num = (i + 1).toString().padStart(2, '0');
@@ -62,9 +75,17 @@ export default function StudentBookScreen({ navigation }) {
         const role = (userObj?.role || 'STUDENT').toUpperCase();
         const isStaff = role === 'FACULTY' || role === 'STAFF';
 
-        const res = await smartApiRequest('get', `/zones?role=${encodeURIComponent(role)}`);
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          const mapped = res.data.map(z => ({
+        const [res, allBookingsRes] = await Promise.allSettled([
+          smartApiRequest('get', `/zones?role=${encodeURIComponent(role)}`),
+          smartApiRequest('get', '/bookings/all')
+        ]);
+
+        if (allBookingsRes.status === 'fulfilled' && Array.isArray(allBookingsRes.value?.data)) {
+          setAllCampusBookings(allBookingsRes.value.data);
+        }
+
+        if (res.status === 'fulfilled' && Array.isArray(res.value?.data) && res.value.data.length > 0) {
+          const mapped = res.value.data.map(z => ({
             id: z.id,
             name: z.name,
             capacity: z.capacity || z.total || 100,
@@ -74,10 +95,10 @@ export default function StudentBookScreen({ navigation }) {
             ? mapped.filter(z => z.isStaff)
             : mapped.filter(z => !z.isStaff);
           setZonesList(filtered);
-          if (isStaff && (!selectedZone.toLowerCase().includes('staff') && !selectedZone.toLowerCase().includes('faculty'))) {
+          if (isStaff && !routeZone && (!selectedZone.toLowerCase().includes('staff') && !selectedZone.toLowerCase().includes('faculty'))) {
             setSelectedZone(filtered[0]?.name || 'Staff Parking');
             setSelectedSlot('SP-01');
-          } else if (!isStaff && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
+          } else if (!isStaff && !routeZone && (selectedZone.toLowerCase().includes('faculty') || selectedZone.toLowerCase().includes('staff'))) {
             setSelectedZone(filtered[0]?.name || 'KRISHNA HOSTEL');
             setSelectedSlot('K-04');
           }
@@ -172,19 +193,32 @@ export default function StudentBookScreen({ navigation }) {
       return;
     }
 
-    const targetPlate = selectedVehicle.plate;
+    // 1. Check if this specific slot in this zone is ALREADY booked for the selected date (Personal or Campus-wide)!
+    const selSlotClean = selectedSlot.replace(/^Slot\s*/i, '').trim().toUpperCase();
+    const selZoneClean = selectedZone.replace(/^Zone\s*/i, '').trim().toLowerCase();
 
-    // 1. Check if this specific slot in this zone is ALREADY booked for the selected date!
-    const isSlotBooked = historyList.some(b => {
-      const bSlot = (b.slot || '').replace(/^Slot\s*/, '');
-      const bZone = (b.zone || '').replace(/^Zone\s*/, '');
-      const selSlot = selectedSlot.replace(/^Slot\s*/, '');
-      const selZone = selectedZone.replace(/^Zone\s*/, '');
-      return bSlot === selSlot && (bZone === selZone || b.zone === selectedZone) && b.date === bookingDate && b.status === 'CONFIRMED';
+    const isSlotBookedLocally = historyList.some(b => {
+      const bSlot = (b.slot || b.slotNumber || '').replace(/^Slot\s*/i, '').trim().toUpperCase();
+      const bZone = (b.zone || b.zoneName || '').replace(/^Zone\s*/i, '').trim().toLowerCase();
+      const bDate = b.date || b.bookingDate;
+      return bSlot === selSlotClean && 
+             (bZone === selZoneClean || bZone.includes(selZoneClean) || selZoneClean.includes(bZone)) && 
+             bDate === bookingDate && 
+             b.status === 'CONFIRMED';
     });
 
-    if (isSlotBooked) {
-      Alert.alert('Slot Unavailable', `Slot ${selectedSlot} in ${selectedZone} is ALREADY booked on ${bookingDate}.\n\nPlease select another slot or choose a different date.`);
+    const isSlotBookedCampusWide = allCampusBookings.some(b => {
+      const bSlot = (b.slotNumber || b.slot || b.slot?.slotNumber || '').replace(/^Slot\s*/i, '').trim().toUpperCase();
+      const bZone = (b.zoneName || b.zone || b.slot?.zone?.name || '').replace(/^Zone\s*/i, '').trim().toLowerCase();
+      const bDate = b.bookingDate || b.date;
+      return bSlot === selSlotClean && 
+             (bZone === selZoneClean || bZone.includes(selZoneClean) || selZoneClean.includes(bZone)) && 
+             bDate === bookingDate && 
+             b.status === 'CONFIRMED';
+    });
+
+    if (isSlotBookedLocally || isSlotBookedCampusWide) {
+      Alert.alert('Slot Unavailable', `Slot ${selectedSlot} in ${selectedZone} is ALREADY booked on ${bookingDate} by another user.\n\nPlease select another slot or choose a different date.`);
       return;
     }
 
@@ -232,7 +266,7 @@ export default function StudentBookScreen({ navigation }) {
     };
 
     try {
-      await smartApiRequest('post', '/bookings', {
+      const res = await smartApiRequest('post', '/bookings', {
         slotNumber: selectedSlot,
         zoneName: selectedZone,
         plateNumber: targetPlate,
@@ -244,22 +278,30 @@ export default function StudentBookScreen({ navigation }) {
         bookingTime,
         durationHours
       });
-    } catch (e) {}
 
-    const updatedHistory = [newBookingRecord, ...historyList];
-    setHistoryList(updatedHistory);
+      if (res?.data?.success === false) {
+        Alert.alert('Reservation Failed', res?.data?.error || 'Slot is unavailable.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    await AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(updatedHistory));
+      const updatedHistory = [newBookingRecord, ...historyList];
+      setHistoryList(updatedHistory);
+      setAllCampusBookings(prev => [newBookingRecord, ...prev]);
 
-    setIsSubmitting(false);
+      await AsyncStorage.setItem(`@parknex_history_${userEmail.toLowerCase()}`, JSON.stringify(updatedHistory));
 
-    Alert.alert(
-      'Reservation Confirmed!',
-      `Slot ${selectedSlot} in ${selectedZone} reserved for ${targetPlate} on ${bookingDate} at ${bookingTime}.`,
-      [
-        { text: 'OK', onPress: () => navigation.navigate('Home') }
-      ]
-    );
+      setIsSubmitting(false);
+      Alert.alert(
+        'Booking Confirmed! 🎉',
+        `Slot ${selectedSlot} in ${selectedZone} reserved successfully for vehicle ${targetPlate}!`,
+        [{ text: 'View Passes', onPress: () => navigation.navigate('Pass') }]
+      );
+    } catch (e) {
+      const errorMsg = e.response?.data?.error || e.message || 'Slot reservation failed.';
+      Alert.alert('Reservation Failed', errorMsg);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -372,7 +414,31 @@ export default function StudentBookScreen({ navigation }) {
 
                 return zoneSlots.map(s => {
                   const isSelected = selectedSlot === s;
-                  const isTaken = historyList.some(h => (h.slot === s || h.slot === `Slot ${s}`) && h.date === bookingDate && h.status === 'CONFIRMED');
+                  const sClean = s.replace(/^Slot\s*/i, '').trim().toUpperCase();
+                  const reqZoneClean = selectedZone.replace(/^Zone\s*/i, '').trim().toLowerCase();
+
+                  const isTakenLocally = historyList.some(h => {
+                    const hSlot = (h.slot || h.slotNumber || '').replace(/^Slot\s*/i, '').trim().toUpperCase();
+                    const hZone = (h.zone || h.zoneName || '').replace(/^Zone\s*/i, '').trim().toLowerCase();
+                    const hDate = h.date || h.bookingDate;
+                    return hSlot === sClean && 
+                           (hZone === reqZoneClean || hZone.includes(reqZoneClean) || reqZoneClean.includes(hZone)) && 
+                           hDate === bookingDate && 
+                           h.status === 'CONFIRMED';
+                  });
+
+                  const isTakenCampusWide = allCampusBookings.some(h => {
+                    const hSlot = (h.slotNumber || h.slot || h.slot?.slotNumber || '').replace(/^Slot\s*/i, '').trim().toUpperCase();
+                    const hZone = (h.zoneName || h.zone || h.slot?.zone?.name || '').replace(/^Zone\s*/i, '').trim().toLowerCase();
+                    const hDate = h.bookingDate || h.date;
+                    return hSlot === sClean && 
+                           (hZone === reqZoneClean || hZone.includes(reqZoneClean) || reqZoneClean.includes(hZone)) && 
+                           hDate === bookingDate && 
+                           h.status === 'CONFIRMED';
+                  });
+
+                  const isTaken = isTakenLocally || isTakenCampusWide;
+
                   return (
                     <TouchableOpacity
                       key={s}

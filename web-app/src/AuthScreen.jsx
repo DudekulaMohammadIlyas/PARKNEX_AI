@@ -16,7 +16,7 @@ import { supabase } from './supabaseClient';
 
 const BACKEND_URL = 'http://localhost:5000/api';
 
-export default function AuthScreen({ onLogin, initialMode = 'login' }) {
+export default function AuthScreen({ onLogin, initialMode = 'login', onReplayIntro }) {
   const [authMode, setAuthMode] = useState(initialMode); // 'login' | 'signup' | 'forgot' | 'reset'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -196,17 +196,50 @@ export default function AuthScreen({ onLogin, initialMode = 'login' }) {
 
   return (
     <div className="auth-wrapper" style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '3rem', borderRadius: '28px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.8)' }}>
+      <div 
+        className="card animate-fade-in" 
+        style={{ 
+          width: '100%', 
+          maxWidth: '440px', 
+          padding: '2.5rem 2rem', 
+          borderRadius: '24px', 
+          border: '1px solid rgba(255, 255, 255, 0.14)', 
+          background: 'rgba(15, 27, 46, 0.85)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(59, 130, 246, 0.2)'
+        }}
+      >
+        {/* REPLAY INTRO SHORTCUT */}
+        {onReplayIntro && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <button
+              type="button"
+              onClick={onReplayIntro}
+              className="btn-glass-secondary"
+              style={{
+                fontSize: '0.76rem',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '20px',
+                gap: '0.4rem',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
+                background: 'rgba(15, 27, 46, 0.7)'
+              }}
+            >
+              <span>🎬 Replay Cinematic Intro</span>
+            </button>
+          </div>
+        )}
         
         {/* LOGO HEADER */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', padding: '1.25rem', background: 'linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%)', borderRadius: '24px', marginBottom: '1.5rem', boxShadow: '0 0 20px rgba(99,102,241,0.2)' }}>
-            <CarFront size={48} color="#ffffff" />
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div style={{ display: 'inline-flex', padding: '1.15rem', background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)', borderRadius: '22px', marginBottom: '1.25rem', boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+            <CarFront size={44} color="#FFFFFF" />
           </div>
-          <h1 style={{ fontSize: '2.25rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(to right, #0f172a, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            ParkNex-AI
+          <h1 style={{ fontSize: '2.15rem', fontWeight: '900', letterSpacing: '-0.8px', background: 'linear-gradient(90deg, #FFFFFF 0%, #93C5FD 50%, #C4B5FD 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            ParkNex AI
           </h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
+          <p style={{ color: '#94A3B8', marginTop: '0.4rem', fontWeight: '500', fontSize: '0.88rem' }}>
             {authMode === 'login' && 'Sign in to access your campus dashboard'}
             {authMode === 'signup' && 'Create an account to get started'}
             {authMode === 'forgot' && 'Reset your campus portal password'}

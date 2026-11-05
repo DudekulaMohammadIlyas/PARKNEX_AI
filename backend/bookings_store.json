@@ -1,5 +1,186 @@
 [
   {
+    "id": "b_hospital_h13_1793779109913",
+    "userEmail": "mraghavendra6305@gmail.com",
+    "zoneName": "HOSPITAL PARKING",
+    "slotNumber": "H-13",
+    "plateNumber": "KA-09-ZZ-9999",
+    "durationHours": 6,
+    "bookingDate": "2026-11-04",
+    "bookingTime": "12:30 PM",
+    "status": "CONFIRMED",
+    "slot": {
+      "slotNumber": "H-13",
+      "zone": {
+        "name": "HOSPITAL PARKING"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "KA-09-ZZ-9999"
+    }
+  },
+  {
+    "id": "3e47be79-38e4-42e8-92ec-10e1170dbc52",
+    "userEmail": "mraghavendra6305@gmail.com",
+    "zoneName": "HOSPITAL PARKING",
+    "slotNumber": "H-07",
+    "plateNumber": "AP03CH4591",
+    "durationHours": 4,
+    "bookingDate": "2026-11-04",
+    "bookingTime": "12:55 PM",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "H-07",
+      "zone": {
+        "name": "HOSPITAL PARKING"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP03CH4591"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-04T07:36:10.051Z",
+    "exitedAt": "2026-11-04T07:36:10.051Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Web Command Center QR Scanner"
+  },
+  {
+    "id": "1c98cb2c-3fac-4ac6-b83b-2a3fea772547",
+    "userEmail": "sandeepkumarnv2026.sse@saveetha.com",
+    "zoneName": "HOSPITAL PARKING",
+    "slotNumber": "H-06",
+    "plateNumber": "AP02CH0232",
+    "durationHours": 4,
+    "bookingDate": "2026-11-04",
+    "bookingTime": "12:51",
+    "status": "CONFIRMED",
+    "slot": {
+      "slotNumber": "H-06",
+      "zone": {
+        "name": "HOSPITAL PARKING"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP02CH0232"
+    }
+  },
+  {
+    "id": "ca3cf67e-7f15-4437-96c2-29d13ceabbea",
+    "userEmail": "admin@college.edu",
+    "plateNumber": "KA-09-ZZ-9999",
+    "slotNumber": "E-10",
+    "zoneName": "EEE_BESIDE",
+    "durationHours": 3,
+    "bookingTime": "08:25 PM",
+    "bookingDate": "2026-11-02",
+    "status": "EXITED",
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-04T07:00:33.972Z",
+    "exitedAt": "2026-11-04T07:00:33.972Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
+  },
+  {
+    "id": "3147a494-d5e6-4bc2-bc93-f2472f63268e",
+    "userEmail": "mraghavendra6305@gmail.com",
+    "zoneName": "Hostel Complex",
+    "slotNumber": "HC-19",
+    "plateNumber": "AP03CH4591",
+    "durationHours": 4,
+    "bookingDate": "2026-11-02",
+    "bookingTime": "21:39",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "HC-19",
+      "zone": {
+        "name": "Hostel Complex"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP03CH4591"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-04T07:01:15.121Z",
+    "exitedAt": "2026-11-04T07:01:15.121Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
+  },
+  {
+    "id": "7e6e466b-57ae-4769-9eeb-8189bddc1485",
+    "userEmail": "sandeepkumarnv2026.sse@saveetha.com",
+    "zoneName": "Hostel Complex",
+    "slotNumber": "HC-14",
+    "plateNumber": "AP02CH0232",
+    "durationHours": 4,
+    "bookingDate": "2026-11-02",
+    "bookingTime": "21:38",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "HC-14",
+      "zone": {
+        "name": "Hostel Complex"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP02CH0232"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-04T07:06:32.823Z",
+    "exitedAt": "2026-11-04T07:06:32.823Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
+  },
+  {
+    "id": "70908e13-2610-4fa3-ad30-952f93b95e25",
+    "userEmail": "sandeepkumarnv2026.sse@saveetha.com",
+    "zoneName": "EEE_BESIDE",
+    "slotNumber": "E-04",
+    "plateNumber": "AP02CH0232",
+    "durationHours": 4,
+    "bookingDate": "2026-11-02",
+    "bookingTime": "12:53",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "E-04",
+      "zone": {
+        "name": "EEE_BESIDE"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP02CH0232"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-02T16:07:56.556Z",
+    "exitedAt": "2026-11-02T16:07:56.556Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
+  },
+  {
+    "id": "40f11ee7-847d-4215-bdae-2ca1422f67e1",
+    "userEmail": "mraghavendra6305@gmail.com",
+    "zoneName": "EEE_BESIDE",
+    "slotNumber": "E-03",
+    "plateNumber": "AP03CH4591",
+    "durationHours": 4,
+    "bookingDate": "2026-11-02",
+    "bookingTime": "12:50",
+    "status": "EXITED",
+    "slot": {
+      "slotNumber": "E-03",
+      "zone": {
+        "name": "EEE_BESIDE"
+      }
+    },
+    "vehicle": {
+      "plateNumber": "AP03CH4591"
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-11-02T16:07:02.521Z",
+    "exitedAt": "2026-11-02T16:07:02.521Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
+  },
+  {
     "id": "dc23fcf5-e3d8-4448-9c06-84672276b467",
     "userEmail": "faculty1@gmail.com",
     "zoneName": "Staff Parking",
@@ -8,7 +189,7 @@
     "durationHours": 4,
     "bookingDate": "2026-10-28",
     "bookingTime": "17:06",
-    "status": "CONFIRMED",
+    "status": "EXITED",
     "slot": {
       "slotNumber": "SP-75",
       "zone": {
@@ -17,7 +198,12 @@
     },
     "vehicle": {
       "plateNumber": "AP 32 NLR 5432"
-    }
+    },
+    "releaseStatus": "RELEASED",
+    "releasedAt": "2026-10-31T04:01:44.696Z",
+    "exitedAt": "2026-10-31T04:01:44.696Z",
+    "releasedBy": "security@college.edu",
+    "remarks": "Released via Mobile Security Scanner"
   },
   {
     "id": "82fed329-ed50-4e8f-ab44-e237df6ddf82",

@@ -1,5 +1,376 @@
 [
   {
+    "id": "1793777781054",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793777665840",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793777452909",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793777040843",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793776957976",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793775998947",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP02CH0232 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793775980035",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793775940401",
+    "type": "USER",
+    "text": "🔑 User Login: sandeepkumar (sandeepkumarnv2026.sse@saveetha.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793775833937",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793775677668",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793775635376",
+    "type": "EXIT",
+    "text": "🚪 Vehicle KA-09-ZZ-9999 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793775623667",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793640177092",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793635731246",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793635677649",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP02CH0232 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793635661976",
+    "type": "USER",
+    "text": "🔑 User Login: sandeepkumar (sandeepkumarnv2026.sse@saveetha.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793635623739",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP03CH4591 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793635449523",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793634522546",
+    "type": "USER",
+    "text": "User account u1 access set to ACTIVE",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793634522460",
+    "type": "USER",
+    "text": "User account u1 access set to SUSPENDED",
+    "time": "Just now",
+    "color": "#EF4444"
+  },
+  {
+    "id": "1793604361327",
+    "type": "USER",
+    "text": "🔑 User Login: bhanu (hemasaisiddarthahemasai@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793604141906",
+    "type": "USER",
+    "text": "🔑 User Login: sandeepkumar (sandeepkumarnv2026.sse@saveetha.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793599242540",
+    "type": "USER",
+    "text": "✏️ Profile Updated: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793599222903",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793599150313",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793598937787",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793419577614",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #da7fdbed-4bfe-4730-bc1a-9dc3e7ad8f38 Resolved for Vehicle da7fdbed-4bfe-4730-bc1a-9dc3e7ad8f38 by admin@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793419490223",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793419441652",
+    "type": "FEEDBACK",
+    "text": "⭐ Feedback submitted: 5★ by Dr john",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793419310642",
+    "type": "EXIT",
+    "text": "🚪 Vehicle AP 32 NLR 5432 RELEASED via QR Scan by Officer security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793419294262",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793419182035",
+    "type": "USER",
+    "text": "🔑 User Login: Dr john (faculty1@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793418954157",
+    "type": "USER",
+    "text": "🔑 User Login: raghavendra (mraghavendra6305@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793418841158",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793366908513",
+    "type": "USER",
+    "text": "🔑 User Login: Dr. Ramesh Staff (staff@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793366782740",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793278001171",
+    "type": "USER",
+    "text": "🔑 User Login: Nageswar Bellamkonda (nageswarbellamkonda56@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793277655637",
+    "type": "PASS",
+    "text": "🎫 Permit Renewed for student@college.edu (180d - ₹1,499.00)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793277096245",
+    "type": "PASS",
+    "text": "🎫 Permit Renewed for student@college.edu (30d - ₹499.00)",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793275787906",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #1793275787063 Resolved for Vehicle TN-07-EMG-1111 by security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793275787255",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate TN-07-EMG-1111 (Fine: ₹1000) by admin@college.edu",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1793275669571",
+    "type": "TICKET",
+    "text": "✅ Violation Ticket #1793275668253 Resolved for Vehicle TN-09-ADM-9999 by security@college.edu",
+    "time": "Just now",
+    "color": "#10B981"
+  },
+  {
+    "id": "1793275668459",
+    "type": "TICKET",
+    "text": "🎟️ Violation Ticket Issued for Plate TN-09-ADM-9999 (Fine: ₹750) by admin@college.edu",
+    "time": "Just now",
+    "color": "#F59E0B"
+  },
+  {
+    "id": "1793270569980",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793254769009",
+    "type": "USER",
+    "text": "🔑 User Login: Dr john (faculty1@gmail.com)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793251946260",
+    "type": "USER",
+    "text": "🔑 User Login: Dr. Smith (faculty@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793251698335",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793249869396",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793245553400",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793245510823",
+    "type": "USER",
+    "text": "🔑 User Login: security Manager (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793244370509",
+    "type": "USER",
+    "text": "🔑 User Login: Alex Carter (student@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793244177390",
+    "type": "USER",
+    "text": "🔑 User Login: Officer Davis (security@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
+    "id": "1793242941212",
+    "type": "USER",
+    "text": "🔑 User Login: System Admin (admin@college.edu)",
+    "time": "Just now",
+    "color": "#2563EB"
+  },
+  {
     "id": "1793187895206",
     "type": "USER",
     "text": "🔑 User Login: Nageswar Bellamkonda (nageswarbellamkonda56@gmail.com)",
